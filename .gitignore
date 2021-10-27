@@ -14,9 +14,12 @@ build/
 *.egg-info/
 
 *.xml
+*.csv
 *.iml
+*.ipynb
 
 data/
+logs/
 *.p
 bustool/Test_database.db
 .DS_Store

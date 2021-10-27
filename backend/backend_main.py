@@ -1,5 +1,6 @@
 from logger.backend_logger import getLogger
-from shape_generation.shape_generation import shape_gen_test
+from shape_generation.shape_generation import shape_gen
+from parameters.rove_parameters import ROVE_params
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
@@ -15,19 +16,16 @@ METRIC_CAL_AGG_OPTION = False # True/False: whether run metric calculation and a
 
 backendLogger = getLogger('backendLogger')
 
-def run_backend():
+def __main__():
     if AGENCY not in SUPPORTED_AGENCIES:
         backendLogger.error(f'Agency "{AGENCY}" is not supported, exiting backend...')
         quit()
     backendLogger.info(f'Starting ROVE backend processes for {AGENCY}')
-    # params = 
+    params = ROVE_params(MONTH, YEAR, DATE_OPTION, MODE_OPTION)
     if SHAPE_GENERATION_OPTION:
         sgLogger = getLogger('shapeGenLogger')
-        shape_gen_test(sgLogger)
+        shape_gen(sgLogger)
     
 
-run_backend()
-
-
-# print(locals())
-# print(globals())
+if __name__ == "__main__":
+    __main__()
