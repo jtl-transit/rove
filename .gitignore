@@ -15,8 +15,10 @@ build/
 
 *.xml
 *.csv
+*.txt
 *.iml
 *.ipynb
+test.py
 
 data/
 logs/
