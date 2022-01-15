@@ -5,6 +5,7 @@ from abc import ABCMeta, abstractmethod
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
+import numpy as np
 import logging
 import traceback
 
@@ -37,9 +38,6 @@ class GTFS():
         self._feed = ptg.load_feed(self.in_path, view)
         self._geo_feed = ptg.load_geo_feed(self.in_path, view)
 
-        # DataFrame : GTFS trips table, read-only
-        self._trips = self.feed.trips
-
         # DataFrame : result of inner joining trips and stop_events tables on trip_id
         self.stop_times_trips = pd.DataFrame()
 
@@ -51,6 +49,9 @@ class GTFS():
 
         # dict <str: list(tuple(float, float))> : lookup dict of trip_ids: list of stop coordinates (lat, lon)
         self.trip_coords_dict = dict()
+
+        # dict <tuple(str, int, int): 
+        self.pattern_dict = dict()
     
     @property
     def service_id_list(self):
@@ -83,11 +84,6 @@ class GTFS():
         return self._geo_feed
 
     @property
-    def trips(self):
-
-        return self._trips
-
-    @property
     def stop_times_trips(self):
         """Get joined stop_times and trips
 
@@ -103,6 +99,9 @@ class GTFS():
         Args:
             df (DataFrame): user-defined stop_times_trips DataFrame
         """
+        if not isinstance(df, DataFrame):
+            raise TypeError('stop_times_trips must be given as a DataFrame')
+
         if df.empty:
             feed = self.feed
             try:
@@ -144,7 +143,7 @@ class GTFS():
             TypeError: if timepoints are not given in a DataFrame
         """
         if not isinstance(timepoints, DataFrame):
-            raise TypeError('timepoints must be a DataFrame')
+            raise TypeError('timepoints must be given as a DataFrame')
 
         if timepoints.empty:
             try:
@@ -176,7 +175,7 @@ class GTFS():
     def trip_stops_dict(self, trip_stops_dict):
 
         if not isinstance(trip_stops_dict, dict):
-            raise TypeError('trip_stops_dict must be a dict')
+            raise TypeError('trip_stops_dict must be given as a dict')
 
         if not trip_stops_dict:
             self._trip_stops_dict = self.stop_times_trips.groupby('trip_id')['stop_id'].agg(list).to_dict()
@@ -188,12 +187,14 @@ class GTFS():
     @property
     def trip_coords_dict(self):
 
-        return self._trip_stops_dict
+        return self._trip_coords_dict
     
     @trip_coords_dict.setter
-    def trip_coords_dict(self, trip_stops_dict):
+    def trip_coords_dict(self, trip_coords_dict):
+        if not isinstance(trip_coords_dict, dict):
+            raise TypeError('trip_coords_dict must be given as a dict')
 
-        if not trip_stops_dict:
+        if not trip_coords_dict:
             feed = self.feed
             stops = feed.stops[['stop_id','stop_lat','stop_lon']].copy()
             stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
@@ -201,15 +202,67 @@ class GTFS():
             logger.debug(f'stops: \n{get_data_stats(stops)}')
 
             stop_times_trips_stops = pd.merge(self.stop_times_trips, stops, on='stop_id', how='inner')
-            self._trip_stops_dict = stop_times_trips_stops.groupby('trip_id')['coords'].agg(list).to_dict()
+            self._trip_coords_dict = stop_times_trips_stops.groupby('trip_id')['coords'].agg(list).to_dict()
         else:
-            self._trip_stops_dict = trip_stops_dict
+            self._trip_coords_dict = trip_coords_dict
 
-        logger.debug(f'trip_stops_dict generated for {len(self._trip_stops_dict.keys())} trips')
+        logger.debug(f'trip_coords_dict generated for {len(self._trip_coords_dict.keys())} trips')
+    
+    @property
+    def pattern_dict(self):
+
+        return self._pattern_dict
+
+    @pattern_dict.setter
+    def pattern_dict(self, pattern_dict):
+        """Get pattern dict. Key: pattern (route-direction-count). Value: Pattern object
+
+        Args:
+            pattern_dict ([type]): [description]
+
+        Raises:
+            TypeError: [description]
+        """
+        if not isinstance(pattern_dict, dict):
+            raise TypeError('pattern_dict must be given as a dict')
+
+        if not pattern_dict:
+            trips = self.stop_times_trips[['trip_id', 'route_id', 'direction_id']].drop_duplicates()
+            trips = trips[trips['trip_id'].isin(self.trip_stops_dict.keys())]
+            trips['hash'] = trips['trip_id'].apply(lambda r: get_pattern_hash(self.trip_stops_dict[r]))
+
+            # # Count how many times each route-hash combination appears
+            # pattern_counts = trips.groupby(['route_id','hash','direction_id']).size().reset_index(name='count')
+            
+            route_dir_pattern_trips_dict = trips.groupby(['route_id', 'direction_id', 'hash'])['trip_id'].agg(list).to_dict()
+            trips.drop_duplicates(subset=['route_id', 'direction_id','hash'], inplace=True)
+
+            # Get the trip_ids associated with each route-hash combination as a list of lists
+            trip_dict = trips.groupby(['route_id','hash'])['trip_id'].agg(list).to_dict()
+        else:
+            self._pattern_dict = pattern_dict
+    
     # def load(self, view):
 
     #     self.feed = ptg.load_feed(self.in_path, view)
     #     self.geo_feed = ptg.load_geo_feed(self.in_path, view)
+
+def get_pattern_hash(stops):
+    """Get hash of a list of stop IDs
+        hashing function: hash = sum(2*sequence of stop)**2 + stop_value**3)
+
+    Args:
+        stops (list(str)): list of stop IDs, 
+
+    Returns:
+        int: hash value of stop
+    """
+    # TODO: verify that the hashing function does indeed generate unique hash for different stop combinations
+    convert_stop_value = lambda stop: int(stop) if str(stop).isnumeric() else sum([ord(c) for c in stop])
+    hash = sum((2*np.arange(1,len(stops)+1))**2) + sum(np.array([convert_stop_value(s) for s in stops])**3)
+
+    return hash
+
 
 def get_data_stats(df):
     """Get count, min and max of all dataframe columns
