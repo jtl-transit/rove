@@ -10,11 +10,12 @@ SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "04" # MM in string format
 YEAR = "2019" # YYYY in string format
-DATE_OPTION = "Workday" # Workday, Saturday, Sunday
-MODE_OPTION = "GTFS-AVL-ODX" # GTFS, GTFS-AVL, GTFS-AVL-ODX
-SHAPE_GENERATION_OPTION = True # True/False: whether generate shapes
-LINK_SELECTION_OPTION = False # True/False: whether generate input for link selection map in ROVE
-METRIC_CAL_AGG_OPTION = False # True/False: whether run metric calculation and aggregation
+DATE_TYPE = "Workday" # Workday, Saturday, Sunday
+MODE_OPTION = ['shape_generation']
+DATA_OPTION = ['GTFS', 'AVL', 'ODX'] # GTFS, GTFS-AVL, GTFS-AVL-ODX
+# SHAPE_GENERATION_OPTION = True # True/False: whether generate shapes
+# LINK_SELECTION_OPTION = False # True/False: whether generate input for link selection map in ROVE
+# METRIC_CAL_AGG_OPTION = False # True/False: whether run metric calculation and aggregation
 # --------------------------------END PARAMETERS--------------------------------------
 
 logger = getLogger('backendLogger')
@@ -25,11 +26,12 @@ def __main__():
         logger.fatal(f'Agency "{AGENCY}" is not supported, exiting backend...')
         quit()
 
-    logger.info(f'Starting ROVE backend processes for {AGENCY}, {MONTH}-{YEAR}. Mode: {DATE_OPTION}, {MODE_OPTION}.')
+    logger.info(f'Starting ROVE backend processes for {AGENCY}, {MONTH}-{YEAR}. \
+                    Data: {DATA_OPTION}. Mode: {DATE_TYPE}, {MODE_OPTION}.')
 
     # -----parameters-----
     logger.info(f'Generating parameters...')
-    params = ROVE_params(AGENCY, MONTH, YEAR, DATE_OPTION, MODE_OPTION)
+    params = ROVE_params(AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION)
     logger.info(f'parameters generated')
 
     # ------data generation------
