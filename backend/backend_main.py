@@ -1,33 +1,50 @@
+import logging
 from logger.backend_logger import getLogger
-from shape_generation.shape_generation import shape_gen_test
+# from shape_generation.shape_generation import shape_gen
+from parameters.rove_parameters import ROVE_params
+from parameters.data_classes import GTFS
+from shape_generation.shape_generation import Shape_Generation
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "WMATAE" # CTA, MBTA, WMATA
-MONTH = "10" # MM in string format
-YEAR = "2021" # YYYY in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "04" # MM in string format
+YEAR = "2019" # YYYY in string format
 DATE_OPTION = "Workday" # Workday, Saturday, Sunday
-MODE_OPTION = "GTFS" # GTFS, GTFS-AVL, GTFS-AVL-ODX
+MODE_OPTION = "GTFS-AVL-ODX" # GTFS, GTFS-AVL, GTFS-AVL-ODX
 SHAPE_GENERATION_OPTION = True # True/False: whether generate shapes
 LINK_SELECTION_OPTION = False # True/False: whether generate input for link selection map in ROVE
 METRIC_CAL_AGG_OPTION = False # True/False: whether run metric calculation and aggregation
 # --------------------------------END PARAMETERS--------------------------------------
 
-backendLogger = getLogger('backendLogger')
+logger = getLogger('backendLogger')
 
-def run_backend():
+def __main__():
+    # Check that the supplied agency is valid
     if AGENCY not in SUPPORTED_AGENCIES:
-        backendLogger.error(f'Agency "{AGENCY}" is not supported, exiting backend...')
+        logger.fatal(f'Agency "{AGENCY}" is not supported, exiting backend...')
         quit()
-    backendLogger.info(f'Starting ROVE backend processes for {AGENCY}')
-    # params = 
-    if SHAPE_GENERATION_OPTION:
-        sgLogger = getLogger('shapeGenLogger')
-        shape_gen_test(sgLogger)
-    
 
-run_backend()
+    logger.info(f'Starting ROVE backend processes for {AGENCY}, {MONTH}-{YEAR}. Mode: {DATE_OPTION}, {MODE_OPTION}.')
 
+    # -----parameters-----
+    logger.info(f'Generating parameters...')
+    params = ROVE_params(AGENCY, MONTH, YEAR, DATE_OPTION, MODE_OPTION)
+    logger.info(f'parameters generated')
 
-# print(locals())
-# print(globals())
+    # ------data generation------
+    logger.info(f'Loading input data...')
+    gtfs = GTFS(params.input_paths['gtfs_inpath'], params.sample_date, params.config['route_type'])
+    logger.info(f'data loaded')
+
+    # ------shape generation------
+    logger.info(f'Generating shapes...')
+    shape = Shape_Generation(gtfs)
+    logger.info(f'shapes generatd')
+    # if SHAPE_GENERATION_OPTION:
+    #     sgLogger = getLogger('shapeGenLogger')
+    #     shape_gen(sgLogger)
+    logger.info(f'backend processes completed')
+
+if __name__ == "__main__":
+    __main__()

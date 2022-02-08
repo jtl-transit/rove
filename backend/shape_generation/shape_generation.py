@@ -1,21 +1,48 @@
-# import logging
-# from ..backend_logger import getLogger
-# import sys
-# print(sys.path)
-# print(__name__)
-# from backend import toplevel
-# toplevel.test()
-# from logger import backend_logger
-# import sys,os
-# from sys import path
-# path.append(0,)
-# logger = backend_logger.getLogger('shapeGenLogger')
+import logging
+import traceback
+import pandas as pd
+import numpy as np
 
+
+logger = logging.getLogger("backendLogger")
+
+class Shape_Generation():
+
+    def __init__(self, gtfs):
+        
+        self._gtfs = gtfs
+
+        self.pattern = pd.DataFrame()
+
+        self.bus_df = pd.DataFrame()
+        self.bus_tp_pd = pd.DataFrame()
+
+    @property
+    def gtfs(self):
+
+        return self._gtfs
+
+    @property
+    def pattern(self):
+
+        return self._pattern
+
+    @pattern.setter
+    def pattern(self, pattern):
+
+        if not pattern:
+            trips = self.gtfs.trips
+
+        else:
+            self._pattern = pattern.copy()
+
+
+# main for testing
 def __main__():
-
+    logger.info(f'Starting shape generation...')
     print(f'in main method of shape gen')
 
-def shape_gen_test(logger):
+def generate_shapes(feed):
     print(f'running shape gen')
     logger.info('logging to shape gen logger')
 

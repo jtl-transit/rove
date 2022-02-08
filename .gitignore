@@ -9,14 +9,20 @@ instance/
 .coverage
 htmlcov/
 
+local/
 dist/
 build/
 *.egg-info/
 
 *.xml
+*.csv
+*.txt
 *.iml
+*.ipynb
+test.py
 
 data/
+logs/
 *.p
 bustool/Test_database.db
 .DS_Store
