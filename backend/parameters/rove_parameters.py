@@ -15,7 +15,7 @@ logger = logging.getLogger("backendLogger")
 class ROVE_params(object, metaclass=ABCMeta):
     """Data structure that stores all parameters needed throughout the backend.
     """
-    def __init__(self, AGENCY, MONTH, YEAR, DATE_OPTION, MODE_OPTION):
+    def __init__(self, AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION):
         """Instantiate rove parameters.
         """
         
@@ -25,10 +25,10 @@ class ROVE_params(object, metaclass=ABCMeta):
         # str : analysis month, year and date type
         self.month = MONTH
         self.year = YEAR
-        self.date_option = DATE_OPTION
+        self.date_option = DATE_TYPE
 
-        # str : type of data used for metric aggregation
-        self.mode_option = MODE_OPTION
+        # list (str) : list of input data used for backend calculations
+        self.data_option = DATA_OPTION
         
         # str : suffix used in file names
         self.suffix = f'_{AGENCY}_{MONTH}_{YEAR}'
