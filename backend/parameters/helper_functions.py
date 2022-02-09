@@ -11,6 +11,11 @@ import partridge as ptg
 import pandas as pd
 import random
 import numpy as np
+import os
+import shutil
+import logging
+
+logger = logging.getLogger("backendLogger")
 
 def day_list_generation(MONTH, YEAR, DATE_OPTION, workalendarPath):
     """Generate list of dates of the given month, year and option
@@ -66,3 +71,47 @@ def day_list_generation(MONTH, YEAR, DATE_OPTION, workalendarPath):
     elif DATE_OPTION == "Sunday":
         return SUNDAYS
 
+def check_is_file(path):
+    """Check that the file exists.
+
+    Args:
+        path (str): path to a file
+
+    Raises:
+        FileNotFoundError: the given path doesn't point to a valid file
+
+    Returns:
+        str : path to file
+    """
+    if os.path.isfile(path):
+        return path
+    else:
+        raise FileNotFoundError(f'Invalid file: {path}')
+
+def check_is_dir(path, overwrite=False, create_if_none=False):
+    """Check that the directory exists.
+
+    Args:
+        path (str): path to a directory for output files
+        overwrite (bool, optional): whether to overwrite the directory if it exists already.
+                                    Defaults to True.
+        create_if_none (bool, optional): whether to create the directory if it doesn't exist.
+                                        Defaults to False.
+
+    Raises:
+        NotADirectoryError: the directory doesn't exist
+
+    Returns:
+        str: path to the output directory
+    """
+    if os.path.isdir(path):
+        if overwrite:
+            shutil.rmtree(path)
+            os.mkdir(path)
+            logger.debug('Directory pruned: {path}.')
+        return path
+    elif create_if_none:
+        os.mkdir(path)
+        logger.debug('Directory created: {path}.')
+    else:
+        raise NotADirectoryError('Directory does not exist: {path}')

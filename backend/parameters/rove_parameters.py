@@ -6,7 +6,7 @@ import pandas as pd
 import partridge as ptg
 import json
 import os
-from .helper_functions import day_list_generation
+from .helper_functions import day_list_generation, check_is_file
 import logging
 import traceback
 
@@ -15,7 +15,13 @@ logger = logging.getLogger("backendLogger")
 class ROVE_params(object, metaclass=ABCMeta):
     """Data structure that stores all parameters needed throughout the backend.
     """
-    def __init__(self, AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION):
+    def __init__(self,
+                AGENCY='',
+                MONTH='',
+                YEAR='',
+                DATE_TYPE='',
+                DATA_OPTION=[],
+                additional_params=None):
         """Instantiate rove parameters.
         """
         
@@ -29,14 +35,20 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         # list (str) : list of input data used for backend calculations
         self.data_option = DATA_OPTION
+
+        # dict <str, any> : any additional parameters.
+        #       List of additional parameters that can be specified: 
+        #       --> additional_input_paths : list of file paths to additional input files other than the default ones
+        #       --> additional_output_paths: list of paths to additional output files
+        self._additional_params = additional_params or {}
         
         # str : suffix used in file names
         self.suffix = f'_{AGENCY}_{MONTH}_{YEAR}'
 
         # dict <str, str> : dict of paths to input and output data
-        self.input_paths = dict()
-        self.output_paths = dict()
-        
+        self.input_paths = self._additional_params.get('additional_input_paths', {})
+        self.output_paths = self._additional_params.get('additional_output_paths', {})
+
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
         self.config = dict()
@@ -47,15 +59,6 @@ class ROVE_params(object, metaclass=ABCMeta):
         # date : sample date for analysis
         self.sample_date = datetime.date.today()
 
-        
-
-        # dict <str, data class> : dict of input data (e.g. GTFS, AVL, ODX)
-        self.data = dict()
-
-        # self.__load_required_data()
-        # self.__load_additional_data()
-
-        # self.__get_timepoints()
 
     @property
     def input_paths(self):
@@ -73,28 +76,38 @@ class ROVE_params(object, metaclass=ABCMeta):
         Args:
             additional_input_paths (dict <str, str>, optional): additional input files. Defaults to {}.
         """
-        required_input_paths = {
-            'gtfs_inpath': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
-            'avl_inpath': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
-            'odx_inpath': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
-            'config_inpath': f'data/{self.agency}/config/{self.agency}_param_config.json'
+
+        default_input_paths = {
+            'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
+            'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
+            'odx': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
+            'config': f'data/{self.agency}/config/{self.agency}_param_config.json'
         }
-
         
-
+        
         if not isinstance(additional_input_paths, dict):
             raise TypeError('additional_input_paths must be a dict')
 
-        req_keys = required_input_paths.keys()
+        req_keys = default_input_paths.keys()
         logger.debug(f'{len(req_keys)} required files: {req_keys}')
 
         add_keys = additional_input_paths.keys()
         logger.debug(f'{len(add_keys)} additional files: {add_keys}')
             
-        input_paths = {**required_input_paths, **additional_input_paths}
-        
+        input_paths = {**default_input_paths, **additional_input_paths}
+
+        # Paths to all data specified in data_option
+        final_input_paths = {}
+        for d in self.data_option:
+            pname = d.lower()
+            if pname not in [k.lower() for k in input_paths.keys()]:
+                raise ValueError(f'file path to {d} data is not specified. '+\
+                    f'Please specify a path in additional_parameters.')
+            else:
+                final_input_paths[pname] = input_paths[pname]
+
         # Check that all files are valid
-        for name, path in input_paths.items():
+        for name, path in final_input_paths.items():
             try:
                 check_is_file(path)
             except FileNotFoundError as e:
@@ -102,7 +115,7 @@ class ROVE_params(object, metaclass=ABCMeta):
                 logger.fatal(f'Cannot find file {name} at {path}. Exiting...')
                 quit()
 
-        self._input_paths = input_paths
+        self._input_paths = final_input_paths
         logger.debug(f'All input files are in place.')
 
     @property
@@ -142,9 +155,6 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         if not isinstance(additional_output_paths, dict):
             raise TypeError('additional_output_paths must be a dict')
-
-        # if not isinstance(additional_output_paths, dict):
-        #     raise TypeError('additional_output_paths must be a dict')
 
         output_paths = {**default_paths, **additional_output_paths}
         self._output_paths = output_paths
@@ -282,19 +292,19 @@ class ROVE_params(object, metaclass=ABCMeta):
 
     
 
-def check_is_file(path):
-    """Check that the file exists
+# def check_is_file(path):
+#     """Check that the file exists
 
-    Args:
-        path (str): path to a file
+#     Args:
+#         path (str): path to a file
 
-    Raises:
-        FileNotFoundError: if the given path doesn't point to a valid file
+#     Raises:
+#         FileNotFoundError: if the given path doesn't point to a valid file
 
-    Returns:
-        str : path to file
-    """
-    if os.path.isfile(path):
-        return path
-    else:
-        raise FileNotFoundError
+#     Returns:
+#         str : path to file
+#     """
+#     if os.path.isfile(path):
+#         return path
+#     else:
+#         raise FileNotFoundError
