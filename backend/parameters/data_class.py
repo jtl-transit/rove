@@ -17,14 +17,16 @@ class Data(metaclass=ABCMeta):
                 required_data_set=None,
                 ):
         """Instantiate a data class.
-        This data object takes an input data, and stores validated and optionally processed data.
-        The input data can either be from a file, or from another object, but not both.
-        If an out_path is specified, then the validated or processed data can be stored to an output folder.
+        This data object takes an alias name, a rove_params object, and an optional required_data_set,
+        and creates a data class that stores raw and validated data.
 
         Args:
-            in_path (str, optional): path to the input file of this data. Defaults to ''.
-            raw_data (obj): a raw data object used as an input source for this data.
-            out_path (str, optional): path to the output file of this data. Defaults to ''.
+            alias (str): alias of the data, used as key when referencing input paths and logging
+            rove_params (ROVE_params): a ROVE_params object that stores data needed throughout the backend
+            required_data_set (set, optional): a set of data that's required of this data class. Defaults to None.
+
+        Raises:
+            TypeError: if the given ROVE_params is not valid
         """
         if not isinstance(rove_params, ROVE_params):
             raise TypeError(f'Not a valid instance of rove_params.')
