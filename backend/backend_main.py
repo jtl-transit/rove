@@ -46,9 +46,9 @@ def __main__():
 
     # ------data generation------
     logger.info(f'Loading input data...')
-    gtfs = GTFS(in_path=params.input_paths['gtfs_inpath'], additional_params=params)
-    timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
-    test = CSV_DATA(in_path=params.input_paths['test_inpath'])
+    gtfs = GTFS('gtfs', params)
+    # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
+    # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
     logger.info(f'All data loaded')
 
     # ------shape generation------

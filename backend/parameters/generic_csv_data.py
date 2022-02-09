@@ -1,6 +1,5 @@
 
 from ast import alias
-from backend.parameters.rove_parameters import ROVE_params
 from .data_class import Data
 import logging
 import traceback

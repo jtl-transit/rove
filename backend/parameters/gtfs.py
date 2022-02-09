@@ -19,11 +19,8 @@ class GTFS(Data):
     def __init__(self, alias, rove_params, required_data_set=REQUIRED_DATA_SET):
         super().__init__(alias, rove_params, required_data_set)
 
-    def load_data(self, in_path):
+    def load_data(self):
         """Load GTFS data from zip file
-
-        Args:
-            in_path (str): path to the source GTFS file
 
         Returns:
             dict <str, DataFrame>: dict containing DataFrames of all required data sets
@@ -31,6 +28,8 @@ class GTFS(Data):
         rove_params = self.rove_params
 
         data = {}
+
+        in_path = rove_params.input_paths[self.alias]
 
         # Retrieve GTFS data for the sample date
         try:

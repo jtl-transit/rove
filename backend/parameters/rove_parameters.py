@@ -185,10 +185,10 @@ class ROVE_params(object, metaclass=ABCMeta):
             raise TypeError('config must be a dict')
 
         if not config:
-            if 'config_inpath' not in self.input_paths:
+            if 'config' not in self.input_paths:
                 raise KeyError('can not find config_inpath in input_paths')
             else:
-                config_path = self.input_paths['config_inpath']
+                config_path = self.input_paths['config']
                 with open(config_path, 'r') as f:
                     self._config = json.load(f)
         else:
