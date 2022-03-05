@@ -1,10 +1,10 @@
-import logging
+# import logging
+from shape_generation.gtfs_shape import GTFS_Shape
 from logger.backend_logger import getLogger
 # from shape_generation.shape_generation import shape_gen
 from parameters.rove_parameters import ROVE_params
 from parameters.gtfs import GTFS
-from parameters.generic_csv_data import CSV_DATA
-from shape_generation.shape_generation import Shape_Generation
+# from parameters.generic_csv_data import CSV_DATA
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
@@ -45,16 +45,16 @@ def __main__():
     logger.info(f'parameters generated')
 
     # ------data generation------
-    logger.info(f'Loading input data...')
+    logger.info(f'Loading input data: {DATA_OPTION}')
     gtfs = GTFS('gtfs', params)
     # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
     logger.info(f'All data loaded')
 
     # ------shape generation------
-    # logger.info(f'Generating shapes...')
-    # shape = Shape_Generation(gtfs)
-    # logger.info(f'shapes generatd')
+    logger.info(f'Generating shapes...')
+    shape = GTFS_Shape(gtfs)
+    logger.info(f'shapes generatd')
     # # if SHAPE_GENERATION_OPTION:
     # #     sgLogger = getLogger('shapeGenLogger')
     # #     shape_gen(sgLogger)

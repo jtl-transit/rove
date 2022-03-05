@@ -8,16 +8,17 @@ import pandas as pd
 import numpy as np
 import logging
 import traceback
-from .data_class import Data
+from .base_data_class import BaseData
 
 REQUIRED_DATA_SET = {'agency', 'stops', 'routes', 'trips', 'stop_times'}
+OPTIONAL_DATA_SET = {'shapes'}
 
 logger = logging.getLogger("backendLogger")
 
-class GTFS(Data):
+class GTFS(BaseData):
 
-    def __init__(self, alias, rove_params, required_data_set=REQUIRED_DATA_SET):
-        super().__init__(alias, rove_params, required_data_set)
+    def __init__(self, alias, rove_params):
+        super().__init__(alias, rove_params, REQUIRED_DATA_SET, OPTIONAL_DATA_SET)
 
     def load_data(self):
         """Load GTFS data from zip file
@@ -47,19 +48,76 @@ class GTFS(Data):
         # Store all required data in a dict
         for t in self.required_data_set:
             try:
-                data[t] = getattr(feed, t)
+                feed_data = getattr(feed, t)
+                if feed_data.empty:
+                    raise ValueError(f'{t} data is empty.')
+                data[t] = feed_data
             except AttributeError as err:
                 logger.fatal(f'Could not find required table {t} from GTFS data. Exiting...')
                 quit()
-            
+            except ValueError as err:
+                logger.fatal(f'Please verify that the GTFS file for {t} has valid data.')
+                quit()
+
+        # Add all optional data if the file exists and is not empty
+        for t in self.optional_data_set:
+            try:
+                feed_data = getattr(feed, t)
+                if feed_data.empty:
+                    raise ValueError(f'{t} data is empty.')
+                data[t] = feed_data
+            except AttributeError as err:
+                logger.warning(f'Could not find optional table {t} from GTFS data. Skipping...')
+            except ValueError as err:
+                logger.warning(f'The GTFS file for the optional table {t} is empty. Skipping...')
+
         return data
     
     def validate_data(self):
+        """Clean up raw data and make sure that it conforms with the standard format defined in the documentation
+
+        Raises:
+            ValueError: if any one type of the required raw data is empty
+
+        Returns:
+            dict <str, DataFrame>: validated and cleaned-up data
+        """
+        # avoid changing the raw data object
         validated_data = self.raw_data.copy()
+
         # Verify that all default data sets are not empty
         for n, d in self.raw_data.items():
             if d.empty:
                 raise ValueError(f'{n} data is empty. Please verify that the corresponding GTFS file has valid data.')
         
-        # Make sure that the 
+        # Clean up the data
+        # clean_up()
+
         return validated_data
+
+    # TODO: make it more generic... convert route_id to list of route_short_name for any given table
+    # Function to convert route_id from GTFS into route_short_name from GTFS, which is useful in some applications
+    def convert_route_ids(df, feed):
+        feed_routes = feed.routes
+        route_dict = dict(zip(feed_routes['route_id'], feed_routes['route_short_name']))
+        new_ids = []
+        for i in df['route_id'].values.tolist():
+            new_ids.append(route_dict[i])
+            
+        df['route_id'] = new_ids
+        
+        return df
+    
+    # Function to convert stop_id from GTFS into stop_code from GTFS, which is needed for WMATA
+    def convert_stop_ids(df, feed):
+        
+        feed_stops = feed.stops
+        stops_dict = dict(zip(feed_stops['stop_id'], feed_stops['stop_code']))
+        new_ids = []
+        for i in df['stop_id'].values.tolist():
+            new_ids.append(stops_dict[i])
+            
+        df['stop_id'] = new_ids
+        df = df[~df['stop_id'].isnull()] # Remove any rows with missing values
+        
+        return df

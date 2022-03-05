@@ -1,13 +1,13 @@
 
 from ast import alias
-from .data_class import Data
+from .base_data_class import BaseData
 import logging
 import traceback
 import pandas as pd
 
 logger = logging.getLogger("backendLogger")
 
-class CSV_DATA(Data):
+class CSV_DATA(BaseData):
 
     def __init__(self, alias, rove_params, required_data_set=None):
         super().__init__(alias, rove_params, required_data_set)

@@ -1,3 +1,55 @@
+from abc import abstractmethod
+import logging
+import traceback
+import pandas as pd
+import numpy as np
+
+
+logger = logging.getLogger("backendLogger")
+
+class BaseShape():
+
+    def __init__(self, data):
+        
+        self._data = data
+
+        self._patterns = self.generate_patterns()
+
+        self._shapes = pd.DataFrame()
+
+    @property
+    def data(self):
+
+        return self._data
+
+    @property
+    def patterns(self):
+
+        return self._patterns
+
+    @abstractmethod
+    def generate_patterns(self):
+
+        pass
+
+    @property
+    def shapes(self):
+
+        return self._shapes
+
+    @abstractmethod
+    def generate_shapes(self):
+
+        pass
+
+# main for testing
+def __main__():
+    logger.info(f'Starting shape generation...')
+    print(f'in main method of shape gen')
+
+
+if __name__ == "__main__":
+    __main__()
 
 class Point():
 

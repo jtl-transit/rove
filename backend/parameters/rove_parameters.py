@@ -37,7 +37,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         self.data_option = DATA_OPTION
 
         # dict <str, any> : any additional parameters.
-        #       List of additional parameters that can be specified: 
+        #       Example of additional parameters that can be specified: 
         #       --> additional_input_paths : list of file paths to additional input files other than the default ones
         #       --> additional_output_paths: list of paths to additional output files
         self._additional_params = additional_params or {}

@@ -7,7 +7,7 @@ from parameters.rove_parameters import ROVE_params
 
 logger = logging.getLogger("backendLogger")
 
-class Data(metaclass=ABCMeta):
+class BaseData(metaclass=ABCMeta):
     """Base class for all data.
     """
     
@@ -15,6 +15,7 @@ class Data(metaclass=ABCMeta):
                 alias,
                 rove_params,
                 required_data_set=None,
+                optional_data_set=None
                 ):
         """Instantiate a data class.
         This data object takes an alias name, a rove_params object, and an optional required_data_set,
@@ -23,7 +24,8 @@ class Data(metaclass=ABCMeta):
         Args:
             alias (str): alias of the data, used as key when referencing input paths and logging
             rove_params (ROVE_params): a ROVE_params object that stores data needed throughout the backend
-            required_data_set (set, optional): a set of data that's required of this data class. Defaults to None.
+            required_data_set (set): a set of data that's required of this data class.
+            optional_data_set (set, optional): a set of data that's optional. Defaults to None.
 
         Raises:
             TypeError: if the given ROVE_params is not valid
@@ -36,6 +38,8 @@ class Data(metaclass=ABCMeta):
         self._rove_params = rove_params
 
         self._required_data_set = required_data_set or set()
+
+        self._optional_data_set = optional_data_set or set()
 
         logger.info(f'loading {alias} data...')
         # Raw data (read-only) read from given paths stored in rove_params.
@@ -73,6 +77,11 @@ class Data(metaclass=ABCMeta):
         return self._required_data_set
 
     @property
+    def optional_data_set(self):
+
+        return self._optional_data_set
+
+    @property
     def validated_data(self):
         """Get validated data
 
@@ -100,4 +109,18 @@ class Data(metaclass=ABCMeta):
         """
         pass
 
-    
+    # helpful functions
+    def load_csv_data(self, in_path):
+        import pandas as pd
+
+        try:
+            in_path = self.rove_params.input_paths[self.alias]
+        except KeyError as err:
+            logger.fatal(f'{err}, could not find data for {self.alias}')
+
+        try:
+            data = pd.read_csv(in_path)
+        except pd.errors.EmptyDataError as err:
+            logger.warning(f'Data read from {in_path} is empty!')
+            data = pd.DataFrame()
+        return data
