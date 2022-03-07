@@ -98,17 +98,20 @@ class Vahalla_Point():
                 node_snap_tolerance=0,
                 street_side_tolerance=0):
         
-        self.point_parameters = {
-            {'lon': lon,
-            'lat': lat,
-            'type': type,
-            'radius': radius,
-            'rank_candidates': rank_candidates,
-            'preferred_side': preferred_side,
-            'node_snap_tolerance': node_snap_tolerance,
-            'street_side_tolerance':street_side_tolerance
-            }
-        }
+        self._point_parameters = {'lon': lon,
+                                'lat': lat,
+                                'type': type,
+                                'radius': radius,
+                                'rank_candidates': rank_candidates,
+                                'preferred_side': preferred_side,
+                                'node_snap_tolerance': node_snap_tolerance,
+                                'street_side_tolerance':street_side_tolerance
+                                }
+        
+    @property
+    def point_parameters(self):
+
+        return self._point_parameters
 
 class Vahalla_Request():
     turn_penalty_factor = 100000 # Penalizes turns in Valhalla routes. Range 0 - 100,000.
@@ -181,7 +184,7 @@ class Pattern: # Attributes for each unique pattern of stops that create one or 
     
     @radii.setter
     def radii(self, radii:List[int]):
-        if len(radii) != len(self.radii):
+        if len(radii) != len(self.shape_coords):
             raise ValueError(f'Error specifying radii of Pattern object. Length of radii must match that of shape_coords.')
         else:
             self._radii = radii

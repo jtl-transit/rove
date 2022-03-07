@@ -21,26 +21,25 @@ class GTFS_Shape(BaseShape):
     def __init__(self, data):
         super().__init__(data)
 
+    def generate_patterns(self):
         if not isinstance(self.data, GTFS):
             logger.fatal(f'The data provided for shape generation is not a GTFS object. Exiting...')
             quit()
 
-        self.gtfs = self.data.validated_data
-        self.trips = self.gtfs['trips']
-        self.stop_times = self.gtfs['stop_times']
-        self.stops = self.gtfs['stops']
+        gtfs = self.data.validated_data
+        trips = gtfs['trips']
+        stop_times = gtfs['stop_times']
+        stops = gtfs['stops']
 
-    def generate_patterns(self):
-
-        pattern_dict = self.get_pattern_dict(self.trips, self.stop_times, self.stops)
+        pattern_dict = self.get_pattern_dict(trips, stop_times, stops)
 
         # use the shape file in gtfs if it exists to improve quality of stop coordinates
-        if 'shapes' in self.gtfs.keys() and 'shape_id' in self.trips.columns:
-            shapes = self.gtfs['shapes']
-            self.add_gtfs_shapes(pattern_dict, shapes, self.trips)
+        if 'shapes' in gtfs.keys() and 'shape_id' in trips.columns:
+            shapes = gtfs['shapes']
+            self.add_gtfs_shapes(pattern_dict, shapes, trips)
         
         for index, pattern in pattern_dict.items():
-            coord_list = [Vahalla_Point(c[1], c[0], pattern.coord_types[i], pattern.radii[i]) \
+            coord_list = [Vahalla_Point(c[1], c[0], pattern.coord_types[i], pattern.radii[i]).point_parameters \
                             for i, c in enumerate(pattern.shape_coords)]
             pattern.v_input = coord_list
 
@@ -100,7 +99,7 @@ class GTFS_Shape(BaseShape):
 
         pattern_list = pattern_counts.to_dict('records')
         patterns_dict = {p['pattern_index']:Pattern(p['route_id'], p['direction_id'], trip_stops_dict[p['trip_id']], \
-                                                pattern_trip_dict[p['trip_id']], stop_coords_dict[p['trip_id']]) for p in pattern_list}
+                                                pattern_trip_dict[(p['route_id'], p['hash'])], stop_coords_dict[p['trip_id']]) for p in pattern_list}
         return patterns_dict
 
 
@@ -114,19 +113,20 @@ class GTFS_Shape(BaseShape):
             shapes (pd.DataFrame): GTFS shapes table
             trips (pd.DataFrame): GTFS trips table
         """
-        trip_shapes = trips[['trip_id', 'shape_id']].drop_duplicates(inplace=True)
+        trip_shapes = trips[['trip_id', 'shape_id']].drop_duplicates()
         trip_shape_dict = dict(zip(trip_shapes['trip_id'], trip_shapes['shape_id']))
 
-        shapes = shapes[['shape_id', 'shape_pt_lat', 'shape_pt_lon']].drop_duplicates(inplace=True)
+        shapes = shapes[['shape_id', 'shape_pt_lat', 'shape_pt_lon']].drop_duplicates()
 
         stop_matching_error_dict = {}
         for index, pattern in tqdm.tqdm(pattern_dict.items(), desc='Preparing coordinates:'):
             sample_trip = pattern.trips[0]
             if sample_trip in trip_shape_dict:
-                pattern.shape = trip_shape_dict[sample_trip]
+                shape_id = trip_shape_dict[sample_trip]
+                pattern.shape = shape_id
 
                 stop_coords = pattern.stop_coords
-                shape_coords = shapes.loc[shapes['shape_id']==shape][['shape_pt_lat', 'shape_pt_lon']]
+                shape_coords = shapes.loc[shapes['shape_id']==shape_id][['shape_pt_lat', 'shape_pt_lon']].copy()
                 coordinate_type, coordinate_list, radii = self.locate_stops_in_shapes(shape_coords, stop_coords)
 
                 # Must update shape_coords first, since the coord_types and radii fields must match length of shape_coords.
@@ -134,7 +134,7 @@ class GTFS_Shape(BaseShape):
                 pattern.coord_types = coordinate_type
                 pattern.radii = radii
 
-                shape_break_throughs = coordinate_type.count(1)
+                shape_break_throughs = coordinate_type.count('break_through')
                 stops_from_gtfs = len(pattern.stops)
                 diff = shape_break_throughs-stops_from_gtfs
 
@@ -166,7 +166,7 @@ class GTFS_Shape(BaseShape):
         intermediate_radius = 100 # Radius used to search when matching intermediate coordinates (meters)
         stop_distance_threshold  = 1000 # Stop-to-stop distance threshold for including intermediate coordinates (meters)
 
-        coordinate_types = [1] * len(stop_coords)
+        coordinate_types = ["break_through"] * len(stop_coords)
         radii = [stop_radius] * len(stop_coords)
         stop_indices = [0] * len(stop_coords)
         shape_coord_list = shape_coords[['shape_pt_lat','shape_pt_lon']].values.tolist()

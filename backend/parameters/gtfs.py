@@ -9,6 +9,7 @@ import numpy as np
 import logging
 import traceback
 from .base_data_class import BaseData
+import tqdm
 
 REQUIRED_DATA_SET = {'agency', 'stops', 'routes', 'trips', 'stop_times'}
 OPTIONAL_DATA_SET = {'shapes'}
@@ -46,7 +47,7 @@ class GTFS(BaseData):
         feed = ptg.load_feed(in_path, view)
 
         # Store all required data in a dict
-        for t in self.required_data_set:
+        for t in tqdm.tqdm(self.required_data_set, desc=f'Loading required {self.alias} data: '):
             try:
                 feed_data = getattr(feed, t)
                 if feed_data.empty:
@@ -60,7 +61,7 @@ class GTFS(BaseData):
                 quit()
 
         # Add all optional data if the file exists and is not empty
-        for t in self.optional_data_set:
+        for t in tqdm.tqdm(self.optional_data_set, desc=f'Loading optional {self.alias} data: '):
             try:
                 feed_data = getattr(feed, t)
                 if feed_data.empty:
