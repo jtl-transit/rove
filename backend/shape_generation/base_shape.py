@@ -86,13 +86,13 @@ def __main__():
 if __name__ == "__main__":
     __main__()
 
-class Point():
+class Vahalla_Point():
 
     def __init__(self, 
                 lon,
                 lat,
-                type,
-                radius,
+                type='break_through',
+                radius=35,
                 rank_candidates='true',
                 preferred_side='same',
                 node_snap_tolerance=0,
@@ -112,10 +112,6 @@ class Point():
 
 class Vahalla_Request():
     turn_penalty_factor = 100000 # Penalizes turns in Valhalla routes. Range 0 - 100,000.
-    stop_radius = 35 # Radius used to search when matching stop coordinates (meters)
-    intermediate_radius = 100 # Radius used to search when matching intermediate coordinates (meters)
-    
-    stop_distance_threshold  = 1000 # Stop-to-stop distance threshold for including intermediate coordinates (meters)
     maneuver_penalty = 43200 # Penalty when a route includes a change from one road to another (seconds). Range 0 - 43,200. 
     
     default_filters = {
@@ -144,18 +140,60 @@ class Vahalla_Request():
                 }
 
 class Pattern: # Attributes for each unique pattern of stops that create one or more route variant
-    def __init__(self, route, direction, stops, trips, stop_coords, shape, timepoints):
+    
+    def __init__(self, route:str, direction:int, stops:List[str], trips:List[str], stop_coords:List[Tuple[float, float]]):
         self.route = route
         self.direction = direction
         self.stops = stops
         self.trips = trips
         self.stop_coords = stop_coords
-        self.shape = shape
-        self.timepoints = timepoints
-        self.shape_coords = 0
-        self.v_input = 0
-        self.coord_types = 0
-        self.radii = 0
+        self.shape = 0
+        self.timepoints = []
+        self._shape_coords = stop_coords
+        self._v_input = Vahalla_Point(0,0)
+        self._coord_types = ['break_through'] * len(stop_coords)
+        self._radii = [35] * len(stop_coords)
+
+
+    @property
+    def shape_coords(self):
+
+        return self._shape_coords
+
+    @shape_coords.setter
+    def shape_coords(self, shape_coords:List[Tuple[float, float]]):
+        self._shape_coords = shape_coords
+
+    @property
+    def coord_types(self):
+        return self._coord_types
+    
+    @coord_types.setter
+    def coord_types(self, coord_types:List[str]):
+        if len(coord_types) != len(self.shape_coords):
+            raise ValueError(f'Error specifying coord_types of Pattern object. Length of coord_types must match that of shape_coords.')
+        else:
+            self._coord_types = coord_types
+    
+    @property
+    def radii(self):
+        return self._radii
+    
+    @radii.setter
+    def radii(self, radii:List[int]):
+        if len(radii) != len(self.radii):
+            raise ValueError(f'Error specifying radii of Pattern object. Length of radii must match that of shape_coords.')
+        else:
+            self._radii = radii
+
+    @property
+    def v_input(self):
+        return self._v_input
+    
+    @v_input.setter
+    def v_input(self, v_input):
+
+        self._v_input = v_input
 
 class Segment: # Attributes for each segment which make up a pattern
     def __init__(self, geometry, distance):

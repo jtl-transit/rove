@@ -47,6 +47,7 @@ def __main__():
     # ------data generation------
     logger.info(f'Loading input data: {DATA_OPTION}')
     gtfs = GTFS('gtfs', params)
+
     # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
     logger.info(f'All data loaded')
