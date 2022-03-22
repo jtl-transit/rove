@@ -54,7 +54,8 @@ class GTFS(BaseData):
                     raise ValueError(f'{t} data is empty.')
                 data[t] = feed_data
             except AttributeError as err:
-                logger.fatal(f'Could not find required table {t} from GTFS data. Exiting...')
+                logger.fatal(f'Could not find required table {t} from GTFS data. ' + \
+                    f'Please double check that the GTFS data you provided to ROVE has this table. Exiting...')
                 quit()
             except ValueError as err:
                 logger.fatal(f'Please verify that the GTFS file for {t} has valid data.')

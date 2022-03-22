@@ -112,7 +112,8 @@ class ROVE_params(object, metaclass=ABCMeta):
                 check_is_file(path)
             except FileNotFoundError as e:
                 logger.exception(traceback.format_exc())
-                logger.fatal(f'Cannot find file {name} at {path}. Exiting...')
+                logger.fatal(f'Cannot find file {name} at {path}. ' + \
+                    f'Unable to proceed unless all specified input files are in place. Exiting...')
                 quit()
 
         self._input_paths = final_input_paths
@@ -214,14 +215,14 @@ class ROVE_params(object, metaclass=ABCMeta):
         
         if not date_list:
             if 'workalendarPath' not in self.config:
-                raise KeyError('can not find workalendarPath in input_paths')
+                raise KeyError('can not find workalendarPath in the config file')
             else:
                 try:
                     workalendar_path = self.config['workalendarPath']
                     self._date_list = day_list_generation(self.month, self.year, self.date_option, workalendar_path)
                 except ValueError as err:
                     logger.exception(traceback.format_exc())
-                    logger.fatal(f'ValueError generating date list: {err}. Exiting backend...')
+                    logger.fatal(f'Error generating date list: {err}. Exiting backend...')
                     quit()
         else:
             if not all(isinstance(d, datetime) for d in date_list):

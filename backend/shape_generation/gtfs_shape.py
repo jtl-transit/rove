@@ -1,18 +1,18 @@
-import imp
 import logging
-from tkinter.tix import InputOnly
 import traceback
-from turtle import shape
-from matplotlib.pyplot import flag
 import pandas as pd
 import numpy as np
-from .base_shape import BaseShape, Pattern, Vahalla_Point
+from .base_shape import BaseShape
+from .misc_shape_classes import Pattern, Valhalla_Point, Valhalla_Request
 from shapely.geometry import LineString, Point
 from shapely.ops import nearest_points
 from parameters.gtfs import GTFS
-from typing import Tuple, Dict, Set, List
+from typing import Tuple, Dict, Set, List, Type
 import math
 import tqdm
+import requests
+import json
+import time
 
 logger = logging.getLogger("backendLogger")
 
@@ -22,31 +22,77 @@ class GTFS_Shape(BaseShape):
         super().__init__(data)
 
     def generate_patterns(self):
+        
         if not isinstance(self.data, GTFS):
-            logger.fatal(f'The data provided for shape generation is not a GTFS object. Exiting...')
+            logger.fatal(f'The data provided for GTFS shape generation must be a GTFS object. ' + \
+                    f'Please pass in a GTFS object to create GTFS-based shapes. Exiting...')
             quit()
 
         gtfs = self.data.validated_data
-        trips = gtfs['trips']
-        stop_times = gtfs['stop_times']
-        stops = gtfs['stops']
 
-        pattern_dict = self.get_pattern_dict(trips, stop_times, stops)
-
-        # use the shape file in gtfs if it exists to improve quality of stop coordinates
-        if 'shapes' in gtfs.keys() and 'shape_id' in trips.columns:
-            shapes = gtfs['shapes']
-            self.add_gtfs_shapes(pattern_dict, shapes, trips)
+        #>>> Step 1: Get pattern_dict using the required trips, stop_times and stops tables
+        pattern_dict = self.get_patterns_with_requied_gtfs_tables(gtfs['trips'], gtfs['stop_times'], gtfs['stops'])
         
+        #>>> Step 2: Use the shapes table in gtfs if it exists to improve quality of stop coordinates
+        if 'shapes' in gtfs.keys() and 'shape_id' in gtfs['trips'].columns:
+            self.improve_pattern_dict_with_gtfs_shapes(pattern_dict, gtfs['shapes'], gtfs['trips'])
+        
+        #>>> Step 3: Generate Valhalla input for each pattern
         for index, pattern in pattern_dict.items():
-            coord_list = [Vahalla_Point(c[1], c[0], pattern.coord_types[i], pattern.radii[i]).point_parameters \
+            v_points = [Valhalla_Point(c[1], c[0], pattern.coord_types[i], pattern.radii[i]).point_parameters \
                             for i, c in enumerate(pattern.shape_coords)]
-            pattern.v_input = coord_list
+            pattern.v_points = v_points
 
+        return pattern_dict
 
-    def get_pattern_dict(self, trips: pd.DataFrame, stop_times: pd.DataFrame, stops: pd.DataFrame) \
-                                    -> Dict[str, Pattern]:
-        """Analyze the trips and stop_times tables from GTFS to produce a pattern table and dict of trips.
+    def generate_shapes(self):
+
+        VALHALLA_TIMEOUT_TRIES = 6
+        # Use map matching to convert the GTFS polylines to matched, encoded polylines
+
+        segment_dict = {}
+        skipped_segs = {}
+        start_time = time.time()
+
+        for pattern_index, pattern in self.patterns:
+            if not isinstance(pattern, Pattern):
+                logger.error(f'{pattern_index} is not a valid Pattern object. Skipping...')
+                continue
+
+            v_points = pattern.v_points
+            coordinate_types = pattern.coord_types
+            pattern_segs = len(pattern.stops)-1
+            pattern_legs = 0
+            start_point = 0
+
+            # Send multiple requests to Valhalla if the response is cut off
+            timeout_count = 1
+            request_processed = False
+            while timeout_count < VALHALLA_TIMEOUT_TRIES:
+                try:
+                    # Use Valhalla map matching engine to snap shapes to the road network
+                    request_data = Valhalla_Request(v_points[start_point:])
+                    req = requests.post('http://localhost:8002/trace_route',
+                                        data = json.dumps(request_data),
+                                        timeout = 60)
+                    timeout_count = VALHALLA_TIMEOUT_TRIES+1
+                    request_processed = True
+                except:
+                    print("Valhalla Timeout #", timeout_count)
+                    timeout_count += 1
+                    
+            if not request_processed:
+                # Add all segments to skipped_segments
+                input_points = [i - start_point for i, x in enumerate(coordinate_types)  \
+                                if(x == 'break_through' and i >= start_point)]
+                for point_idx, point in enumerate(input_points[:-1]):
+                    skipped_segs[(pattern, point_idx)] = v_points[point:input_points[point_idx+1]]
+                break
+
+    def get_patterns_with_requied_gtfs_tables(self, trips: pd.DataFrame, stop_times: pd.DataFrame, \
+                                            stops: pd.DataFrame) -> Dict[str, Pattern]:
+        """Produce a dict of patterns using the required GTFS tables: trips, stops_times and stops.
+                In addition, if the shapes table exists, then use the shapes to 
 
         Args:
             trips: GTFS trips table. Assume having columns: route_id, trip_id, direction_id.
@@ -56,7 +102,7 @@ class GTFS_Shape(BaseShape):
         Returns:
             pattern_dict: <pattern_index: Pattern object>. See Pattern object notes for details.
         """
-
+        
         trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner')
         trip_stop_times.sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
 
@@ -98,13 +144,15 @@ class GTFS_Shape(BaseShape):
         pattern_counts.drop(columns=['pattern_count'], inplace=True)
 
         pattern_list = pattern_counts.to_dict('records')
-        patterns_dict = {p['pattern_index']:Pattern(p['route_id'], p['direction_id'], trip_stops_dict[p['trip_id']], \
+        pattern_dict = {p['pattern_index']:Pattern(p['route_id'], p['direction_id'], trip_stops_dict[p['trip_id']], \
                                                 pattern_trip_dict[(p['route_id'], p['hash'])], stop_coords_dict[p['trip_id']]) for p in pattern_list}
-        return patterns_dict
+        
+        return pattern_dict
 
+    
 
-    def add_gtfs_shapes(self, pattern_dict: Dict[str, Pattern], shapes: pd.DataFrame, trips: pd.DataFrame):
-        """Add shape_id to the shape field of Pattern object if a match is found, otherwise leave the object unchanged.
+    def improve_pattern_dict_with_gtfs_shapes(self, pattern_dict: Dict[str, Pattern], shapes: pd.DataFrame, trips: pd.DataFrame):
+        """Add shape_id to the shape field of Pattern object if a matched shape is found, otherwise leave the object unchanged.
             Update shape_coords with closest bus stop points found in shape, plus any supplemental points to fill in big gaps.
             Update coord_types and radii accordingly.
 
@@ -119,7 +167,7 @@ class GTFS_Shape(BaseShape):
         shapes = shapes[['shape_id', 'shape_pt_lat', 'shape_pt_lon']].drop_duplicates()
 
         stop_matching_error_dict = {}
-        for index, pattern in tqdm.tqdm(pattern_dict.items(), desc='Preparing coordinates:'):
+        for index, pattern in tqdm.tqdm(pattern_dict.items(), desc='Preparing stop coordinates'):
             sample_trip = pattern.trips[0]
             if sample_trip in trip_shape_dict:
                 shape_id = trip_shape_dict[sample_trip]
@@ -142,14 +190,14 @@ class GTFS_Shape(BaseShape):
                     stop_matching_error_dict[index] = diff
         
         for i, e in stop_matching_error_dict.items():
-            print("Error: Breaks - Stops =", e,"for Pattern ", i)
+            print("Error: Break Throughs - Stops =", e,"for Pattern ", i)
 
+    # TODO: main source of inefficiency, improve this function
     def locate_stops_in_shapes(self, shape_coords:pd.DataFrame, stop_coords:List[Tuple[float, float]]) -> \
                                 Tuple[List[str], List[Tuple[float, float]], List[int]]:
-        """Takes a set of route shape coordinates and bus stop coordinates, then finds the 
-            route coordinate pair that is closest to each bus stop. Returns an array of 
-            strings of the same length as the bus stop coordinate input, with 'break_through' 
-            for coordinates at bus stops and 'through' for other coordinates.
+        """Take a dataframe of route shape coordinates and list of bus stop coordinates, then find the 
+            route coordinate pair that is closest to each bus stop. Return three lists containing type, shape and radii
+            of each point in the new shape.
 
         Args:
             shape_coords (pd.DataFrame): shape coordinates, assume having columns: shape_pt_lon, shape_pt_lat.
@@ -175,19 +223,20 @@ class GTFS_Shape(BaseShape):
         coordinate_list = []
         shape_line = LineString([Point(x, y) for x, y in zip(shape_coords.shape_pt_lon, shape_coords.shape_pt_lat)])
 
-        # Get index of point closest to each bus stop
-        # TODO: nested for loops - opportunity to improve efficiency?
+        # Get index of shape point closest to each bus stop
         for stop_number, stop in enumerate(stop_coords):
             
             stop_point = Point(stop[1], stop[0])
-            new_stop = nearest_points(shape_line, stop_point)[0] # index 0 is nearest point on the line
-            coordinate_list.append((new_stop.y, new_stop.x))
+            new_stop_point = nearest_points(shape_line, stop_point)[0] # index 0 is nearest point on the line
+            coordinate_list.append((new_stop_point.y, new_stop_point.x))
             
             benchmark = 10**9
             index = 0
             best_index = 0
-            for point in shape_coord_list[last_stop:]: # Ensure stops occur sequentially
-                test_dist = self.get_distance(point, stop)
+            # TODO: it might be unnecessary to go through the entire list. Once the distance starts increasing, the loop could stop.
+            #       - opportunity to improve efficiency? If change method, need to compare the encoded polyline.
+            for shape_point in shape_coord_list[last_stop:]: # Ensure stops occur sequentially
+                test_dist = self.get_distance(shape_point, stop)
                 if test_dist+2 < benchmark: # Add 2m to ensure that loop routes don't the later stop 
                     benchmark = test_dist
                     best_index = index + last_stop
@@ -253,27 +302,3 @@ class GTFS_Shape(BaseShape):
         dlambda = math.radians(lon2 - lon1) 
         a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2    
         return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)
-
-    def generate_shapes(self):
-
-        pass
-
-
-    # @property
-    # def gtfs(self):
-
-    #     return self._gtfs
-
-
-# # main for testing
-# def __main__():
-#     logger.info(f'Starting shape generation...')
-#     print(f'in main method of shape gen')
-
-# def generate_shapes(feed):
-#     print(f'running shape gen')
-#     logger.info('logging to shape gen logger')
-
-# # shape_gen_test()
-# if __name__ == "__main__":
-#     __main__()
