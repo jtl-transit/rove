@@ -42,6 +42,11 @@ class GTFS(BaseData):
     def __init__(self, alias, path, rove_params=None):
         super().__init__(alias, path, rove_params)
 
+        # store commonly-used dict of GTFS data in read-only fields, but the calculation is
+        #   only done once when initializing the instance so that they won't be repeatedly generated
+        self._trip_stops_dict = self.get_trip_stops_dict()
+        self._trip_stops_coords_dict = self.get_trip_stops_coords_dict()
+
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from zip file, and retrieve data of the sample date (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
@@ -140,17 +145,42 @@ class GTFS(BaseData):
                 df[cols] = df[cols].astype(dtype=columns_dtype_dict)
         
         # filter based on stop_times
-        stop_times = self.filter_table_a_on_unique_b_key(data, 'stop_times', 'trips', ['trip_id'])
+        # stop_times = self.filter_table_a_on_unique_b_key(data, 'stop_times', 'trips', ['trip_id'])
+        stop_times = data['stop_times']
         trips = self.filter_table_a_on_unique_b_key(data, 'trips', 'stop_times', ['trip_id'])
         stops = self.filter_table_a_on_unique_b_key(data, 'stops', 'stop_times', ['stop_id'])
 
-        # organize data
-        trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner')
-        stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
-        # Clean up the data
-        # clean_up()
-
         return data
+
+    @property
+    def trip_stops_dict(self):
+        return self._trip_stops_dict
+    
+    @property
+    def trip_stops_coords_dict(self):
+        return self._trip_stops_coords_dict
+
+    def get_trip_stops_dict(self):
+        
+        trips = self.validated_data['trips']
+        stop_times = self.validated_data['stop_times']
+
+        trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner').\
+                            sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
+        trip_stops_dict = trip_stop_times.groupby('trip_id')['stop_id'].agg(list).to_dict()
+        return trip_stops_dict
+    
+    def get_trip_stops_coords_dict(self):
+        
+        stops = self.validated_data['stops']
+        stops_coords = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
+        stops_coords['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
+        trip_stop_times_stops = pd.merge(self.trip_stops_dict, stops_coords, on='stop_id', how='inner').\
+                                sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
+        trip_stops_coords_dict = trip_stop_times_stops.groupby('trip_id')['coords'].agg(list).to_dict()
+        return trip_stops_coords_dict
+
+        
 
     def filter_table_a_on_unique_b_key(self, data:Dict[str, DataFrame], table_a_name:str, 
                                         table_b_name:str, key:List[str]):
