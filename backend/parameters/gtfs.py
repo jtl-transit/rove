@@ -46,6 +46,7 @@ class GTFS(BaseData):
         #   only done once when initializing the instance so that they won't be repeatedly generated
         self._trip_stops_dict = self.get_trip_stops_dict()
         self._trip_stops_coords_dict = self.get_trip_stops_coords_dict()
+        self._pattern_dict = {}
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from zip file, and retrieve data of the sample date (as stored in rove_params) and 
