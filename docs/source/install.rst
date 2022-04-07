@@ -1,7 +1,5 @@
-Usage
+Installation
 =====
-
-.. _installation:
 
 Back-End Setup
 ------------
