@@ -35,7 +35,7 @@ REQUIRED_DATA_DICT = {'agency':{
                         'stop_id':'str',
                         'stop_sequence':'int64'
                         }}
-OPTIONAL_DATA_DICT = {'shapes':{}}
+OPTIONAL_DATA_DICT = {'shapes':{'shape_id'}}
 
 class GTFS(BaseData):
 
