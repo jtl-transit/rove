@@ -23,4 +23,3 @@ Contents
 
    install
    backend
-   api
