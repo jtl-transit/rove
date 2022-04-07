@@ -1,4 +1,5 @@
 import logging
+from re import S
 import traceback
 import pandas as pd
 import numpy as np
@@ -27,8 +28,8 @@ class GTFS_Shape(BaseShape):
             logger.fatal(f'The data provided for GTFS shape generation must be a GTFS object. ' + \
                     f'Please pass in a GTFS object to create GTFS-based shapes. Exiting...')
             quit()
-
-        gtfs = self.data.validated_data
+        else:
+            gtfs = self.data.validated_data
 
         #>>> Step 1: Get pattern_dict using the required trips, stop_times and stops tables
         pattern_dict = self.get_patterns_with_requied_gtfs_tables(gtfs['trips'], gtfs['stop_times'], gtfs['stops'])
@@ -36,7 +37,9 @@ class GTFS_Shape(BaseShape):
         #>>> Step 2: Use the shapes table in gtfs if it exists to improve quality of stop coordinates
         if 'shapes' in gtfs.keys() and 'shape_id' in gtfs['trips'].columns:
             self.improve_pattern_dict_with_gtfs_shapes(pattern_dict, gtfs['shapes'], gtfs['trips'])
-        
+        else:
+            logger.info(f'No shapes information available from GTFS.')
+
         #>>> Step 3: Generate Valhalla input for each pattern
         for index, pattern in pattern_dict.items():
             v_points = [Valhalla_Point(c[1], c[0], pattern.coord_types[i], pattern.radii[i]).point_parameters \
@@ -50,49 +53,44 @@ class GTFS_Shape(BaseShape):
         VALHALLA_TIMEOUT_TRIES = 6
         # Use map matching to convert the GTFS polylines to matched, encoded polylines
 
-        segment_dict = {}
-        skipped_segs = {}
-        start_time = time.time()
-
-        for pattern_index, pattern in self.patterns:
+        for pattern_index, pattern in self.patterns.items():
             if not isinstance(pattern, Pattern):
                 logger.error(f'{pattern_index} is not a valid Pattern object. Skipping...')
                 continue
-
-            v_points = pattern.v_points
-            coordinate_types = pattern.coord_types
-            pattern_segs = len(pattern.stops)-1
-            pattern_legs = 0
-            start_point = 0
-
-            # Send multiple requests to Valhalla if the response is cut off
-            timeout_count = 1
-            request_processed = False
-            while timeout_count < VALHALLA_TIMEOUT_TRIES:
-                try:
-                    # Use Valhalla map matching engine to snap shapes to the road network
-                    request_data = Valhalla_Request(v_points[start_point:])
-                    req = requests.post('http://localhost:8002/trace_route',
-                                        data = json.dumps(request_data),
-                                        timeout = 60)
-                    timeout_count = VALHALLA_TIMEOUT_TRIES+1
-                    request_processed = True
-                except:
-                    print("Valhalla Timeout #", timeout_count)
-                    timeout_count += 1
+            else:
+                print(f'---{pattern_index}')
+                v_points = pattern.v_points
+                coordinate_types = pattern.coord_types
+        
+                
+        print(f'end shape gen..')  
+            # # Send multiple requests to Valhalla if the response is cut off
+            # timeout_count = 1
+            # request_processed = False
+            # while timeout_count < VALHALLA_TIMEOUT_TRIES:
+            #     try:
+            #         # Use Valhalla map matching engine to snap shapes to the road network
+            #         request_data = Valhalla_Request(v_points[start_point:])
+            #         req = requests.post('http://localhost:8002/trace_route',
+            #                             data = json.dumps(request_data.request_parameters),
+            #                             timeout = 60)
+            #         timeout_count = VALHALLA_TIMEOUT_TRIES+1
+            #         request_processed = True
+            #     except:
+            #         print("Valhalla Timeout #", timeout_count)
+            #         timeout_count += 1
                     
-            if not request_processed:
-                # Add all segments to skipped_segments
-                input_points = [i - start_point for i, x in enumerate(coordinate_types)  \
-                                if(x == 'break_through' and i >= start_point)]
-                for point_idx, point in enumerate(input_points[:-1]):
-                    skipped_segs[(pattern, point_idx)] = v_points[point:input_points[point_idx+1]]
-                break
+            # if not request_processed:
+            #     # Add all segments to skipped_segments
+            #     input_points = [i - start_point for i, x in enumerate(coordinate_types)  \
+            #                     if(x == 'break_through' and i >= start_point)]
+            #     for point_idx, point in enumerate(input_points[:-1]):
+            #         skipped_segs[(pattern, point_idx)] = v_points[point:input_points[point_idx+1]]
+            #     break
 
     def get_patterns_with_requied_gtfs_tables(self, trips: pd.DataFrame, stop_times: pd.DataFrame, \
                                             stops: pd.DataFrame) -> Dict[str, Pattern]:
         """Produce a dict of patterns using the required GTFS tables: trips, stops_times and stops.
-                In addition, if the shapes table exists, then use the shapes to 
 
         Args:
             trips: GTFS trips table. Assume having columns: route_id, trip_id, direction_id.
@@ -101,6 +99,8 @@ class GTFS_Shape(BaseShape):
 
         Returns:
             pattern_dict: <pattern_index: Pattern object>. See Pattern object notes for details.
+                            pattern index is formatted as: route-direction-count 
+                            (count is the number of patterns for the same route + direction combination)
         """
         
         trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner')
@@ -144,7 +144,7 @@ class GTFS_Shape(BaseShape):
         pattern_counts.drop(columns=['pattern_count'], inplace=True)
 
         pattern_list = pattern_counts.to_dict('records')
-        pattern_dict = {p['pattern_index']:Pattern(p['route_id'], p['direction_id'], trip_stops_dict[p['trip_id']], \
+        pattern_dict = {p['pattern_index']:Pattern(p['pattern_index'], p['route_id'], p['direction_id'], trip_stops_dict[p['trip_id']], \
                                                 pattern_trip_dict[(p['route_id'], p['hash'])], stop_coords_dict[p['trip_id']]) for p in pattern_list}
         
         return pattern_dict
@@ -166,11 +166,20 @@ class GTFS_Shape(BaseShape):
 
         shapes = shapes[['shape_id', 'shape_pt_lat', 'shape_pt_lon']].drop_duplicates()
 
-        stop_matching_error_dict = {}
-        for index, pattern in tqdm.tqdm(pattern_dict.items(), desc='Preparing stop coordinates'):
-            sample_trip = pattern.trips[0]
-            if sample_trip in trip_shape_dict:
-                shape_id = trip_shape_dict[sample_trip]
+        for pattern_index, pattern in tqdm.tqdm(pattern_dict.items(), desc='Preparing stop coordinates'):
+            
+            # Find the shape_id of a sample trip of the pattern
+            shape_id = -1
+            trip_index_in_pattern = 0
+            while shape_id == -1 and trip_index_in_pattern < len(pattern.trips):
+                sample_trip = pattern.trips[trip_index_in_pattern]
+                if sample_trip in trip_shape_dict and trip_shape_dict[sample_trip] in shapes['shape_id']:
+                    shape_id = trip_shape_dict[sample_trip]
+                else:
+                    trip_index_in_pattern += 1
+            
+            # use coordinates from GTFS shapes to replace GTFS stop coordinates
+            if shape_id != -1:
                 pattern.shape = shape_id
 
                 stop_coords = pattern.stop_coords
@@ -181,16 +190,10 @@ class GTFS_Shape(BaseShape):
                 pattern.shape_coords = coordinate_list
                 pattern.coord_types = coordinate_type
                 pattern.radii = radii
-
-                shape_break_throughs = coordinate_type.count('break_through')
-                stops_from_gtfs = len(pattern.stops)
-                diff = shape_break_throughs-stops_from_gtfs
-
-                if diff != 0:
-                    stop_matching_error_dict[index] = diff
+                
+            else: # if no valid shape_id is found, then print info to console and continue
+                logger.info(f'Could not find a matching GTFS shape for pattern {pattern_index}')
         
-        for i, e in stop_matching_error_dict.items():
-            print("Error: Break Throughs - Stops =", e,"for Pattern ", i)
 
     # TODO: main source of inefficiency, improve this function
     def locate_stops_in_shapes(self, shape_coords:pd.DataFrame, stop_coords:List[Tuple[float, float]]) -> \

@@ -8,16 +8,13 @@ from parameters.gtfs import GTFS
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "04" # MM in string format
-YEAR = "2019" # YYYY in string format
+AGENCY = "MBTA" # CTA, MBTA, WMATA
+MONTH = "03" # MM in string format
+YEAR = "2022" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 MODE_OPTION = ['shape_generation']
-DATA_OPTION = ['config', 'GTFS', 'AVL', 'ODX'] # GTFS, GTFS-AVL, GTFS-AVL-ODX
-ADDITIONAL_DATA = {
-                'timepoints':f'data/{AGENCY}/agency-specific/timepoints_{AGENCY}_{MONTH}_{YEAR}.csv',
-                'test':f'data/{AGENCY}/agency-specific/test.csv'
-                }
+DATA_OPTION = ['GTFS'] # GTFS, GTFS-AVL, GTFS-AVL-ODX
+
 # SHAPE_GENERATION_OPTION = True # True/False: whether generate shapes
 # LINK_SELECTION_OPTION = False # True/False: whether generate input for link selection map in ROVE
 # METRIC_CAL_AGG_OPTION = False # True/False: whether run metric calculation and aggregation
@@ -32,34 +29,27 @@ def __main__():
         quit()
 
     logger.info(f'Starting ROVE backend processes for \n--{AGENCY}, {MONTH}-{YEAR}. '\
-                f'\n--Data Options: {DATA_OPTION}. \n--Additional Data: {ADDITIONAL_DATA.keys()}. '\
+                f'\n--Data Options: {DATA_OPTION}.'\
                 f'\n--Date Modes: {DATE_TYPE}. \n--Modules: {MODE_OPTION}.')
 
     # -----parameters-----
-    logger.info(f'Generating parameters...')
-    additional_params = {
-        'additional_input_paths': ADDITIONAL_DATA,
-        'additional_output_paths': {}
-    }
-    params = ROVE_params(AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION, additional_params=additional_params)
-    logger.info(f'parameters generated')
+
+    params = ROVE_params(AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION)
+    
+    PATHS = {
+            'gtfs': f'data/{params.agency}/gtfs/GTFS{params.suffix}.zip',
+            # 'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
+            # 'odx': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
+        }
 
     # ------data generation------
-    logger.info(f'Loading input data: {DATA_OPTION}')
-    gtfs = GTFS('gtfs', params)
+    gtfs = GTFS('gtfs', PATHS['gtfs'], params)
 
     # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
-    logger.info(f'All data loaded')
 
     # ------shape generation------
-    logger.info(f'Generating shapes...')
     shape = GTFS_Shape(gtfs)
-    logger.info(f'shapes generatd')
-    # # if SHAPE_GENERATION_OPTION:
-    # #     sgLogger = getLogger('shapeGenLogger')
-    # #     shape_gen(sgLogger)
-    # logger.info(f'backend processes completed')
 
 if __name__ == "__main__":
     __main__()

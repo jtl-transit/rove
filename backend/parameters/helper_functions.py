@@ -17,29 +17,29 @@ import logging
 
 logger = logging.getLogger("backendLogger")
 
-def day_list_generation(MONTH, YEAR, DATE_OPTION, workalendarPath):
+def day_list_generation(MONTH, YEAR, DATE_TYPE, workalendarPath):
     """Generate list of dates of the given month, year and option
 
     Args:
         MONTH (str): A month (MM) between 1 and 12
         YEAR (str): A year (YYYY)
-        DATE_OPTION (str): one of "Workday", "Saturday", "Sunday"
+        DATE_TYPE (str): one of "Workday", "Saturday", "Sunday"
         workalendarPath (str): the path to the workalendar data of the analyzed agency
 
     Returns:
         list(datetime): list of dates
 
     Raises:
-        ValueError: if MONTH is out of [1, 12] range or if DATE_OPTION is not one of "Workday", "Saturday", "Sunday"
+        ValueError: if MONTH is out of [1, 12] range or if DATE_TYPE is not one of "Workday", "Saturday", "Sunday"
     """
     MONTH = int(MONTH)
     YEAR = int(YEAR)
 
-    date_option_list = ["Workday", "Saturday", "Sunday"]
+    date_type_list = ["Workday", "Saturday", "Sunday"]
     if MONTH<1 or MONTH >12:
         raise ValueError('MONTH must be between 1 and 12.')
-    elif DATE_OPTION not in date_option_list:
-        raise ValueError(f'DATE_OPTION must be one of {date_option_list}.')
+    elif DATE_TYPE not in date_type_list:
+        raise ValueError(f'date_type must be one of {date_type_list}.')
         
     NEXT_YEAR = (datetime.date(YEAR, MONTH, 1) + datetime.timedelta(days=31)).year
     NEXT_MONTH = (datetime.date(YEAR, MONTH, 1) + datetime.timedelta(days=31)).month
@@ -64,11 +64,11 @@ def day_list_generation(MONTH, YEAR, DATE_OPTION, workalendarPath):
         else:
             WORKDAYS.append(day)
 
-    if DATE_OPTION == "Workday":
+    if DATE_TYPE == "Workday":
         return WORKDAYS
-    elif DATE_OPTION == "Saturday":
+    elif DATE_TYPE == "Saturday":
         return SATURDAYS
-    elif DATE_OPTION == "Sunday":
+    elif DATE_TYPE == "Sunday":
         return SUNDAYS
 
 def check_is_file(path):
@@ -86,7 +86,7 @@ def check_is_file(path):
     if os.path.isfile(path):
         return path
     else:
-        raise FileNotFoundError(f'Invalid file: {path}')
+        raise FileNotFoundError(f'Invalid file: {path}. Please double check a valid file is located at the specified location.')
 
 def check_is_dir(path, overwrite=False, create_if_none=False):
     """Check that the directory exists.

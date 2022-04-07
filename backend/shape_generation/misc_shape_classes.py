@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
 
+from zmq import ROUTER
+
 
 class Valhalla_Point():
 
@@ -64,18 +66,49 @@ class Valhalla_Request():
 
 class Pattern: # Attributes for each unique pattern of stops that create one or more route variant
     
-    def __init__(self, route:str, direction:int, stops:List[str], trips:List[str], stop_coords:List[Tuple[float, float]]):
-        self.route = route
-        self.direction = direction
-        self.stops = stops
-        self.trips = trips
-        self.stop_coords = stop_coords
-        self.shape = 0
-        self.timepoints = []
+    def __init__(self, index:str, route:str, direction:int, stops:List[str], trips:List[str], stop_coords:List[Tuple[float, float]]):
+        self._index = index
+        self._route = route
+        self._direction = direction
+        self._stops = stops
+        self._trips = trips
+        self._stop_coords = stop_coords
+        self._shape = 0
+        self._timepoints = []
         self._shape_coords = stop_coords
         self._coord_types = ['break_through'] * len(stop_coords)
         self._radii = [35] * len(stop_coords)
-        self._v_points = []
+        self._v_points = [Valhalla_Point(c[1], c[0]).point_parameters for c in stop_coords]
+        self._info = {}
+
+    @property
+    def info(self):
+        return self._info
+    
+    @info.setter
+    def info(self, info:Dict[str, object]) -> Dict[str, object]:
+        
+        info['route'] = self.route
+        info['direction'] = self.direction
+        info['stops'] = self.stops
+        info['trips'] = self.trips
+        info['stop_coords'] = self.stop_coords
+        info['shape'] = self.shape
+        info['timepoints'] = self.timepoints
+        info['shape_coords'] = self.shape_coords
+        info['stop_coords'] = self.stop_coords
+        info['coord_types'] = self.coord_types
+        info['v_points'] = self.v_points
+
+        self._info = info
+
+    @property
+    def index(self):
+        return self._index
+
+    @property
+    def route(self):
+        return self._route
 
 
     @property
@@ -93,7 +126,11 @@ class Pattern: # Attributes for each unique pattern of stops that create one or 
     
     @coord_types.setter
     def coord_types(self, coord_types:List[str]):
-        self._coord_types = self.__check_length_match_shape_coords(coord_types, 'coord_types')
+        coord_types = self.__check_length_match_shape_coords(coord_types, 'coord_types')
+        # Check that the number of break_throughs match the number of stops
+        diff_break_through = coord_types.count('break_through') - len(self.stop_coords)
+        if diff_break_through != 0:
+            raise ValueError(f'Error specifying coord types. Break Throughs - Stops = {diff_break_through} for pattern {self.index}.')
     
     @property
     def radii(self):

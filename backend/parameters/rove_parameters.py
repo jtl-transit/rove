@@ -1,14 +1,10 @@
 from abc import ABCMeta, abstractmethod
 import datetime
-from numpy import add, empty
-from numpy.lib.arraysetops import isin
-import pandas as pd
-import partridge as ptg
-import json
-import os
-from .helper_functions import day_list_generation, check_is_file
+from typing import List
+from .helper_functions import day_list_generation
 import logging
 import traceback
+from .config import Config
 
 logger = logging.getLogger("backendLogger")
 
@@ -21,111 +17,83 @@ class ROVE_params(object, metaclass=ABCMeta):
                 YEAR='',
                 DATE_TYPE='',
                 DATA_OPTION=[],
-                additional_params=None):
+                additional_params={}):
         """Instantiate rove parameters.
         """
-        
+        logger.info(f'Generating parameters...')
         # str : analyzed transit agency
-        self.agency = AGENCY
+        self._agency = AGENCY
 
         # str : analysis month, year and date type
-        self.month = MONTH
-        self.year = YEAR
-        self.date_option = DATE_TYPE
+        self._month = MONTH
+        self._year = YEAR
+        self._date_type = DATE_TYPE
 
         # list (str) : list of input data used for backend calculations
-        self.data_option = DATA_OPTION
+        self._data_option = DATA_OPTION
 
         # dict <str, any> : any additional parameters.
         #       Example of additional parameters that can be specified: 
         #       --> additional_input_paths : list of file paths to additional input files other than the default ones
         #       --> additional_output_paths: list of paths to additional output files
+        if not isinstance(additional_params, dict):
+            raise TypeError(f'additional_params must be a dict.')
         self._additional_params = additional_params or {}
-        
-        # str : suffix used in file names
-        self.suffix = f'_{AGENCY}_{MONTH}_{YEAR}'
 
         # dict <str, str> : dict of paths to input and output data
-        self.input_paths = self._additional_params.get('additional_input_paths', {})
-        self.output_paths = self._additional_params.get('additional_output_paths', {})
+        # self._input_paths = self._additional_params.get('additional_input_paths', {})
+        self._output_paths = self._additional_params.get('additional_output_paths', {})
 
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
-        self.config = dict()
+        self._config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
 
         # list (datetime) : list of dates of given month, year, agency
-        self.date_list = []
+        self._date_list = self.generate_date_list()
 
         # date : sample date for analysis
-        self.sample_date = datetime.date.today()
-
+        self._sample_date = self.generate_sample_date()
+        logger.info(f'parameters generated')
 
     @property
-    def input_paths(self):
-        """Get input paths
+    def agency(self):
+        return self._agency
+    
+    @property
+    def month(self):
+        return self._month
+    
+    @property
+    def year(self):
+        return self._year
+
+    @property
+    def date_type(self):
+        return self._date_type
+    
+    @property
+    def data_option(self):
+        return self._data_option
+    
+    @property
+    def additional_params(self):
+        return self._additional_params
+
+    @property
+    def suffix(self):
+        """suffix used in file names (e.g. WMATA_02_2019)
 
         Returns:
-            dict<str, str> : dict of input paths that includes required and additional files
+            str: concatenate agency_month_year 
         """
-        return self._input_paths
+        return f'_{self.agency}_{self.month}_{self.year}'
 
-    @input_paths.setter
-    def input_paths(self, additional_input_paths):
-        """Set required and optional files needed for backend processes after checking validity
-
-        Args:
-            additional_input_paths (dict <str, str>, optional): additional input files. Defaults to {}.
-        """
-
-        default_input_paths = {
-            'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
-            'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
-            'odx': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
-            'config': f'data/{self.agency}/config/{self.agency}_param_config.json'
-        }
-        
-        
-        if not isinstance(additional_input_paths, dict):
-            raise TypeError('additional_input_paths must be a dict')
-
-        req_keys = default_input_paths.keys()
-        logger.debug(f'{len(req_keys)} required files: {req_keys}')
-
-        add_keys = additional_input_paths.keys()
-        logger.debug(f'{len(add_keys)} additional files: {add_keys}')
-            
-        input_paths = {**default_input_paths, **additional_input_paths}
-
-        # Paths to all data specified in data_option
-        final_input_paths = {}
-        for d in self.data_option:
-            pname = d.lower()
-            if pname not in [k.lower() for k in input_paths.keys()]:
-                raise ValueError(f'file path to {d} data is not specified. '+\
-                    f'Please specify a path in additional_parameters.')
-            else:
-                final_input_paths[pname] = input_paths[pname]
-
-        # Check that all files are valid
-        for name, path in final_input_paths.items():
-            try:
-                check_is_file(path)
-            except FileNotFoundError as e:
-                logger.exception(traceback.format_exc())
-                logger.fatal(f'Cannot find file {name} at {path}. ' + \
-                    f'Unable to proceed unless all specified input files are in place. Exiting...')
-                quit()
-
-        self._input_paths = final_input_paths
-        logger.debug(f'All input files are in place.')
+    @property
+    def config(self):
+        return self._config
 
     @property
     def output_paths(self):
-        """Get output paths
-
-        Returns:
-            dict<str, str> : dict of paths to output files
-        """
         return self._output_paths
 
     @output_paths.setter
@@ -163,149 +131,50 @@ class ROVE_params(object, metaclass=ABCMeta):
         logger.debug(f'{len(output_paths.keys())} output file paths are set.')
 
     @property
-    def config(self):
-        """Get config parameters
-
-        Returns:
-            dict <str, any>: dict of config parameters
-        """
-        return self._config
-
-    @config.setter
-    def config(self, config):
-        """Set config parameters as defined by user or in the config file
-
-        Args:
-            config (dict, optional): dict of config parameters. Defaults to {}.
-
-        Raises:
-            AssertionError: if config is not given as a dict
-            KeyError: if using config file but the config file path is not in input_paths
-        """
-        if not isinstance(config, dict):
-            raise TypeError('config must be a dict')
-
-        if not config:
-            if 'config' not in self.input_paths:
-                raise KeyError('can not find config_inpath in input_paths')
-            else:
-                config_path = self.input_paths['config']
-                with open(config_path, 'r') as f:
-                    self._config = json.load(f)
-        else:
-            self._config = config
-
-        logger.debug(f'config loaded: {self._config.keys()}')
-
-    @property
     def date_list(self):
-        """Get list of dates
-
-        Returns:
-            list (datetime): list of dates
-        """
         return self._date_list
 
-    @date_list.setter
-    def date_list(self, date_list):
-        """Get list of dates
-        """
-        if not isinstance(date_list, list):
-            raise TypeError('date_list must be a list')
-        
-        if not date_list:
-            if 'workalendarPath' not in self.config:
-                raise KeyError('can not find workalendarPath in the config file')
-            else:
-                try:
-                    workalendar_path = self.config['workalendarPath']
-                    self._date_list = day_list_generation(self.month, self.year, self.date_option, workalendar_path)
-                except ValueError as err:
-                    logger.exception(traceback.format_exc())
-                    logger.fatal(f'Error generating date list: {err}. Exiting backend...')
-                    quit()
-        else:
-            if not all(isinstance(d, datetime) for d in date_list):
-                raise TypeError('elements in date_list must all be datetime')
-            else:
-                self._date_list = date_list
+    def generate_date_list(self)->List[datetime.datetime]:
+        """Generate list of dates of date_type in the given month and year.
 
-        logger.debug(f'date list generated: {len(self.date_list)} {self.date_option} days in {self.month}-{self.year}.')
+        Raises:
+            KeyError: No workalendarPath is found in config.
+
+        Returns:
+            List[datetime.datetime]: List of dates.
+        """
+
+        if 'workalendarPath' not in self.config:
+            raise KeyError('can not find workalendarPath in the config file')
+        else:
+            try:
+                workalendar_path = self.config['workalendarPath']
+                date_list = day_list_generation(self.month, self.year, self.date_type, workalendar_path)
+            except ValueError as err:
+                logger.exception(traceback.format_exc())
+                logger.fatal(f'Error generating date list: {err}. Exiting backend...')
+                quit()
+
+        logger.debug(f'date list generated: {len(date_list)} {self.date_type} days in {self.month}-{self.year}.')
+        return date_list
 
     @property
     def sample_date(self):
-
         return self._sample_date
 
-    @sample_date.setter
-    def sample_date(self, date):
+    def generate_sample_date(self)->datetime.datetime:
+        """Get a sample date. If date_type is 'Workday', then return the last Wednesday of the month, otherwise the last date
+        found in the date_list. If the date_list is empty, then return today's date.
 
+        Returns:
+            datetime.datetime: A sample date.
+        """
         if self.date_list:
-            if self.date_option=='Workday':
+            if self.date_type=='Workday':
                 from calendar import WEDNESDAY
-                self._sample_date = self.date_list[max(5, len(self.date_list) - (self.date_list[-1].weekday() - WEDNESDAY) % 7 - 1)]
+                sample_date = self.date_list[max(5, len(self.date_list) - (self.date_list[-1].weekday() - WEDNESDAY) % 7 - 1)]
             else:
-                self._sample_date = self.date_list[max(5, len(self.date_list)-1)]
+                sample_date = self.date_list[max(5, len(self.date_list)-1)]
         else:
-            self._sample_date = date
-
-    # def __load_required_data(self):
-    #     logger.info(f'Loading required data...')
-        
-    #     # TODO: force to specify which day of the week, because agencies have differnet patterns
-    #     # Choose a Wednesday as sample workday or the last day from the date list
-    #     if self.date_option=='Workday':
-    #         from calendar import WEDNESDAY
-    #         gtfs_sample_date = self.date_list[max(5, len(self.date_list) - (self.date_list[-1].weekday() - WEDNESDAY) % 7 - 1)]
-    #     else:
-    #         gtfs_sample_date = self.date_list[max(5, len(self.date_list)-1)]
-    #     logger.debug(f'gtfs sample date is: {gtfs_sample_date}')
-
-    #     gtfs_inpath = self.required_files['gtfs_inpath']
-    #     gtfs_route_type = self.config['route_type']
-    #     self.data['GTFS'] = GTFS(gtfs_inpath, gtfs_sample_date, gtfs_route_type)
-
-        
-
-    # def __load_additional_data(self):
-    #     logger.info(f'Loading additional data...')
-    #     if 'additional_data' in self.config and self.config['additional_data'] is not empty:
-    #         for name, path  
-
-    #     # # Read in required files
-    #     # self.__read_requied_files()
-
-    #     # # Read in additional files
-    #     # additional_files = config['additional_files']
-    #     # self.__read_additional_files(additional_files)
-
-    #     # # Read in GTFS data
-    #     # route_type = config['route_type']
-    #     # gtfs_in_path = f"data/MBTA/gtfs/GTFS{self.suffix}.zip"
-
-    #     # try:
-    #     #     gtfs = GTFS(gtfs_in_path, sample_date, route_type)
-    #     #     self.gtfs_data = gtfs.gtfs_data
-    #     # except NotImplementedError as e:
-    #     #     logger.info(f'Error encountered while generating GTFS data')
-    #     #     logger.fatal(f'Method not implemented. {e}. Exiing backend...')
-    #     #     quit()
-
-    
-
-# def check_is_file(path):
-#     """Check that the file exists
-
-#     Args:
-#         path (str): path to a file
-
-#     Raises:
-#         FileNotFoundError: if the given path doesn't point to a valid file
-
-#     Returns:
-#         str : path to file
-#     """
-#     if os.path.isfile(path):
-#         return path
-#     else:
-#         raise FileNotFoundError
+            sample_date = datetime.date.today()
+        return sample_date

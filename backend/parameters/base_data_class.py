@@ -3,7 +3,7 @@
 
 from abc import ABCMeta, abstractmethod
 import logging
-from parameters.rove_parameters import ROVE_params
+from .helper_functions import check_is_file
 
 logger = logging.getLogger("backendLogger")
 
@@ -13,9 +13,8 @@ class BaseData(metaclass=ABCMeta):
     
     def __init__(self,
                 alias,
-                rove_params,
-                required_data_set=None,
-                optional_data_set=None
+                path,
+                rove_params=None
                 ):
         """Instantiate a data class.
         This data object takes an alias name, a rove_params object, and an optional required_data_set,
@@ -23,32 +22,36 @@ class BaseData(metaclass=ABCMeta):
 
         Args:
             alias (str): alias of the data, used as key when referencing input paths and logging
-            rove_params (ROVE_params): a ROVE_params object that stores data needed throughout the backend
-            required_data_set (set): a set of data that's required of this data class.
-            optional_data_set (set, optional): a set of data that's optional. Defaults to None.
+            path (str): path to the raw data
+            rove_params (ROVE_params, optional): a ROVE_params object that stores data needed throughout the backend. Defaults to None.
 
         Raises:
             TypeError: if the given ROVE_params is not valid
         """
-        if not isinstance(rove_params, ROVE_params):
-            raise TypeError(f'Not a valid instance of rove_params.')
+        logger.info(f'loading {alias} data...')
 
         self._alias = alias
 
-        self._rove_params = rove_params
+        if rove_params is not None:
+            try:
+                from .rove_parameters import ROVE_params
+                if not isinstance(rove_params, ROVE_params):
+                    raise TypeError(f'the given rove_params is not a valid ROVE_params object.')
+                else:
+                    self._rove_params = rove_params
+            except ImportError as err:
+                logger.fatal(f'{err}: cannot import ROVE_params for data type {alias} due to possible circular reference.')
+                quit()
+        else:
+            self._rove_params = None
 
-        self._required_data_set = required_data_set or set()
-
-        self._optional_data_set = optional_data_set or set()
-
-        logger.info(f'loading {alias} data...')
         # Raw data (read-only) read from given paths stored in rove_params.
-        self._raw_data = self.load_data()
+        path = check_is_file(path)
+        self._raw_data = self.load_data(path)
         logger.info(f'{alias} data is loaded')
-
         
-        logger.info(f'validating {alias} data...')
         # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
+        logger.info(f'validating {alias} data...')
         self._validated_data = self.validate_data()
         logger.info(f'{alias} data is validated')
     
@@ -61,7 +64,7 @@ class BaseData(metaclass=ABCMeta):
     def rove_params(self):
 
         return self._rove_params
-
+    
     @property
     def raw_data(self):
         """Get raw data.
@@ -70,16 +73,6 @@ class BaseData(metaclass=ABCMeta):
             obj: raw data
         """
         return self._raw_data
-
-    @property
-    def required_data_set(self):
-
-        return self._required_data_set
-
-    @property
-    def optional_data_set(self):
-
-        return self._optional_data_set
 
     @property
     def validated_data(self):
@@ -91,9 +84,12 @@ class BaseData(metaclass=ABCMeta):
         return self._validated_data
 
     @abstractmethod
-    def load_data(self):
+    def load_data(self, path:str):
         """Abstract method that reads input data from a file
 
+        Args:
+            path (str): path to the raw data
+        
         Returns:
             obj: raw data
         """
@@ -110,17 +106,20 @@ class BaseData(metaclass=ABCMeta):
         pass
 
     # helpful functions
-    def load_csv_data(self, in_path):
+    def load_csv_data(self, path:str):
+        """Read in csv data and return a dataframe
+
+        Args:
+            path (str): path to the csv file
+
+        Returns:
+            DataFrame: dataframe read from the csv file
+        """
         import pandas as pd
 
         try:
-            in_path = self.rove_params.input_paths[self.alias]
-        except KeyError as err:
-            logger.fatal(f'{err}, could not find data for {self.alias}')
-
-        try:
-            data = pd.read_csv(in_path)
+            data = pd.read_csv(path)
         except pd.errors.EmptyDataError as err:
-            logger.warning(f'Data read from {in_path} is empty!')
+            logger.warning(f'{err}: Data read from {path} is empty!')
             data = pd.DataFrame()
         return data

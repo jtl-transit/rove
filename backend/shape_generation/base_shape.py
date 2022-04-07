@@ -12,11 +12,13 @@ class BaseShape():
 
     def __init__(self, data):
         
+        logger.info(f'Generating shapes...')
         self._data = data
 
         self._patterns = self.generate_patterns()
 
         self._shapes = self.generate_shapes()
+        logger.info(f'shapes generatd')
 
     @property
     def data(self):

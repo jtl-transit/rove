@@ -2,6 +2,7 @@
 """
 
 from abc import ABCMeta, abstractmethod
+from typing import Dict, List, Set
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
@@ -11,68 +12,109 @@ import traceback
 from .base_data_class import BaseData
 import tqdm
 
-REQUIRED_DATA_SET = {'agency', 'stops', 'routes', 'trips', 'stop_times'}
-OPTIONAL_DATA_SET = {'shapes'}
-
 logger = logging.getLogger("backendLogger")
+
+REQUIRED_DATA_DICT = {'agency':{
+
+                        }, 
+                    'stops':{
+                        'stop_id':'str',
+                        'stop_lat':'float64',
+                        'stop_lon':'float64'
+                        }, 
+                    'routes':{
+
+                        }, 
+                    'trips':{
+                        'route_id':'str',
+                        'trip_id':'str',
+                        'direction_id':'int64'
+                        }, 
+                    'stop_times':{
+                        'trip_id':'str',
+                        'stop_id':'str',
+                        'stop_sequence':'int64'
+                        }}
+OPTIONAL_DATA_DICT = {'shapes':{}}
 
 class GTFS(BaseData):
 
-    def __init__(self, alias, rove_params):
-        super().__init__(alias, rove_params, REQUIRED_DATA_SET, OPTIONAL_DATA_SET)
+    def __init__(self, alias, path, rove_params=None):
+        super().__init__(alias, path, rove_params)
 
-    def load_data(self):
-        """Load GTFS data from zip file
+    def load_data(self, path:str)->Dict[str, DataFrame]:
+        """Load in GTFS data from zip file, and retrieve data of the sample date (as stored in rove_params) and 
+        route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
+        if optional tables are not present or empty. Do not enforce data type. Store the retrieved tables in a dict.
 
         Returns:
-            dict <str, DataFrame>: dict containing DataFrames of all required data sets
+            dict <str, DataFrame>: key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
         """
         rove_params = self.rove_params
 
-        data = {}
-
-        in_path = rove_params.input_paths[self.alias]
-
         # Retrieve GTFS data for the sample date
         try:
-            service_id_list = ptg.read_service_ids_by_date(in_path)[rove_params.sample_date]
+            service_id_list = ptg.read_service_ids_by_date(path)[rove_params.sample_date]
         except KeyError as err:
             logger.exception(traceback.format_exc())
-            logger.fatal(f'Services for sample date {rove_params.sample_date} cannot be found in GTFS.'\
+            logger.fatal(f'{err}: Services for sample date {rove_params.sample_date} cannot be found in GTFS.'\
                         f'Please make sure the GTFS data is indeed for {rove_params.month}-{rove_params.year}.')
             quit()
 
         # Load GTFS feed
         view = {'routes.txt': {'route_type': rove_params.config['route_type']}, 'trips.txt': {'service_id': service_id_list}}
-        feed = ptg.load_feed(in_path, view)
+        feed = ptg.load_feed(path, view)
 
         # Store all required data in a dict
-        for t in tqdm.tqdm(self.required_data_set, desc=f'Loading required {self.alias} data: '):
-            try:
-                feed_data = getattr(feed, t)
-                if feed_data.empty:
-                    raise ValueError(f'{t} data is empty.')
-                data[t] = feed_data
-            except AttributeError as err:
-                logger.fatal(f'Could not find required table {t} from GTFS data. ' + \
-                    f'Please double check that the GTFS data you provided to ROVE has this table. Exiting...')
-                quit()
-            except ValueError as err:
-                logger.fatal(f'Please verify that the GTFS file for {t} has valid data.')
-                quit()
+        required_data = self.get_non_empty_gtfs_table(feed, REQUIRED_DATA_DICT, required=1)
 
         # Add all optional data if the file exists and is not empty
-        for t in tqdm.tqdm(self.optional_data_set, desc=f'Loading optional {self.alias} data: '):
-            try:
-                feed_data = getattr(feed, t)
-                if feed_data.empty:
-                    raise ValueError(f'{t} data is empty.')
-                data[t] = feed_data
-            except AttributeError as err:
-                logger.warning(f'Could not find optional table {t} from GTFS data. Skipping...')
-            except ValueError as err:
-                logger.warning(f'The GTFS file for the optional table {t} is empty. Skipping...')
+        optional_data = self.get_non_empty_gtfs_table(feed, OPTIONAL_DATA_DICT)
 
+        return {**required_data, **optional_data}
+
+    def get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_name_dict:Dict[str,Dict[str,str]], required=0)->Dict[str, DataFrame]:
+        """Get dict of non-empty GTFS tables from the given feed. If the data_set is required, then each table
+        must exist in the feed and must not be empty, otherwise the program will be halted. If the data_set is 
+        optional, then errors are logged but the program continues to run.
+
+        Args:
+            feed (ptg.readers.Feed): GTFS feed
+            table_name_dict (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
+            requied (int, optional): whether the table_name_dict is required. Defaults to 0.
+
+        Raises:
+            ValueError: table is found in the feed, but is empty.
+            AttributeError: a table name specified in table_name_dict is not found in GTFS feed.
+
+        Returns:
+            Dict[str, DataFrame]: key: name of GTFS table; value: GTFS table stored as DataFrame.
+        """
+        data = {}
+        for table_name, columns in table_name_dict.items():
+            try:
+                feed_data = getattr(feed, table_name)
+                if feed_data.empty:
+                    raise ValueError(f'{table_name} data is empty.')
+                else:
+                    if set(columns.keys()).issubset(feed_data.columns):
+                        data[table_name] = feed_data
+                    else:
+                        missing_columns = set(columns.keys()) - set(feed_data.columns)
+                        raise KeyError(f'Table "{table_name}" is missing required columns: {missing_columns}.')
+            except AttributeError as err:
+                if required:
+                    logger.fatal(f'{err}: Could not find required table {table_name} from GTFS data. ' + \
+                        f'Please double check that the GTFS data you provided to ROVE has this table. Exiting...')
+                    quit()
+                else:
+                    logger.warning(f'{err}: Could not find optional table {table_name} from GTFS data. Skipping...')
+            except ValueError as err:
+                if required:
+                    logger.fatal(f'{err}: Please verify that the GTFS file for {table_name} has valid data.')
+                    quit()
+                else:
+                    logger.warning(f'{err}: The GTFS file for the optional table {table_name} is empty. Skipping...')
         return data
     
     def validate_data(self):
@@ -85,17 +127,21 @@ class GTFS(BaseData):
             dict <str, DataFrame>: validated and cleaned-up data
         """
         # avoid changing the raw data object
-        validated_data = self.raw_data.copy()
+        data = self.raw_data.copy()
+        data_dict = {**REQUIRED_DATA_DICT, **OPTIONAL_DATA_DICT}
 
-        # Verify that all default data sets are not empty
-        for n, d in self.raw_data.items():
-            if d.empty:
-                raise ValueError(f'{n} data is empty. Please verify that the corresponding GTFS file has valid data.')
+        # convert column types
+        for table_name, df in data.items():
+            columns_dtype_dict = data_dict[table_name]
+            cols = columns_dtype_dict.keys()
+            df[cols] = df[cols].astype(dtype=columns_dtype_dict)
+        
+        # filter
         
         # Clean up the data
         # clean_up()
 
-        return validated_data
+        return data
 
     # TODO: make it more generic... convert route_id to list of route_short_name for any given table
     # Function to convert route_id from GTFS into route_short_name from GTFS, which is useful in some applications
