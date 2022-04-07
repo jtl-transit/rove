@@ -133,15 +133,49 @@ class GTFS(BaseData):
         # convert column types
         for table_name, df in data.items():
             columns_dtype_dict = data_dict[table_name]
-            cols = columns_dtype_dict.keys()
-            df[cols] = df[cols].astype(dtype=columns_dtype_dict)
+            cols = list(columns_dtype_dict.keys())
+            if not columns_dtype_dict:
+                continue
+            else:
+                df[cols] = df[cols].astype(dtype=columns_dtype_dict)
         
-        # filter
-        
+        # filter based on stop_times
+        stop_times = self.filter_table_a_on_unique_b_key(data, 'stop_times', 'trips', ['trip_id'])
+        trips = self.filter_table_a_on_unique_b_key(data, 'trips', 'stop_times', ['trip_id'])
+        stops = self.filter_table_a_on_unique_b_key(data, 'stops', 'stop_times', ['stop_id'])
+
+        # organize data
+        trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner')
+        stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
         # Clean up the data
         # clean_up()
 
         return data
+
+    def filter_table_a_on_unique_b_key(self, data:Dict[str, DataFrame], table_a_name:str, 
+                                        table_b_name:str, key:List[str]):
+        """Filter table_a leaving records whose key is found in unique values of table_b key.
+
+        Args:
+            data (Dict[str, DataFrame]): key: gtfs table name; value: dataframe of gtfs table
+            table_a_name (str): name of table to be filtered
+            table_b_name (str): name of table that supplies the base for lookup
+            key (List[str]): list of key column names that should exist in both table_a and table_b
+
+        Returns:
+            DataFrame: filtered dataframe
+        """
+        data_a = data[table_a_name]
+        data_b_key_col = data[table_b_name][key].drop_duplicates()
+        
+        data_a_filtered = pd.merge(data_a, data_b_key_col, on=key, how='inner')
+        if (data_a_filtered.shape[0] > data_a.shape[0]):
+            raise ValueError(f'Filtered table "{table_a_name}" should not have more rows than before.')
+        logger.debug(f'shape of table "{table_a_name}"'+\
+                    f'\n\tbefore filtering:\t{data_a.shape}'+\
+                    f'\n\tafter filtering:\t{data_a_filtered.shape}')
+
+        return data_a_filtered
 
     # TODO: make it more generic... convert route_id to list of route_short_name for any given table
     # Function to convert route_id from GTFS into route_short_name from GTFS, which is useful in some applications
