@@ -6,6 +6,7 @@ for running the parameters for different transit agencies.
 """
 
 import datetime
+from typing import List
 import workalendar.usa
 import partridge as ptg
 import pandas as pd
@@ -115,3 +116,34 @@ def check_is_dir(path, overwrite=False, create_if_none=False):
         logger.debug('Directory created: {path}.')
     else:
         raise NotADirectoryError('Directory does not exist: {path}')
+
+
+def get_hash_of_stop_list(stops:List[str]) -> int:
+    """Get hash of a list of stops IDs of a trip
+        hashing function: hash = sum(2*index of stop in list)**2 + stop_value**3)
+    Args:
+        stops: list of stop IDs, 
+    Returns:
+        hash value of the list of stops
+    """
+    hash_1 = sum((2*np.arange(1,len(stops)+1))**2)
+    hash_2 = 0
+    for stop in stops:
+        hash_2 += (get_stop_value(stop))**3
+    hash = hash_1 + hash_2
+
+    return hash
+
+def get_stop_value(stop:str) -> int:
+    """Get numerical value of a stop, either the original numerical value or 
+        sum of unicode values of all characters
+    Args:
+        every element must be a string literal
+    Returns:
+        value of a stop
+    """
+    try:
+        num = int(stop)
+    except ValueError as err: # the given stop ID is not a numerical value
+        num = sum([ord(x) for x in stop])
+    return num
