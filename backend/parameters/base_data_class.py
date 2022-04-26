@@ -17,13 +17,15 @@ class BaseData(metaclass=ABCMeta):
                 rove_params=None
                 ):
         """Instantiate a data class.
-        This data object takes an alias name, a rove_params object, and an optional required_data_set,
-        and creates a data class that stores raw and validated data.
+        Creates a data class that stores raw and validated data.
 
         Args:
             alias (str): alias of the data, used as key when referencing input paths and logging
             path (str): path to the raw data
-            rove_params (ROVE_params, optional): a ROVE_params object that stores data needed throughout the backend. Defaults to None.
+            rove_params (ROVE_params, optional): a ROVE_params object that stores data needed throughout the backend. 
+                                                Defaults to None. This argument should not be specified when creating
+                                                a data class that will be stored in rove_params (e.g. config), to avoid 
+                                                circular reference.
 
         Raises:
             TypeError: if the given ROVE_params is not valid

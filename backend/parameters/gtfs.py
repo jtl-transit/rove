@@ -2,7 +2,7 @@
 """
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
@@ -10,12 +10,16 @@ import numpy as np
 import logging
 import traceback
 from .base_data_class import BaseData
+from shapely.ops import nearest_points
+from shapely.geometry import LineString, Point
+from scipy.spatial import distance
 import tqdm
+import math
 from .helper_functions import get_hash_of_stop_list
 
 logger = logging.getLogger("backendLogger")
 
-REQUIRED_DATA_DICT = {'agency':{
+REQUIRED_DATA_SPEC = {'agency':{
 
                         }, 
                     'stops':{
@@ -36,24 +40,26 @@ REQUIRED_DATA_DICT = {'agency':{
                         'stop_id':'str',
                         'stop_sequence':'int64'
                         }}
-OPTIONAL_DATA_DICT = {'shapes':{'shape_id'}}
+OPTIONAL_DATA_SPEC = {'shapes':{
+                        'shape_id':'str',
+                        'shape_pt_lat':'float64',
+                        'shape_pt_lon':'float64',
+                        'shape_pt_sequence':'int64'}}
 
 class GTFS(BaseData):
 
     def __init__(self, alias, path, rove_params=None):
         super().__init__(alias, path, rove_params)
 
-        # store commonly-used dict of GTFS data in read-only fields, but the calculation is
-        #   only done once when initializing the instance so that they won't be repeatedly generated
-        self._trip_stop_times = self.__get_trip_stop_times()
-        self._trip_stops_dict = self.__get_trip_stops_dict()
-        self._trip_stop_coords_dict = self.__get_trip_stop_coords_dict()
         self._pattern_dict = self.__get_pattern_dict()
+        if 'shapes' in self.validated_data.keys():
+            self. __improve_pattern_with_shapes()
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
-        """Load in GTFS data from zip file, and retrieve data of the sample date (as stored in rove_params) and 
+        """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
-        if optional tables are not present or empty. Do not enforce data type. Store the retrieved tables in a dict.
+        if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
+        the required and optional specs. Store the retrieved raw data tables in a dict.
 
         Returns:
             dict <str, DataFrame>: key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
@@ -73,43 +79,45 @@ class GTFS(BaseData):
         view = {'routes.txt': {'route_type': rove_params.config['route_type']}, 'trips.txt': {'service_id': service_id_list}}
         feed = ptg.load_feed(path, view)
 
-        # Store all required data in a dict, enforce that none in data_dict is empty
-        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_DICT, required=1)
+        # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
+        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_SPEC, required=1)
 
-        # Add all optional data if the file exists and is not empty
-        optional_data = self.__get_non_empty_gtfs_table(feed, OPTIONAL_DATA_DICT)
+        # Add whichever optional table listed in the spec exists and is not empty
+        optional_data = self.__get_non_empty_gtfs_table(feed, OPTIONAL_DATA_SPEC)
 
         return {**required_data, **optional_data}
 
-    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_name_dict:Dict[str,Dict[str,str]], required=0)->Dict[str, DataFrame]:
-        """Get dict of non-empty GTFS tables from the given feed. If the data_set is required, then each table
-        must exist in the feed and must not be empty, otherwise the program will be halted. If the data_set is 
-        optional, then errors are logged but the program continues to run.
+    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required=0)->Dict[str, DataFrame]:
+        """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
+        For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
+        For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
+        For tables in any spec, all spec columns must exist if the spec table is not empty.
 
         Args:
             feed (ptg.readers.Feed): GTFS feed
-            table_name_dict (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
-            requied (int, optional): whether the table_name_dict is required. Defaults to 0.
+            table_col_spec (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
+            requied (int, optional): whether the table_col_spec is required. Defaults to 0.
 
         Raises:
             ValueError: table is found in the feed, but is empty.
-            AttributeError: a table name specified in table_name_dict is not found in GTFS feed.
+            AttributeError: a table name specified in table_col_spec is not found in GTFS feed.
 
         Returns:
             Dict[str, DataFrame]: key: name of GTFS table; value: GTFS table stored as DataFrame.
         """
         data = {}
-        for table_name, columns in table_name_dict.items():
+        for table_name, columns in table_col_spec.items():
             try:
                 feed_data = getattr(feed, table_name)
                 if feed_data.empty:
                     raise ValueError(f'{table_name} data is empty.')
+                elif not set(columns.keys()).issubset(feed_data.columns):
+                    # not all spec columns are found in raw table => some spec columns are missing
+                    missing_columns = set(columns.keys()) - set(feed_data.columns)
+                    raise KeyError(f'Table "{table_name}" is missing required columns: {missing_columns}.')
                 else:
-                    if set(columns.keys()).issubset(feed_data.columns):
-                        data[table_name] = feed_data
-                    else:
-                        missing_columns = set(columns.keys()) - set(feed_data.columns)
-                        raise KeyError(f'Table "{table_name}" is missing required columns: {missing_columns}.')
+                    # all spec columns are found in the raw table, so store the raw table
+                    data[table_name] = feed_data
             except AttributeError as err:
                 if required:
                     logger.fatal(f'{err}: Could not find required table {table_name} from GTFS data. ' + \
@@ -126,7 +134,7 @@ class GTFS(BaseData):
         return data
     
     def validate_data(self):
-        """Clean up raw data and make sure that it conforms with the standard format defined in the documentation
+        """Clean up raw data by converting column types to those listed in the spec.
 
         Raises:
             ValueError: if any one type of the required raw data is empty
@@ -136,119 +144,153 @@ class GTFS(BaseData):
         """
         # avoid changing the raw data object
         data = self.raw_data.copy()
-        data_dict = {**REQUIRED_DATA_DICT, **OPTIONAL_DATA_DICT}
+        data_dict = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
 
-        # convert column types
+        # convert column types according to the spec
         for table_name, df in data.items():
             columns_dtype_dict = data_dict[table_name]
             cols = list(columns_dtype_dict.keys())
-            if not columns_dtype_dict:
-                continue
-            else:
-                df[cols] = df[cols].astype(dtype=columns_dtype_dict)
+            df[cols] = df[cols].astype(dtype=columns_dtype_dict)
+            # try:
+            #     df[cols] = df[cols].astype(dtype=columns_dtype_dict)
+            # except KeyError as err:
+            #     print(err)
         
-        # filter based on stop_times
-        # stop_times = self.filter_table_a_on_unique_b_key(data, 'stop_times', 'trips', ['trip_id'])
-        stop_times = data['stop_times']
-        trips = self.__filter_table_a_on_unique_b_key(data, 'trips', 'stop_times', ['trip_id'])
-        stops = self.__filter_table_a_on_unique_b_key(data, 'stops', 'stop_times', ['stop_id'])
+        # # filter based on stop_times
+        # # stop_times = self.filter_table_a_on_unique_b_key(data, 'stop_times', 'trips', ['trip_id'])
+        # stop_times = data['stop_times']
+        # trips = self.__filter_table_a_on_unique_b_key(data, 'trips', 'stop_times', ['trip_id'])
+        # stops = self.__filter_table_a_on_unique_b_key(data, 'stops', 'stop_times', ['stop_id'])
 
         return data
 
-    @property
-    def trip_stop_times(self):
-        return self._trip_stop_times
+    def __get_pattern_dict(self)->Dict:
+        """Generate a dict of patterns from validated GTFS data. Add a "hash" column to the trips table.
 
-    @property
-    def trip_stops_dict(self):
-        return self._trip_stops_dict
-    
-    @property
-    def trip_stops_coords_dict(self):
-        return self._trip_stops_coords_dict
-
-    def __get_trip_stop_times(self):
-
-        trips = self.validated_data['trips']
-        stop_times = self.validated_data['stop_times']
-
-        trip_stop_times = pd.merge(trips, stop_times, on='trip_id', how='inner').\
-                            sort_values(by=['trip_id', 'stop_sequence'])
-        return trip_stop_times
-
-    def __get_trip_stops_dict(self):
-        
-        trip_stops_dict = self.trip_stop_times.groupby('trip_id')['stop_id'].agg(list).to_dict()
-        return trip_stops_dict
-    
-    def __get_trip_stop_coords_dict(self):
-        
-        stops = self.validated_data['stops']
-        stops_coords = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
-        stops_coords['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
-        trip_stop_times_stops = pd.merge(self.trip_stops_dict, stops_coords, on='stop_id', how='inner').\
-                                sort_values(by=['trip_id', 'stop_sequence'])
-        trip_stops_coords_dict = trip_stop_times_stops.groupby('trip_id')['coords'].agg(list).to_dict()
-        return trip_stops_coords_dict
-
-    def __get_pattern_dict(self):
-        
-        tst_sub = self.trip_stop_times[['route_id','trip_id','direction_id', 'stop_id']].drop_duplicates()
-        tst_sub['hash'] = tst_sub['stop_id'].groupby(tst_sub['trip_id']).transform(lambda x: get_hash_of_stop_list(x))
-        
-        pattern_counts = tst_sub.groupby(['route_id','hash','direction_id']).size().reset_index(name='count')
-        pattern_trip_dict = tst_sub.groupby(['route_id','hash'])['trip_id'].agg(list).to_dict()
-        return pattern_trip_dict
-
-
-    def __filter_table_a_on_unique_b_key(self, data:Dict[str, DataFrame], table_a_name:str, 
-                                        table_b_name:str, key:List[str]):
-        """Filter table_a leaving records whose key is found in unique values of table_b key.
-
-        Args:
-            data (Dict[str, DataFrame]): key: gtfs table name; value: dataframe of gtfs table
-            table_a_name (str): name of table to be filtered
-            table_b_name (str): name of table that supplies the base for lookup
-            key (List[str]): list of key column names that should exist in both table_a and table_b
+        Raises:
+            ValueError: number of unique trip hashes does not match with number of unique sequence of stops
 
         Returns:
-            DataFrame: filtered dataframe
+            Dict: Pattern dict - key: pattern hash; value: Segment dict (a segment is a section of road between two transit stops). 
+                    Segment dict - key: tuple of stop IDs at the beginning and end of the segment; value: list of coordinates defining the segment.
         """
-        data_a = data[table_a_name]
-        data_b_key_col = data[table_b_name][key].drop_duplicates()
-        
-        data_a_filtered = pd.merge(data_a, data_b_key_col, on=key, how='inner')
-        if (data_a_filtered.shape[0] > data_a.shape[0]):
-            raise ValueError(f'Filtered table "{table_a_name}" should not have more rows than before.')
-        logger.debug(f'shape of table "{table_a_name}"'+\
-                    f'\n\tbefore filtering:\t{data_a.shape}'+\
-                    f'\n\tafter filtering:\t{data_a_filtered.shape}')
+        logger.info(f'generating patterns with GTFS data...')
 
-        return data_a_filtered
+        # Handle of trips table stored in validated_data (reference semantics). 
+        # The handle is used for simplicify of referencing the validated_data trips table, so adding column to the handle
+        # changes the referenced object as well. The object is not reassigned other objects later on.
+        trips = self.validated_data['trips']
+        
+        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash of the stop_ids list
+        stop_times = self.validated_data['stop_times'].sort_values(by=['trip_id', 'stop_sequence'])
+        trip_stops = stop_times.groupby('trip_id')['stop_id'].apply(list).reset_index(name='stop_ids')
+        trip_stops['hash'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
 
-    # TODO: make it more generic... convert route_id to list of route_short_name for any given table
-    # Function to convert route_id from GTFS into route_short_name from GTFS, which is useful in some applications
-    def convert_route_ids(df, feed):
-        feed_routes = feed.routes
-        route_dict = dict(zip(feed_routes['route_id'], feed_routes['route_short_name']))
-        new_ids = []
-        for i in df['route_id'].values.tolist():
-            new_ids.append(route_dict[i])
+        # Verify that number of unique hashes indeed match with number of unique sequence of stops
+        if trip_stops.astype(str).nunique()['hash'] != trip_stops.astype(str).nunique()['stop_ids']:
+            raise ValueError(f'Number of unique hashes should match number of unique lists of ordered stops. '+\
+                                'Use debug mode to find out why there is a mismatch. You may need to change the hashing method.')
+        else:
+            logger.debug(f'Summary of unique trip hashes: \n{trip_stops.astype(str).nunique()}')
+
+        # Add hash column to the trips table
+        trip_hash_lookup = trip_stops.set_index('trip_id')['hash'].to_dict()
+        trips['hash'] = trips['trip_id'].map(trip_hash_lookup)
+
+        # Generate dict of patterns. 
+        # Get a dict of <hash: list of stop ids>
+        hash_stops_lookup = trip_stops.set_index('hash')['stop_ids'].to_dict()
+
+        # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
+        stops = self.validated_data['stops'][['stop_id','stop_lat','stop_lon']].drop_duplicates()
+        stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
+        stop_coords_lookup = stops.set_index('stop_id')['coords'].to_dict()
+
+        # Get a dict of <hash: segments>
+        # e.g. {2188571819865: {('64', '1'):[(lat64, lon64), (lat1, lon1)], ('1', '2'): [(lat1, lon1), (lat2, lon2)]...}...}
+        hash_segments_lookup = {hash: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
+                                    for i in range(len(stop_ids)-1)} for hash, stop_ids in hash_stops_lookup.items()}
+
+        logger.info(f'gtfs patterns generated')
+
+        return hash_segments_lookup
+
+
+    @property
+    def pattern_dict(self):
+        return self._pattern_dict
+
+    def __improve_pattern_with_shapes(self):
+        """Improve the coordinates of each segment in each pattern by replacing the stop coordinates
+            with coordinates found in the GTFS shapes table. Also add additional intermediate coordinates
+            to enrich the segment profile if the distance of the segment is long.
+        """
+        logger.info(f'improving pattern with GTFS shapes table...')
+
+        # Stop-to-stop distance threshold for including intermediate coordinates (meters)
+        stop_distance_threshold  = 1000
+
+        trips = self.validated_data['trips']
+        shapes = self.validated_data['shapes'].sort_values(by=['shape_id', 'shape_pt_sequence'])
+
+        shapes['coords'] = list(zip(shapes.shape_pt_lat, shapes.shape_pt_lon))
+        shape_coords_lookup = shapes.groupby('shape_id')['coords'].agg(list).to_dict()
+
+        trip_shape_lookup = trips[['trip_id', 'shape_id']].set_index('trip_id')['shape_id'].to_dict()
+        hash_trips_lookup = trips.groupby('hash')['trip_id'].agg(list).to_dict()
+
+        for hash, segments in self.pattern_dict.items():
             
-        df['route_id'] = new_ids
-        
-        return df
-    
-    # Function to convert stop_id from GTFS into stop_code from GTFS, which is needed for WMATA
-    def convert_stop_ids(df, feed):
-        
-        feed_stops = feed.stops
-        stops_dict = dict(zip(feed_stops['stop_id'], feed_stops['stop_code']))
-        new_ids = []
-        for i in df['stop_id'].values.tolist():
-            new_ids.append(stops_dict[i])
+            # Find a representative shape ID and the corresponding list of shape coordinates
+            trips = hash_trips_lookup[hash]
+            try:
+                example_shape = next(trip_shape_lookup[t] for t in trips if t in trip_shape_lookup)
+            except StopIteration as err:
+                logger.debug(f'{err}: no example shape can be found for hash: {hash}.')
+                example_shape = -1
+                continue
             
-        df['stop_id'] = new_ids
-        df = df[~df['stop_id'].isnull()] # Remove any rows with missing values
+            shape_coords = shape_coords_lookup[example_shape]
+            
+            # For each segment, find indices of the start and end stops from the list of shape coordinates
+            #   Key: id_pair; Value: [index of start stop, index of end stop in shape_coords]
+            #   Example: {(64, 1): [0, 7], (1, 2): [7, 13]}
+            seg_shape_indices = {id_pair: [self.find_nearest_point(shape_coords, coord_list[0]), \
+                                        self.find_nearest_point(shape_coords, coord_list[-1])] \
+                                for id_pair, coord_list in segments.items()}
+            
+            # Add intermediate coordinates if stops on two ends of a segment are far apart
+            for id_pair, indicies in seg_shape_indices.items():
+
+                interval_count = max(math.floor(self.get_distance(shape_coords[indicies[0]], shape_coords[indicies[-1]])/stop_distance_threshold),1)
+                step = math.ceil((indicies[-1]-indicies[0]) / interval_count )
+                ind_list = list(np.arange(indicies[0], indicies[-1], step)) + [indicies[-1]]
+                
+                c_list = [shape_coords[i] for i in ind_list]
+                segments[id_pair] = c_list
+
+        logger.info(f'patterns improved with GTFS shapes')
+
+    def find_nearest_point(self, coord_list, coord):
+        dist = distance.cdist(np.array(coord_list), np.array([coord]), 'euclidean')
+        return dist.argmin()
+
+    def get_distance(self, start:Tuple[float, float], end:Tuple[float, float]) -> float:
+        """Get distance (in m) from a pair of lat, long coord tuples.
+
+        Args:
+            start (Tuple[float, float]): coord of start point
+            end (Tuple[float, float]): coord of end point
+
+        Returns:
+            float: distance in meters between start and end point
+        """
+        R = 6372800 # earth radius in m
+        lat1, lon1 = start
+        lat2, lon2 = end
         
-        return df
+        phi1, phi2 = math.radians(lat1), math.radians(lat2) 
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1) 
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2    
+        return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)

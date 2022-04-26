@@ -119,8 +119,12 @@ def check_is_dir(path, overwrite=False, create_if_none=False):
 
 
 def get_hash_of_stop_list(stops:List[str]) -> int:
-    """Get hash of a list of stops IDs of a trip
-        hashing function: hash = sum(2*index of stop in list)**2 + stop_value**3)
+    """Get hash of a list of stops IDs of a trip using the following formula:
+        hashing function: hash = sum(2*index of stop in list)**2 + stop_value**3).
+        Note that this method could potentially lead to duplicate hashes for:
+            e.g. lists of stops that are in the same set (i.e. have same length and unique stops) but ordered differently.
+        Therefore, it is important to order the stops by stop_sequence before using this function.
+
     Args:
         stops: list of stop IDs, 
     Returns:
