@@ -3,7 +3,6 @@ import datetime
 from typing import List
 from .helper_functions import day_list_generation
 import logging
-import traceback
 from .config import Config
 
 logger = logging.getLogger("backendLogger")
@@ -49,10 +48,10 @@ class ROVE_params(object, metaclass=ABCMeta):
         self._config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
 
         # list (datetime) : list of dates of given month, year, agency
-        self._date_list = self.generate_date_list()
+        self._date_list = self.__generate_date_list()
 
         # date : sample date for analysis
-        self._sample_date = self.generate_sample_date()
+        self._sample_date = self.__generate_sample_date()
         logger.info(f'parameters generated')
 
     @property
@@ -134,7 +133,7 @@ class ROVE_params(object, metaclass=ABCMeta):
     def date_list(self):
         return self._date_list
 
-    def generate_date_list(self)->List[datetime.datetime]:
+    def __generate_date_list(self)->List[datetime.datetime]:
         """Generate list of dates of date_type in the given month and year.
 
         Raises:
@@ -150,9 +149,9 @@ class ROVE_params(object, metaclass=ABCMeta):
             try:
                 workalendar_path = self.config['workalendarPath']
                 date_list = day_list_generation(self.month, self.year, self.date_type, workalendar_path)
-            except ValueError as err:
-                logger.exception(traceback.format_exc())
-                logger.fatal(f'Error generating date list: {err}. Exiting backend...')
+            # except ValueError as err:
+            except ValueError:
+                logger.fatal(f'Error generating date list.', exc_info=True)
                 quit()
 
         logger.debug(f'date list generated: {len(date_list)} {self.date_type} days in {self.month}-{self.year}.')
@@ -162,7 +161,7 @@ class ROVE_params(object, metaclass=ABCMeta):
     def sample_date(self):
         return self._sample_date
 
-    def generate_sample_date(self)->datetime.datetime:
+    def __generate_sample_date(self)->datetime.datetime:
         """Get a sample date. If date_type is 'Workday', then return the last Wednesday of the month, otherwise the last date
         found in the date_list. If the date_list is empty, then return today's date.
 

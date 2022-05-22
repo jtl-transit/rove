@@ -30,24 +30,21 @@ class BaseData(metaclass=ABCMeta):
         Raises:
             TypeError: if the given ROVE_params is not valid
         """
-        logger.info(f'loading {alias} data...')
+        logger.info(f'creating a BaseData object for {alias}...')
 
         self._alias = alias
 
         if rove_params is not None:
-            try:
-                from .rove_parameters import ROVE_params
-                if not isinstance(rove_params, ROVE_params):
-                    raise TypeError(f'the given rove_params is not a valid ROVE_params object.')
-                else:
-                    self._rove_params = rove_params
-            except ImportError as err:
-                logger.fatal(f'{err}: cannot import ROVE_params for data type {alias} due to possible circular reference.')
-                quit()
+            from .rove_parameters import ROVE_params
+            if not isinstance(rove_params, ROVE_params):
+                raise TypeError(f'Not a valid ROVE_params object.')
+            else:
+                self._rove_params = rove_params
         else:
             self._rove_params = None
 
-        # Raw data (read-only) read from given paths stored in rove_params.
+        # Raw data (read-only) read from the given path.
+        logger.info(f'loading {alias} data...')
         path = check_is_file(path)
         self._raw_data = self.load_data(path)
         logger.info(f'{alias} data is loaded')
@@ -56,33 +53,23 @@ class BaseData(metaclass=ABCMeta):
         logger.info(f'validating {alias} data...')
         self._validated_data = self.validate_data()
         logger.info(f'{alias} data is validated')
+
+        logger.info(f'BaseData object creatd for {alias}')
     
     @property
     def alias(self):
-
         return self._alias
 
     @property
     def rove_params(self):
-
         return self._rove_params
     
     @property
     def raw_data(self):
-        """Get raw data.
-
-        Returns:
-            obj: raw data
-        """
         return self._raw_data
 
     @property
     def validated_data(self):
-        """Get validated data
-
-        Returns:
-            obj: validated data
-        """
         return self._validated_data
 
     @abstractmethod
@@ -108,7 +95,7 @@ class BaseData(metaclass=ABCMeta):
         pass
 
     # helpful functions
-    def load_csv_data(self, path:str):
+    def load_csv_in_dataframe(self, path:str):
         """Read in csv data and return a dataframe
 
         Args:
@@ -116,8 +103,14 @@ class BaseData(metaclass=ABCMeta):
 
         Returns:
             DataFrame: dataframe read from the csv file
+        
+        Raises:
+            ValueError: the given file path does not end with .csv
         """
         import pandas as pd
+        
+        if not path.endswith('.csv'):
+            raise ValueError(f'Not a valid csv file.')
 
         try:
             data = pd.read_csv(path)

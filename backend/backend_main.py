@@ -25,7 +25,7 @@ logger = getLogger('backendLogger')
 def __main__():
     # Check that the supplied agency is valid
     if AGENCY not in SUPPORTED_AGENCIES:
-        logger.fatal(f'Agency "{AGENCY}" is not supported, exiting backend...')
+        logger.fatal(f'Agency "{AGENCY}" is not supported. Exiting...')
         quit()
 
     logger.info(f'Starting ROVE backend processes for \n--{AGENCY}, {MONTH}-{YEAR}. '\

@@ -5,9 +5,7 @@ import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-import traceback
 from .base_data_class import BaseData
-import tqdm
 import json
 
 REQUIRED_DATA_SET = {'route_type', 'workalendarPath', 'time_periods', 'speed_range', 'percentile_list'}
@@ -21,13 +19,14 @@ class Config(BaseData):
     def load_data(self, path: str)->Dict[str, object]:
         with open(path, 'r') as f:
             data = json.load(f)
+
+            if not isinstance(data, dict):
+                raise TypeError(f'config file could not be decoded to a valid dict and cannot be processed.')
         return data
 
     # TODO: add more data enforecement for config data: e.g. enforce time periods not empty?
     def validate_data(self):
         data = self.raw_data
-        if not isinstance(data, dict):
-            raise TypeError(f'config data is not stored as a dict and cannot be processed. Exiting...')
 
         config_keys = set(data.keys())
         if not REQUIRED_DATA_SET.issubset(config_keys):

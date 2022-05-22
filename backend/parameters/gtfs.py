@@ -3,17 +3,18 @@
 
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Set, Tuple
+from xmlrpc.client import Boolean
+from argon2 import Parameters
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-import traceback
 from .base_data_class import BaseData
 from shapely.ops import nearest_points
 from shapely.geometry import LineString, Point
 from scipy.spatial import distance
-import tqdm
+from copy import deepcopy
 import math
 from .helper_functions import get_hash_of_stop_list
 
@@ -70,9 +71,7 @@ class GTFS(BaseData):
         try:
             service_id_list = ptg.read_service_ids_by_date(path)[rove_params.sample_date]
         except KeyError as err:
-            logger.exception(traceback.format_exc())
-            logger.fatal(f'{err}: Services for sample date {rove_params.sample_date} cannot be found in GTFS.'\
-                        f'Please make sure the GTFS data is indeed for {rove_params.month}-{rove_params.year}.')
+            logger.fatal(f'{err}: Services for sample date {rove_params.sample_date} cannot be found in GTFS.', exc_info=True)
             quit()
 
         # Load GTFS feed
@@ -80,14 +79,15 @@ class GTFS(BaseData):
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
-        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_SPEC, required=1)
+        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_SPEC, required=True)
 
         # Add whichever optional table listed in the spec exists and is not empty
         optional_data = self.__get_non_empty_gtfs_table(feed, OPTIONAL_DATA_SPEC)
 
         return {**required_data, **optional_data}
 
-    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required=0)->Dict[str, DataFrame]:
+    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:Boolean=False)\
+                                    ->Dict[str, DataFrame]:
         """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
         For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
         For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
@@ -96,7 +96,7 @@ class GTFS(BaseData):
         Args:
             feed (ptg.readers.Feed): GTFS feed
             table_col_spec (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
-            requied (int, optional): whether the table_col_spec is required. Defaults to 0.
+            requied (bool, optional): whether the table_col_spec is required. Defaults to False.
 
         Raises:
             ValueError: table is found in the feed, but is empty.
@@ -118,19 +118,18 @@ class GTFS(BaseData):
                 else:
                     # all spec columns are found in the raw table, so store the raw table
                     data[table_name] = feed_data
-            except AttributeError as err:
+            except AttributeError:
                 if required:
-                    logger.fatal(f'{err}: Could not find required table {table_name} from GTFS data. ' + \
-                        f'Please double check that the GTFS data you provided to ROVE has this table. Exiting...')
+                    logger.fatal(f'Could not find required table {table_name} from GTFS data.', exc_info=True)
                     quit()
                 else:
-                    logger.warning(f'{err}: Could not find optional table {table_name} from GTFS data. Skipping...')
-            except ValueError as err:
+                    logger.warning(f'Could not find optional table {table_name} from GTFS data. Skipping...')
+            except ValueError:
                 if required:
-                    logger.fatal(f'{err}: Please verify that the GTFS file for {table_name} has valid data.')
+                    logger.fatal(f'The GTFS file for the required table {table_name} is empty.', exc_info=True)
                     quit()
                 else:
-                    logger.warning(f'{err}: The GTFS file for the optional table {table_name} is empty. Skipping...')
+                    logger.warning(f'The GTFS file for the optional table {table_name} is empty. Skipping...')
         return data
     
     def validate_data(self):
@@ -143,7 +142,7 @@ class GTFS(BaseData):
             dict <str, DataFrame>: validated and cleaned-up data
         """
         # avoid changing the raw data object
-        data = self.raw_data.copy()
+        data = deepcopy(self.raw_data)
         data_dict = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
 
         # convert column types according to the spec
@@ -222,21 +221,23 @@ class GTFS(BaseData):
 
     def __improve_pattern_with_shapes(self):
         """Improve the coordinates of each segment in each pattern by replacing the stop coordinates
-            with coordinates found in the GTFS shapes table. Also add additional intermediate coordinates
-            to enrich the segment profile if the distance of the segment is long.
+            with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates
+            at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes
+            to enrich the segment profile.
         """
         logger.info(f'improving pattern with GTFS shapes table...')
-
-        # Stop-to-stop distance threshold for including intermediate coordinates (meters)
-        stop_distance_threshold  = 1000
 
         trips = self.validated_data['trips']
         shapes = self.validated_data['shapes'].sort_values(by=['shape_id', 'shape_pt_sequence'])
 
+        # Get dict of <shape_id: list of coordinates>
         shapes['coords'] = list(zip(shapes.shape_pt_lat, shapes.shape_pt_lon))
         shape_coords_lookup = shapes.groupby('shape_id')['coords'].agg(list).to_dict()
 
+        # Get dict of <trip_id: shape_id>
         trip_shape_lookup = trips[['trip_id', 'shape_id']].set_index('trip_id')['shape_id'].to_dict()
+
+        # Get dict of <hash: list of trip_ids>
         hash_trips_lookup = trips.groupby('hash')['trip_id'].agg(list).to_dict()
 
         for hash, segments in self.pattern_dict.items():
@@ -252,45 +253,23 @@ class GTFS(BaseData):
             
             shape_coords = shape_coords_lookup[example_shape]
             
-            # For each segment, find indices of the start and end stops from the list of shape coordinates
-            #   Key: id_pair; Value: [index of start stop, index of end stop in shape_coords]
-            #   Example: {(64, 1): [0, 7], (1, 2): [7, 13]}
-            seg_shape_indices = {id_pair: [self.find_nearest_point(shape_coords, coord_list[0]), \
-                                        self.find_nearest_point(shape_coords, coord_list[-1])] \
-                                for id_pair, coord_list in segments.items()}
-            
-            # Add intermediate coordinates if stops on two ends of a segment are far apart
-            for id_pair, indicies in seg_shape_indices.items():
-
-                interval_count = max(math.floor(self.get_distance(shape_coords[indicies[0]], shape_coords[indicies[-1]])/stop_distance_threshold),1)
-                step = math.ceil((indicies[-1]-indicies[0]) / interval_count )
-                ind_list = list(np.arange(indicies[0], indicies[-1], step)) + [indicies[-1]]
+            # For each segment, find the closest match of start and end stops in the list of shape coordinates.
+            #   If more than two matched coordinates in GTFS shapes can be found, then use GTFS shapes.
+            #   Otherwise, keep using the stop coordinates from GTFS stops.
+            for id_pair, coord_list in segments.items():
+                first_stop_match_index = self.__find_nearest_point(shape_coords, coord_list[0])
+                last_stop_match_index = self.__find_nearest_point(shape_coords, coord_list[-1])
                 
-                c_list = [shape_coords[i] for i in ind_list]
-                segments[id_pair] = c_list
+                intermediate_shape_coords = \
+                            shape_coords[first_stop_match_index : last_stop_match_index+1]
+
+                if len(intermediate_shape_coords)>2:
+                    segments[id_pair] = intermediate_shape_coords
 
         logger.info(f'patterns improved with GTFS shapes')
 
-    def find_nearest_point(self, coord_list, coord):
+    def __find_nearest_point(self, coord_list, coord):
         dist = distance.cdist(np.array(coord_list), np.array([coord]), 'euclidean')
         return dist.argmin()
 
-    def get_distance(self, start:Tuple[float, float], end:Tuple[float, float]) -> float:
-        """Get distance (in m) from a pair of lat, long coord tuples.
-
-        Args:
-            start (Tuple[float, float]): coord of start point
-            end (Tuple[float, float]): coord of end point
-
-        Returns:
-            float: distance in meters between start and end point
-        """
-        R = 6372800 # earth radius in m
-        lat1, lon1 = start
-        lat2, lon2 = end
-        
-        phi1, phi2 = math.radians(lat1), math.radians(lat2) 
-        dphi = math.radians(lat2 - lat1)
-        dlambda = math.radians(lon2 - lon1) 
-        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2    
-        return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)
+    
