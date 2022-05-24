@@ -33,6 +33,15 @@ pip install -r requirements_back.txt
 
 The configuration file is the main location of all agency-specific information that ROVE needs to create and visualize performance metrics. 
 There are a large number of fields that must be filled in, such as the location of the service area and the time periods used for analysis. 
-Please use the template provided and follow the conventions described in the comments to avoid any errors.
+Copy the [template provided](data/templates/config/template_param_config.json) to a new folder `data/@AGENCYNAME/config/` and enter your agency-specific information according to the conventions for each field below:
 
+- `directionLabels`: Used to display directions within ROVE. A dictionary of string keys and string values, where the keys represent the GTFS `direction_id` field and the values represent the desired labels that will appear in ROVE.
+- `backgroundLayerProp`: Used to include static GIS layers in ROVE if desired. The keys of the higher level dictionary are consecutive numbers (as strings) starting at zero. The lower level dictionary has a "name" field and a "filename" field. "name" is the label that will appear in ROVE, and "filename" is the location of the geoJSON file that contains the GIS layer information.
+- `timePeriods`: The pre-set time periods for which performance metrics will be calculated. The keys are consecutive numbers starting at 1, and the values are a string used to identify the period.
+- `periodNames`: The labels for the time periods defined above. The keys are the string identifiers defined above, and the values are the description of the time period that will appear in ROVE.
+- `periodRanges`: The start and end point of the preset time periods. The keys are the string identifiers defined above, and the values are a list of two numbers representing the start and end point of a period in numerical hours. Fractional values are accepted (i.e. \[16.5, 18.5\] for 4:30 PM - 6:30 PM). 
+- `altRouteIDs`: An optional parameter that converts some or all GTFS route IDs into a different value to be shown in ROVE. The keys are the GTFS `route_id` field and the values are the converted route IDs.
+- `garageAssignments`: An optional parameter that allows for groups of routes to be filtered by garage. The keys are the garage name that will appear in ROVE, and each value is a list of GTFS `route_id` fields that are assigned to that garage.
+- `routeTypes`: An optional parameter that allows for groups of routes to be filtered by the route type (e.g. express route, local route). The keys are the route type label that will appear in ROVE, and each value is a list of GTFS `route_id` fields that are assigned to that garage.
 
+Once the new configuration file is complete, rename the file "@AGENCYNAME_param_config.json". 
