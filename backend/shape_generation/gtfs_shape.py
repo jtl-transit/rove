@@ -20,14 +20,17 @@ from .helper_functions import get_hash_of_stop_list
 
 logger = logging.getLogger("backendLogger")
 
+# These are configurable parameters for a Valhalla request.
+# Constants based on extensive testing by MIT Transit Lab but modifiable for specific needs. 
 PARAMETERS = {
     'stop_distance_meter': 1000, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
-    'maximum_radius_increase': 100,
+    'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
     'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
     'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
-    'radius_increase_step': 10
+    'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
 }
 
+# This class provides the functionality to create shapes from a GTFS feed using Valhalla
 class GTFS_Shape(BaseShape):
 
     def __init__(self, gtfs):
