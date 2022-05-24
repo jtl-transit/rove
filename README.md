@@ -44,4 +44,8 @@ Copy the [template provided](data/templates/config/template_param_config.json) t
 - `garageAssignments`: An optional parameter that allows for groups of routes to be filtered by garage. The keys are the garage name that will appear in ROVE, and each value is a list of GTFS `route_id` fields that are assigned to that garage.
 - `routeTypes`: An optional parameter that allows for groups of routes to be filtered by the route type (e.g. express route, local route). The keys are the route type label that will appear in ROVE, and each value is a list of GTFS `route_id` fields that are assigned to that garage.
 
+- `transitFileProp`: Not needed at this time. This field will be auto-completed once the metrics are generated. 
+- `vizFileProp`: Not needed at this time. This field will be auto-completed if the required metrics are generated.
+- `URL_prefix`: Not needed at this time. This field can be used to apply a generic URL prefix throughout the backend to make it easier to deploy the tool on an agency server. 
+
 Once the new configuration file is complete, rename the file "@AGENCYNAME_param_config.json". 
