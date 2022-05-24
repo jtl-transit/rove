@@ -1,7 +1,8 @@
 # import logging
+from cmath import log
 from shape_generation.gtfs_shape import GTFS_Shape
 from logger.backend_logger import getLogger
-# from shape_generation.shape_generation import shape_gen
+from metric_calculation.base_metric import BaseMetrics
 from parameters.rove_parameters import ROVE_params
 from parameters.gtfs import GTFS
 # from parameters.generic_csv_data import CSV_DATA
@@ -50,6 +51,10 @@ def __main__():
 
     # ------shape generation------
     shape = GTFS_Shape(gtfs)
+
+    # ------metric calculation------
+    metrics = BaseMetrics(params, shape, gtfs)
+    logger.info(f'completed')
 
 if __name__ == "__main__":
     __main__()

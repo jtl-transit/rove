@@ -17,7 +17,7 @@ class BaseShape():
         self._patterns = self.generate_patterns()
 
         self._shapes = self.generate_shapes()
-        logger.info(f'shapes generatd')
+        logger.info(f'shapes generated')
 
     @property
     def data(self):
@@ -28,7 +28,7 @@ class BaseShape():
         return self._patterns
 
     @abstractmethod
-    def generate_patterns(self) -> Dict[str, Pattern]:
+    def generate_patterns(self) -> Dict:
 
         pass
 

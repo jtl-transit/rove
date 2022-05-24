@@ -11,7 +11,12 @@ import math
 from tqdm.auto import tqdm
 import requests
 import json
+from shapely.ops import nearest_points
+from shapely.geometry import LineString, Point
+from scipy.spatial import distance
 import time
+import math
+from .helper_functions import get_hash_of_stop_list
 
 logger = logging.getLogger("backendLogger")
 
@@ -25,24 +30,80 @@ PARAMETERS = {
 
 class GTFS_Shape(BaseShape):
 
-    def __init__(self, data):
-        super().__init__(data)
+    def __init__(self, gtfs):
+        if not isinstance(gtfs, GTFS):
+            raise TypeError(f'The data provided for GTFS shape generation is not a valid GTFS object.')
 
+        super().__init__(gtfs)
 
     def generate_patterns(self) -> Dict[str, Dict]:
+        """Generate a dict of patterns from validated GTFS data. Add a "hash" column to the trips table.
 
-        if not isinstance(self.data, GTFS):
-            raise TypeError(f'The data provided for GTFS shape generation is not a valid GTFS object.')
-        else:
-            return self.data.pattern_dict
+        Raises:
+            ValueError: number of unique trip hashes does not match with number of unique sequence of stops
 
-    def generate_shapes(self) -> Dict[str, Pattern]:
+        Returns:
+            Dict: Pattern dict - key: pattern hash; value: Segment dict (a segment is a section of road between two transit stops). 
+                    Segment dict - key: tuple of stop IDs at the beginning and end of the segment; value: list of coordinates defining the segment.
+        """
+        logger.info(f'generating patterns with GTFS data...')
+
+        gtfs = self.data.validated_data
+
+        # Handle of trips table stored in validated_data (reference semantics). 
+        # The handle is used for simplicify of referencing the validated_data trips table, so adding column to the handle
+        # changes the referenced object as well. The object is not reassigned other objects later on.
+        trips = gtfs['trips']
         
+        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash of the stop_ids list
+        stop_times = gtfs['stop_times'].sort_values(by=['trip_id', 'stop_sequence'])
+        trip_stops = stop_times.groupby('trip_id')['stop_id'].apply(list).reset_index(name='stop_ids')
+        trip_stops['hash'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
+
+        # Verify that number of unique hashes indeed match with number of unique sequence of stops
+        if trip_stops.astype(str).nunique()['hash'] != trip_stops.astype(str).nunique()['stop_ids']:
+            raise ValueError(f'Number of unique hashes should match number of unique lists of ordered stops. '+\
+                                'Use debug mode to find out why there is a mismatch. You may need to change the hashing method.')
+        else:
+            logger.debug(f'Summary of unique trip hashes: \n{trip_stops.astype(str).nunique()}')
+
+        # Add hash column to the trips table
+        trip_hash_lookup = trip_stops.set_index('trip_id')['hash'].to_dict()
+        trips['hash'] = trips['trip_id'].map(trip_hash_lookup)
+
+        # Generate dict of patterns. 
+        # Get a dict of <hash: list of stop ids>
+        hash_stops_lookup = trip_stops.set_index('hash')['stop_ids'].to_dict()
+
+        # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
+        stops = gtfs['stops'][['stop_id','stop_lat','stop_lon']].drop_duplicates()
+        stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
+        stop_coords_lookup = stops.set_index('stop_id')['coords'].to_dict()
+
+        # Get a dict of <hash: segments>
+        # e.g. {2188571819865: {('64', '1'):[(lat64, lon64), (lat1, lon1)], ('1', '2'): [(lat1, lon1), (lat2, lon2)]...}...}
+        patterns = {hash: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
+                                    for i in range(len(stop_ids)-1)} for hash, stop_ids in hash_stops_lookup.items()}
+
+        logger.info(f'gtfs patterns generated')
+
+        if 'shapes' in gtfs.keys():
+            patterns = self. __improve_pattern_with_shapes(patterns, gtfs)
+
+        return patterns
+
+    def generate_shapes(self) -> Dict:
+        """_summary_
+
+        Returns:
+            Dict: Pattern dict - key: pattern hash; value: Segment dict (a segment is a section of road between two transit stops). 
+                    Segment dict - key: tuple of stop IDs at the beginning and end of the segment; 
+                                    value: segment information (geometry, distance).
+        """
         all_matched = {}
         all_skipped = {}
 
-        pbar = tqdm(total=len(self.patterns.keys()), desc='Generating pattern shapes', \
-                                        position=0, leave=True)
+        pbar = tqdm(total=len(self.patterns.keys()), desc='Generating pattern shapes', position=0)
         for p_name, segments in self.patterns.items():
             
             for s_name, coords in segments.items():
@@ -94,7 +155,87 @@ class GTFS_Shape(BaseShape):
 
             pbar.update()
 
-        logger.info(f'matched shapes')
+        matched_output = [
+                            {
+                                **{'hash': p_name,
+                                    'stop_pair': [s_name[0], s_name[1]]}, 
+                                **s_info
+                            }
+                            for p_name, segments in all_matched.items() \
+                                for s_name, s_info in segments.items()]
+
+        with open('matched_shapes.json', 'w') as fp:
+            json.dump(matched_output, fp)
+
+        skipped_output = [
+                            {
+                                **{'hash': p_name,
+                                    'stop_pair': [s_name[0], s_name[1]]}, 
+                                **s_info
+                            }
+                            for p_name, segments in all_skipped.items() \
+                                for s_name, s_info in segments.items()]
+        with open('skipped_shapes.json', 'w') as fp:
+            json.dump(skipped_output, fp)
+        
+        logger.debug(f'Number of patterns matched: {len(all_matched.keys())}. '\
+            f'Number of patterns skipped: {len(all_skipped.keys())}')
+        return all_matched
+
+
+    def __improve_pattern_with_shapes(self, patterns, gtfs):
+        """Improve the coordinates of each segment in each pattern by replacing the stop coordinates
+            with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates
+            at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes
+            to enrich the segment profile.
+        """
+        logger.info(f'improving pattern with GTFS shapes table...')
+
+        trips = gtfs['trips']
+        shapes = gtfs['shapes'].sort_values(by=['shape_id', 'shape_pt_sequence'])
+
+        # Get dict of <shape_id: list of coordinates>
+        shapes['coords'] = list(zip(shapes.shape_pt_lat, shapes.shape_pt_lon))
+        shape_coords_lookup = shapes.groupby('shape_id')['coords'].agg(list).to_dict()
+
+        # Get dict of <trip_id: shape_id>
+        trip_shape_lookup = trips[['trip_id', 'shape_id']].set_index('trip_id')['shape_id'].to_dict()
+
+        # Get dict of <hash: list of trip_ids>
+        hash_trips_lookup = trips.groupby('hash')['trip_id'].agg(list).to_dict()
+
+        for hash, segments in patterns.items():
+            
+            # Find a representative shape ID and the corresponding list of shape coordinates
+            trips = hash_trips_lookup[hash]
+            try:
+                example_shape = next(trip_shape_lookup[t] for t in trips if t in trip_shape_lookup)
+            except StopIteration as err:
+                logger.debug(f'{err}: no example shape can be found for hash: {hash}.')
+                example_shape = -1
+                continue
+            
+            shape_coords = shape_coords_lookup[example_shape]
+            
+            # For each segment, find the closest match of start and end stops in the list of shape coordinates.
+            #   If more than two matched coordinates in GTFS shapes can be found, then use GTFS shapes.
+            #   Otherwise, keep using the stop coordinates from GTFS stops.
+            for id_pair, coord_list in segments.items():
+                first_stop_match_index = self.__find_nearest_point(shape_coords, coord_list[0])
+                last_stop_match_index = self.__find_nearest_point(shape_coords, coord_list[-1])
+                
+                intermediate_shape_coords = \
+                            shape_coords[first_stop_match_index : last_stop_match_index+1]
+
+                if len(intermediate_shape_coords)>2:
+                    segments[id_pair] = intermediate_shape_coords
+
+        logger.info(f'patterns improved with GTFS shapes')
+        return patterns
+
+    def __find_nearest_point(self, coord_list, coord):
+        dist = distance.cdist(np.array(coord_list), np.array([coord]), 'euclidean')
+        return dist.argmin()
 
     def __get_distance(self, start:Tuple[float, float], end:Tuple[float, float]) -> float:
         """Get distance (in m) from a pair of lat, long coord tuples.

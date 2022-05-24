@@ -63,7 +63,7 @@ class BaseData(metaclass=ABCMeta):
     @property
     def rove_params(self):
         return self._rove_params
-    
+
     @property
     def raw_data(self):
         return self._raw_data

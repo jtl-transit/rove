@@ -116,8 +116,14 @@ class Valhalla_Request():
             logger.exception(f'Error connecting to Valhalla service.')
             quit()
         except requests.HTTPError:
-            logger.exception(f'Bad Valhalla request for {self.shape_name}.')
-            skipped[self.shape_name] = self.shape
+            # logger.exception(f'Bad Valhalla request for {self.shape_name}.')
+            if self.shape_name not in skipped:
+                    skipped[self.shape_name] = {}
+
+            skipped[self.shape_name] = {
+                'shape_input': self.shape,
+                'result': result
+            }
 
         else:
             for leg_index in range(len(result['trip']['legs'])):
@@ -128,7 +134,10 @@ class Valhalla_Request():
                 if self.shape_name not in matched:
                     matched[self.shape_name] = {}
                                     
-                matched[self.shape_name][leg_index] = {'geometry': geometry, 'length': length}
+                matched[self.shape_name][leg_index] = {
+                    'geometry': geometry,
+                    'distance': length
+                }
 
         return matched, skipped
 
