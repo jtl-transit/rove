@@ -1,18 +1,18 @@
-## Instructions for adding a new transit agency
+# Instructions for adding a new transit agency
 
 There are five main steps to adding a new transit agency and generating GTFS-based metrics. They are listed below and then described in detail in the text that follows.
 
 1. Clone this repository to the machine that will be used to run ROVE.
-2. Install the necessary software packages and Python libraries. 
+2. Install the required software packages and Python libraries. 
 3. Create a configuration file using the template provided.
 4. Place a standard GTFS feed in the designated folder.
 5. Run the metric generation program for the new agency and desired time period. 
 
-### 1. Clone the repository to the machine that will be used to run ROVE
+### 1. Clone the repository
 
 Instructions on how to clone a repository from GitHub are available [here.](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
 
-### 2. Install the necessary software packages and Python libraries
+### 2. Install the requirements
 
 These instructions assume you have already installed Anaconda. An Anaconda distribution can be downloaded [here.]( https://www.anaconda.com/products/distribution)
 
@@ -28,4 +28,11 @@ Import dependencies via requirements_back.txt (replace @ROVE_DIRECTORY with the 
 cd @ROVE_DIRECTORY
 pip install -r requirements_back.txt
 ```
+
+### 3. Create a configuration file
+
+The configuration file is the main location of all agency-specific information that ROVE needs to create and visualize performance metrics. 
+There are a large number of fields that must be filled in, such as the location of the service area and the time periods used for analysis. 
+Please use the template provided and follow the conventions described in the comments to avoid any errors.
+
 
