@@ -66,9 +66,7 @@ The function takes four input arguments:
 - DATE_OPTION: either "Workday", "Saturday" or "Sunday, depending on the date to be used in calculated the schedule metrics.
 
 So to calculate the metrics for the MBTA for weekdays in May 2022, the following code would be entered:
-
-""" 
+```
 from backend_main import run_backend
 run_backend(MBTA, 05, 2022, "Workday")
-
-"""
+```
