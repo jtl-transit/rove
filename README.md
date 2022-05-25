@@ -5,7 +5,7 @@ There are five main steps to adding a new transit agency and generating GTFS-bas
 1. Clone this repository to the machine that will be used to run ROVE.
 2. Install the required software packages and Python libraries. 
 3. Create a configuration file using the template provided.
-4. Place a standard GTFS feed in the designated folder.
+4. Save a standard GTFS feed in the designated folder.
 5. Run the metric generation program for the new agency and desired time period. 
 
 ### 1. Clone the repository
@@ -16,7 +16,8 @@ Instructions on how to clone a repository from GitHub are available [here.](http
 
 These instructions assume you have already installed Anaconda. An Anaconda distribution can be downloaded [here.]( https://www.anaconda.com/products/distribution)
 
-Install a virtual environment using Anaconda and activate it (replace @ENV_NAME with the name of your virtual environment):
+Open the Anaconda Prompt command line interface. Install a virtual environment using Anaconda and activate it (replace @ENV_NAME with the name of your virtual environment):
+
 ```
 conda create --name @ENV_NAME python=3.7
 conda activate @ENV_NAME
@@ -49,3 +50,25 @@ Copy the [template provided](data/templates/config/template_param_config.json) t
 - `URL_prefix`: Not needed at this time. This field can be used to apply a generic URL prefix throughout the backend to make it easier to deploy the tool on an agency server. 
 
 Once the new configuration file is complete, rename the file "@AGENCYNAME_param_config.json". 
+
+### 4. Save a GTFS feed in the designated folder
+
+Save a standard GTFS feed (in .zip format) representing the schedule for which you would like to generate performance metrics in the following folder: `/data/@AGENCYNAME/gtfs/`. The name of the GTFS feed file must be in the following format GTFS_AGENCYNAME_MONTH_YEAR.zip where MONTH and YEAR are numeric values (e.g. GTFS_MBTA_05_2022 for the May 2022 schedule).
+
+### 5. Run the metric generation program
+
+Return to the command line interface. 
+Run the `run_backend` function from backend_main.py to generate the performance metrics.
+The function takes four input arguments: 
+- AGENCY: the name of the agency used in the prior steps
+- MONTH: a two digit number representing the month for which performance metrics are being generated
+- YEAR: a four digit number representing the year for which performance metrics are being generate
+- DATE_OPTION: either "Workday", "Saturday" or "Sunday, depending on the date to be used in calculated the schedule metrics.
+
+So to calculate the metrics for the MBTA for weekdays in May 2022, the following code would be entered:
+
+""" 
+from backend_main import run_backend
+run_backend(MBTA, 05, 2022, "Workday")
+
+"""
