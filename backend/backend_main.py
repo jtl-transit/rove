@@ -1,8 +1,8 @@
 # import logging
-from cmath import log
 from shape_generation.gtfs_shape import GTFS_Shape
 from logger.backend_logger import getLogger
-from metric_calculation.base_metric import BaseMetrics
+from metric_calculation.data_preparation import DataPrep
+from metric_calculation.metric_calculation import MetricCalculation
 from parameters.rove_parameters import ROVE_params
 from parameters.gtfs import GTFS
 # from parameters.generic_csv_data import CSV_DATA
@@ -41,6 +41,7 @@ def __main__():
             'gtfs': f'data/{params.agency}/gtfs/GTFS{params.suffix}.zip',
             # 'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
             # 'odx': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
+            'shapes': f'frontend/static/inputs/{params.agency}/shapes/bus-shapes{params.suffix}.json'
         }
 
     # ------data generation------
@@ -50,10 +51,15 @@ def __main__():
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
 
     # ------shape generation------
-    shape = GTFS_Shape(gtfs)
+    SHAPE_GENERATION = True
+    if SHAPE_GENERATION or not gtfs.read_shapes(PATHS['shapes']):
+        shapes = GTFS_Shape(gtfs, outpath=PATHS['shapes']).shapes
+    else:
+        shapes = gtfs.read_shapes(PATHS['shapes'])
 
     # ------metric calculation------
-    metrics = BaseMetrics(params, shape, gtfs)
+    data_prep = DataPrep(gtfs)
+    metrics = MetricCalculation(data_prep)
     logger.info(f'completed')
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ import numpy as np
 import logging
 from .base_data_class import BaseData
 from copy import deepcopy
+import json
+from .helper_functions import check_is_file
 
 
 logger = logging.getLogger("backendLogger")
@@ -52,6 +54,20 @@ class GTFS(BaseData):
 
     def __init__(self, alias, path, rove_params=None):
         super().__init__(alias, path, rove_params)
+        self.df = self.get_gtfs_df()
+        self.timepoints = self.check_timepoints(self.df)
+
+    def read_shapes(self, path:str):
+        
+        try:
+            in_path = check_is_file(path)
+            with open(in_path) as shapes_file:
+                shapes_json = json.load(shapes_file)
+                shapes = pd.json_normalize(shapes_json)
+                return shapes
+        except FileNotFoundError:
+            logger.exception(f'No shapes file found.')
+            return None
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
@@ -159,3 +175,41 @@ class GTFS(BaseData):
         # stops = self.__filter_table_a_on_unique_b_key(data, 'stops', 'stop_times', ['stop_id'])
 
         return data
+
+    def get_gtfs_df(self) -> pd.DataFrame:
+
+        trips:pd.DataFrame = self.validated_data['trips']
+        stop_times:pd.DataFrame = self.validated_data['stop_times']
+
+        gtfs_df = stop_times.merge(trips, on='trip_id', how='left')\
+                        .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])
+        return gtfs_df
+
+    def check_timepoints(self, gtfs_df:pd.DataFrame):
+        """Check that 'timepoint' column exists, or add the column if it doesn't.
+
+        Args:
+            gtfs_df (pd.DataFrame): _description_
+            timepoint_column_name (str, optional): _description_. Defaults to 'timepoints'.
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+        self.add_timepoints(gtfs_df)
+        # key: route_id, value: list of stop_ids of timepoints
+        if 'timepoint' not in gtfs_df.columns:
+            raise ValueError(f'Cannot find timepoints: timepoint column not in stop_times.')
+        
+        gtfs_df['timepoint'] = gtfs_df['timepoint'].fillna(0).astype(int)
+
+        if gtfs_df.loc[~gtfs_df['timepoint'].isin([0,1]),'timepoint'].shape[0]>0:
+            raise ValueError(f'The timepoint column cannot contain any value other than 0 or 1.')
+        num_timepoints = gtfs_df.loc[gtfs_df['timepoint'] == 1,'timepoint'].shape[0]
+        logger.debug(f'number of timepoints: {num_timepoints}')
+        return gtfs_df
+    
+    def add_timepoints(self, gtfs_df:pd.DataFrame):
+        gtfs_df['timepoint'] = ~gtfs_df['checkpoint_id'].isnull()

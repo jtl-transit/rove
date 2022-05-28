@@ -18,6 +18,7 @@ build/
 *.csv
 *.txt
 *.iml
+*.json
 *.ipynb
 test.py
 

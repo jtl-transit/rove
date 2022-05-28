@@ -14,7 +14,7 @@ def get_hash_of_stop_list(stops:List[str]) -> int:
     Args:
         stops: list of stop IDs, 
     Returns:
-        hash value of the list of stops
+        string of hash value of the list of stops. Use string to avoid using large integers.
     """
     # hash_1 = sum((2*np.arange(1,len(stops)+1))**2)
     hash_2 = 0
@@ -22,7 +22,7 @@ def get_hash_of_stop_list(stops:List[str]) -> int:
         hash_2 += ((i+1) * get_stop_value(stops[i]))**3
     # hash = hash_1 + hash_2
 
-    return hash_2
+    return str(hash_2)
 
 def get_stop_value(stop:str) -> int:
     """Get numerical value of a stop, either the original numerical value or 

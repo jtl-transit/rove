@@ -1,4 +1,5 @@
 import logging
+from operator import gt
 import pandas as pd
 import numpy as np
 from .base_shape import BaseShape
@@ -33,11 +34,12 @@ PARAMETERS = {
 # This class provides the functionality to create shapes from a GTFS feed using Valhalla
 class GTFS_Shape(BaseShape):
 
-    def __init__(self, gtfs):
+    def __init__(self, gtfs:GTFS, outpath):
+
         if not isinstance(gtfs, GTFS):
             raise TypeError(f'The data provided for GTFS shape generation is not a valid GTFS object.')
 
-        super().__init__(gtfs)
+        super().__init__(gtfs, outpath)
 
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "hash" column to the trips table.
@@ -51,15 +53,18 @@ class GTFS_Shape(BaseShape):
         """
         logger.info(f'generating patterns with GTFS data...')
 
-        gtfs = self.data.validated_data
+        data:GTFS = self.data
+        gtfs:Dict = data.validated_data
 
         # Handle of trips table stored in validated_data (reference semantics). 
         # The handle is used for simplicify of referencing the validated_data trips table, so adding column to the handle
         # changes the referenced object as well. The object is not reassigned other objects later on.
-        trips = gtfs['trips']
+        trips:pd.DataFrame = gtfs['trips']
+        stop_times:pd.DataFrame = gtfs['stop_times']
+        stops:pd.DataFrame = gtfs['stops']
         
         # Generate a dataframe of trip_id (unique), list of stop_ids, and hash of the stop_ids list
-        stop_times = gtfs['stop_times'].sort_values(by=['trip_id', 'stop_sequence'])
+        stop_times = stop_times.sort_values(by=['trip_id', 'stop_sequence'])
         trip_stops = stop_times.groupby('trip_id')['stop_id'].apply(list).reset_index(name='stop_ids')
         trip_stops['hash'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
 
@@ -79,7 +84,7 @@ class GTFS_Shape(BaseShape):
         hash_stops_lookup = trip_stops.set_index('hash')['stop_ids'].to_dict()
 
         # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
-        stops = gtfs['stops'][['stop_id','stop_lat','stop_lon']].drop_duplicates()
+        stops = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
         stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
         stop_coords_lookup = stops.set_index('stop_id')['coords'].to_dict()
 
@@ -161,19 +166,21 @@ class GTFS_Shape(BaseShape):
         matched_output = [
                             {
                                 **{'hash': p_name,
-                                    'stop_pair': [s_name[0], s_name[1]]}, 
+                                    'seg_index':f'{p_name}-{s_name[0]}-{s_name[1]}',
+                                    'stop_pair': s_name}, 
                                 **s_info
                             }
                             for p_name, segments in all_matched.items() \
                                 for s_name, s_info in segments.items()]
 
-        with open('matched_shapes.json', 'w') as fp:
+        with open(self.outpath, 'w') as fp:
             json.dump(matched_output, fp)
 
         skipped_output = [
                             {
                                 **{'hash': p_name,
-                                    'stop_pair': [s_name[0], s_name[1]]}, 
+                                    'seg_index':f'{p_name}-{s_name[0]}-{s_name[1]}',
+                                    'stop_pair': s_name}, 
                                 **s_info
                             }
                             for p_name, segments in all_skipped.items() \
@@ -183,10 +190,11 @@ class GTFS_Shape(BaseShape):
         
         logger.debug(f'Number of patterns matched: {len(all_matched.keys())}. '\
             f'Number of patterns skipped: {len(all_skipped.keys())}')
-        return all_matched
+
+        return pd.json_normalize(matched_output)
 
 
-    def __improve_pattern_with_shapes(self, patterns, gtfs):
+    def __improve_pattern_with_shapes(self, patterns:Dict, gtfs:Dict) -> Dict:
         """Improve the coordinates of each segment in each pattern by replacing the stop coordinates
             with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates
             at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes

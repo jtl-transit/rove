@@ -109,12 +109,10 @@ class BaseData(metaclass=ABCMeta):
         """
         import pandas as pd
         
-        if not path.endswith('.csv'):
-            raise ValueError(f'Not a valid csv file.')
-
+        in_path = check_is_file(path, '.csv')
         try:
-            data = pd.read_csv(path)
+            data = pd.read_csv(in_path)
         except pd.errors.EmptyDataError as err:
-            logger.warning(f'{err}: Data read from {path} is empty!')
+            logger.warning(f'{err}: Data read from {in_path} is empty!')
             data = pd.DataFrame()
         return data

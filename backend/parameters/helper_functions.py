@@ -10,6 +10,7 @@ import os
 import shutil
 import logging
 import workalendar.usa
+from pathlib import Path
 
 logger = logging.getLogger("backendLogger")
 
@@ -67,7 +68,7 @@ def day_list_generation(MONTH, YEAR, DATE_TYPE, workalendarPath):
     elif DATE_TYPE == "Sunday":
         return SUNDAYS
 
-def check_is_file(path):
+def check_is_file(path, extension=None):
     """Check that the file exists.
 
     Args:
@@ -80,9 +81,21 @@ def check_is_file(path):
         str : path to file
     """
     if os.path.isfile(path):
+        if extension and not path.endswith(extension):
+            raise ValueError(f'Not a valid {extension} file.')
         return path
     else:
         raise FileNotFoundError(f'Invalid file: {path}. Please double check a valid file is located at the specified location.')
+
+def check_parent_dir(path):
+    
+    parent = Path(path).parent
+    if os.path.isdir(parent):
+        logger.debug(f'Parent directory already exists: {parent}.')
+    else:
+        os.mkdir(parent)
+        logger.debug(f'Created parent directory: {parent}.')
+    return path
 
 def check_is_dir(path, overwrite=False, create_if_none=False):
     """Check that the directory exists.
