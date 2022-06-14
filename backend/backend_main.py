@@ -1,10 +1,10 @@
 # import logging
-from shape_generation.gtfs_shape import GTFS_Shape
+from shape_generation.base_shape import BaseShape
 from logger.backend_logger import getLogger
 from metric_calculation.data_preparation import DataPrep
 from metric_calculation.metric_calculation import MetricCalculation
 from parameters.rove_parameters import ROVE_params
-from parameters.gtfs import GTFS
+from parameters.mbta_gtfs import MBTA_GTFS
 # from parameters.generic_csv_data import CSV_DATA
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
@@ -45,21 +45,21 @@ def __main__():
         }
 
     # ------data generation------
-    gtfs = GTFS('gtfs', PATHS['gtfs'], params)
+    gtfs = MBTA_GTFS('gtfs', PATHS['gtfs'], params)
 
     # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
 
     # ------shape generation------
-    SHAPE_GENERATION = True
-    if SHAPE_GENERATION or not gtfs.read_shapes(PATHS['shapes']):
-        shapes = GTFS_Shape(gtfs, outpath=PATHS['shapes']).shapes
+    SHAPE_GENERATION = False
+    if SHAPE_GENERATION or gtfs.read_shapes(PATHS['shapes']).empty:
+        shapes = BaseShape(gtfs.patterns_dict, outpath=PATHS['shapes']).shapes
     else:
         shapes = gtfs.read_shapes(PATHS['shapes'])
 
     # ------metric calculation------
-    data_prep = DataPrep(gtfs)
-    metrics = MetricCalculation(data_prep)
+    # data_prep = DataPrep(gtfs)
+    metrics = MetricCalculation(params, shapes, gtfs.records)
     logger.info(f'completed')
 
 if __name__ == "__main__":
