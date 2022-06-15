@@ -12,6 +12,8 @@ import logging
 import workalendar.usa
 from pathlib import Path
 from typing import List
+import pandas as pd
+import json
 
 logger = logging.getLogger("backendLogger")
 
@@ -161,3 +163,22 @@ def get_stop_value(stop:str) -> int:
     except ValueError as err: # the given stop ID is not a numerical value
         num = sum([ord(x) for x in stop])
     return num
+
+def read_shapes(path:str):
+        
+    try:
+        in_path = check_is_file(path)
+        with open(in_path) as shapes_file:
+            shapes_json = json.load(shapes_file)
+            shapes = pd.json_normalize(shapes_json)
+            shapes['stop_pair'] = shapes.apply(lambda x: tuple(x.stop_pair), axis=1)
+            specs = {
+                'pattern_id':'string',
+                'distance':'float64'
+            }
+            cols = list(specs.keys())
+            shapes[cols] = shapes[cols].astype(dtype=specs)
+            return shapes
+    except FileNotFoundError:
+        logger.exception(f'No shapes file found.')
+        return None

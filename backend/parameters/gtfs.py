@@ -61,29 +61,16 @@ class GTFS(BaseData):
         self.records = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
-        self.add_timepoints(self.records)
+        self.add_timepoints()
         self.__check_gtfs_records_column('timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
-        self.add_branchpoints(self.records)
+        self.add_branchpoints()
         self.__check_gtfs_records_column('branchpoint', '0or1')
         
         # create the patterns dict. Key: pattern_id, value: segment dict 
         #   segment dict key: tuple of stops defining the segment, value: coordinates of the segment)
-        self.patterns_dict = self.generate_patterns(self.records)
-
-    def read_shapes(self, path:str):
-        
-        try:
-            in_path = check_is_file(path)
-            with open(in_path) as shapes_file:
-                shapes_json = json.load(shapes_file)
-                shapes = pd.json_normalize(shapes_json)
-                shapes['stop_pair'] = shapes.apply(lambda x: tuple(x.stop_pair), axis=1)
-                return shapes
-        except FileNotFoundError:
-            logger.exception(f'No shapes file found.')
-            return None
+        self.patterns_dict = self.generate_patterns()
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
@@ -232,10 +219,12 @@ class GTFS(BaseData):
             raise ValueError(f'Invalid criteria. Select from: {valid_criteria}.')
 
     
-    def add_timepoints(self, records:pd.DataFrame):
+    def add_timepoints(self):
         pass
 
-    def add_branchpoints(self, records:pd.DataFrame):
+    def add_branchpoints(self):
+        
+        records = self.records
 
         g = deepcopy(records)
         tg = deepcopy(g[g['timepoint']==1])
@@ -264,8 +253,9 @@ class GTFS(BaseData):
         g['branchpoint'] = (((g['routes_diff_next_len'] + g['routes_diff_prev_len'])>0)\
                              & ~((g['routes_diff_prev']==g['routes_diff_next']) & (g['routes_diff_prev_len']!=0))).astype(int)
         records['branchpoint'] = g['branchpoint']
+        records['tp_bp'] = ((records['timepoint']==1) | (records['branchpoint']==1)).astype(int)
 
-    def generate_patterns(self, records:pd.DataFrame) -> Dict[str, Dict]:
+    def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern_id" column to the trips table.
 
         Raises:
@@ -278,6 +268,7 @@ class GTFS(BaseData):
         logger.info(f'generating patterns with GTFS data...')
 
         gtfs:Dict = self.validated_data
+        records = self.records
 
         stops:pd.DataFrame = gtfs['stops']
         
