@@ -39,6 +39,7 @@ REQUIRED_DATA_SPEC = {
                     'stop_times':{
                         'trip_id':'string',
                         'arrival_time':'int64',
+                        'departure_time':'int64',
                         'stop_id':'string',
                         'stop_sequence':'int64',
                         }
@@ -178,7 +179,7 @@ class GTFS(BaseData):
                         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])
         
         # gtfs_df['arrival_time'] = pd.to_timedelta(gtfs_df['arrival_time'])
-        gtfs_df['hour'] = (gtfs_df['arrival_time']//3600)
+        gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
 
         # gtfs_df = gtfs_df[
         #     ['arrival_time', 'stop_id', 'stop_sequence', 'trip_id', 'route_id',
