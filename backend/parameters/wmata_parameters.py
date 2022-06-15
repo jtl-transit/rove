@@ -5,8 +5,8 @@ logger = logging.getLogger("paramLogger")
 
 # Construct parameters for WMATA with custom function to find timepoints.
 class WMATA_params(ROVE_params):
-    def __init__(self, MONTH, YEAR, DATE_OPTION, MODE_OPTION):
-        super().__init__("WMATA", MONTH, YEAR, DATE_OPTION, MODE_OPTION)
+    def __init__(self, MONTH, YEAR, date_type, MODE_OPTION):
+        super().__init__("WMATA", MONTH, YEAR, date_type, MODE_OPTION)
         
         self.TIMEPOINTS = {}
         try:

@@ -1,6 +1,6 @@
 
 import pandas as pd
-from backend.parameters.data_classes import GTFS
+from local.gtfs_class import GTFS
 
 
 class WMATA_GTFS(GTFS):

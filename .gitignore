@@ -18,14 +18,15 @@ build/
 *.csv
 *.txt
 *.iml
+*.json
 *.ipynb
 test.py
 
 data/
 logs/
+frontend/
 *.p
-bustool/Test_database.db
 .DS_Store
 .DS_Store
-bustool/.DS_Store
-bustool/static/.DS_Store
+
+.VSCodeCounter/
