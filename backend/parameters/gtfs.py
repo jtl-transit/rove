@@ -180,6 +180,8 @@ class GTFS(BaseData):
         
         # gtfs_df['arrival_time'] = pd.to_timedelta(gtfs_df['arrival_time'])
         gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
+        gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
+        gtfs_df['trip_end_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('max')
 
         # gtfs_df = gtfs_df[
         #     ['arrival_time', 'stop_id', 'stop_sequence', 'trip_id', 'route_id',
@@ -254,7 +256,11 @@ class GTFS(BaseData):
         g['branchpoint'] = (((g['routes_diff_next_len'] + g['routes_diff_prev_len'])>0)\
                              & ~((g['routes_diff_prev']==g['routes_diff_next']) & (g['routes_diff_prev_len']!=0))).astype(int)
         records['branchpoint'] = g['branchpoint']
+
+        # mark both timepoint and branchpoint as tp_bp 
         records['tp_bp'] = ((records['timepoint']==1) | (records['branchpoint']==1)).astype(int)
+        # mark the first stop of each trip as tp_bp
+        records.loc[records.groupby('trip_id')['tp_bp'].head(1).index, 'tp_bp'] = 1
 
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern_id" column to the trips table.

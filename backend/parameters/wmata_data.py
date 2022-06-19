@@ -8,7 +8,6 @@ class WMATA_GTFS(GTFS):
     def __init__(self, in_path, sample_date, route_type):
         super().__init__(in_path, sample_date, route_type)
 
-    @GTFS.timepoints.setter
     def timepoints(self, timepoints):
         
         feed = self.feed
@@ -29,4 +28,4 @@ class WMATA_GTFS(GTFS):
         tp_only['stop_id'] = tp_only['stop_id'].astype(int)
         tp_only = tp_only.drop_duplicates()
 
-        self._timepoints = tp_only.groupby(['route_id'])['stop_id'].agg(list).to_dict()
+        self.timepoints = tp_only.groupby(['route_id'])['stop_id'].agg(list).to_dict()

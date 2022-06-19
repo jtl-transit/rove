@@ -4,6 +4,7 @@
 from abc import ABCMeta, abstractmethod
 import logging
 from .helper_functions import check_is_file
+import pandas as pd
 
 logger = logging.getLogger("backendLogger")
 
@@ -32,45 +33,29 @@ class BaseData(metaclass=ABCMeta):
         """
         logger.info(f'creating a BaseData object for {alias}...')
 
-        self._alias = alias
+        self.alias = alias
 
         if rove_params is not None:
             from .rove_parameters import ROVE_params
             if not isinstance(rove_params, ROVE_params):
                 raise TypeError(f'Not a valid ROVE_params object.')
             else:
-                self._rove_params = rove_params
+                self.rove_params = rove_params
         else:
-            self._rove_params = None
+            self.rove_params = None
 
         # Raw data (read-only) read from the given path.
         logger.info(f'loading {alias} data...')
         path = check_is_file(path)
-        self._raw_data = self.load_data(path)
+        self.raw_data = self.load_data(path)
         logger.info(f'{alias} data is loaded')
         
         # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
         logger.info(f'validating {alias} data...')
-        self._validated_data = self.validate_data()
+        self.validated_data = self.validate_data()
         logger.info(f'{alias} data is validated')
 
-        logger.info(f'BaseData object creatd for {alias}')
-    
-    @property
-    def alias(self):
-        return self._alias
-
-    @property
-    def rove_params(self):
-        return self._rove_params
-
-    @property
-    def raw_data(self):
-        return self._raw_data
-
-    @property
-    def validated_data(self):
-        return self._validated_data
+        logger.info(f'BaseData object created for {alias}')
 
     @abstractmethod
     def load_data(self, path:str):
@@ -107,7 +92,6 @@ class BaseData(metaclass=ABCMeta):
         Raises:
             ValueError: the given file path does not end with .csv
         """
-        import pandas as pd
         
         in_path = check_is_file(path, '.csv')
         try:
