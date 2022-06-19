@@ -21,15 +21,15 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
         logger.info(f'Generating parameters...')
         # str : analyzed transit agency
-        self._agency = AGENCY
+        self.agency = AGENCY
 
         # str : analysis month, year and date type
-        self._month = MONTH
-        self._year = YEAR
-        self._date_type = DATE_TYPE
+        self.month = MONTH
+        self.year = YEAR
+        self.date_type = DATE_TYPE
 
         # list (str) : list of input data used for backend calculations
-        self._data_option = DATA_OPTION
+        self.data_option = DATA_OPTION
 
         # dict <str, any> : any additional parameters.
         #       Example of additional parameters that can be specified: 
@@ -37,46 +37,22 @@ class ROVE_params(object, metaclass=ABCMeta):
         #       --> additional_output_paths: list of paths to additional output files
         if not isinstance(additional_params, dict):
             raise TypeError(f'additional_params must be a dict.')
-        self._additional_params = additional_params or {}
+        self.additional_params = additional_params or {}
 
         # dict <str, str> : dict of paths to input and output data
         # self._input_paths = self._additional_params.get('additional_input_paths', {})
-        self._output_paths = self._additional_params.get('additional_output_paths', {})
+        # self.output_paths = self.additional_params.get('additional_output_paths', {})
 
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
-        self._config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
+        self.config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
 
         # list (datetime) : list of dates of given month, year, agency
-        self._date_list = self.__generate_date_list()
+        self.date_list = self.__generate_date_list()
 
         # date : sample date for analysis
-        self._sample_date = self.__generate_sample_date()
+        self.sample_date = self.__generate_sample_date()
         logger.info(f'parameters generated')
-
-    @property
-    def agency(self):
-        return self._agency
-    
-    @property
-    def month(self):
-        return self._month
-    
-    @property
-    def year(self):
-        return self._year
-
-    @property
-    def date_type(self):
-        return self._date_type
-    
-    @property
-    def data_option(self):
-        return self._data_option
-    
-    @property
-    def additional_params(self):
-        return self._additional_params
 
     @property
     def suffix(self):
@@ -87,15 +63,6 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
         return f'_{self.agency}_{self.month}_{self.year}'
 
-    @property
-    def config(self):
-        return self._config
-
-    @property
-    def output_paths(self):
-        return self._output_paths
-
-    @output_paths.setter
     def output_paths(self, additional_output_paths):
         """Set paths to output data
 
@@ -129,10 +96,6 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         logger.debug(f'{len(output_paths.keys())} output file paths are set.')
 
-    @property
-    def date_list(self):
-        return self._date_list
-
     def __generate_date_list(self)->List[datetime.datetime]:
         """Generate list of dates of date_type in the given month and year.
 
@@ -156,10 +119,6 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         logger.debug(f'date list generated: {len(date_list)} {self.date_type} days in {self.month}-{self.year}.')
         return date_list
-
-    @property
-    def sample_date(self):
-        return self._sample_date
 
     def __generate_sample_date(self)->datetime.datetime:
         """Get a sample date. If date_type is 'Workday', then return the last Wednesday of the month, otherwise the last date

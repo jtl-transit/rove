@@ -26,23 +26,11 @@ class BaseShape():
         
         logger.info(f'Generating shapes...')
         self.PARAMETERS = parameters
-        self._patterns = self.check_patterns(patterns)
-        self._outpath = check_parent_dir(outpath)
+        self.patterns = self.check_patterns(patterns)
+        self.outpath = check_parent_dir(outpath)
 
-        self._shapes = self.generate_shapes()
+        self.shapes = self.generate_shapes()
         logger.info(f'shapes generated')
-
-    @property
-    def outpath(self):
-        return self._outpath
-
-    @property
-    def patterns(self):
-        return self._patterns
-
-    @property
-    def shapes(self):
-        return self._shapes
 
     def check_patterns(self, patterns:Dict) -> Dict:
 

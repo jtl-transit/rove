@@ -9,125 +9,168 @@ import scipy.stats
 
 logger = logging.getLogger("backendLogger")
 
+FT_PER_MIN_TO_MPH = 0.0113636
+
 class MetricAggregation():
     
-    def __init__(self, metrics:pd.DataFrame):
+    def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, \
+                    start_time:List, end_time:List):
 
-        self.metrics = metrics
+        logger.info(f'Aggregating metrics for time: {start_time} - {end_time}...')
+        if not isinstance(start_time, List) or not isinstance(end_time, List) or \
+            len(start_time) != 2 or len(end_time) != 2:
+            raise TypeError(f'start_time and end_time must both be lists of length 2: [hour, minute].')
 
-        self.SEGMENT_MULTIINDEX = ['route_id', 'pattern_id', 'stop_pair', 'time']
-        self.segments:pd.DataFrame = self.generate_segments(self.gtfs_records)
+        self.start_time = start_time[0]*3600 + start_time[1]*60
+        self.end_time = end_time[0]*3600 + end_time[1]*60
 
-        self.CORRIDOR_MULTIINDEX = ['pattern_id', 'stop_pair', 'time']
-        self.corridors:pd.DataFrame = self.generate_corridors(self.gtfs_records)
+        if end_time < start_time:
+            raise ValueError(f'Start time must be smaller than end time.')
 
-        self.ROUTE_MULTIINDEX = ['pattern_id', 'route_id', 'time']
-        self.routes:pd.DataFrame = self.generate_routes(self.gtfs_records)
+        self.stop_metrics, self.stop_metrics_time_filtered = self.prepare_metrics(stop_metrics, self.start_time, self.end_time, 'stop')
+        self.route_metrics, self.route_metrics_time_filtered = self.prepare_metrics(route_metrics, self.start_time, self.end_time, 'route')
+        self.tpbp_metrics, self.tpbp_metrics_time_filtered = self.prepare_metrics(tpbp_metrics, self.start_time, self.end_time, 'tpbp')
 
-        self.tpbp_gtfs_records = self.prepare_gtfs_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :])
-        self.tpbp_segments:pd.DataFrame = self.generate_segments(self.tpbp_gtfs_records)
+        self.SEGMENT_MULTIINDEX = ['route_id', 'pattern_id', 'stop_pair']
+        self.CORRIDOR_MULTIINDEX = ['pattern_id', 'stop_pair']
+        self.ROUTE_MULTIINDEX = ['pattern_id', 'route_id', 'direction_id']
 
-        self.tpbp_corridors:pd.DataFrame = self.generate_corridors(self.tpbp_gtfs_records)
+        self.segments:pd.DataFrame = self.generate_segments(self.stop_metrics)
+        self.corridors:pd.DataFrame = self.generate_corridors(self.stop_metrics)
+        self.routes:pd.DataFrame = self.generate_routes(self.route_metrics)
+        self.tpbp_segments:pd.DataFrame = self.generate_segments(self.tpbp_metrics)
+        self.tpbp_corridors:pd.DataFrame = self.generate_corridors(self.tpbp_metrics)
 
         # not time-dependent
-        self.stop_spacing()
-        # self.revenue_hour()
-        # self.span_of_service()
+        # self.stop_spacing()
 
         # time-dependent
+        # self.span_of_service()
+        # self.revenue_hour()
+        # self.scheduled_frequency()
         # self.scheduled_headway('mean')
         # self.scheduled_running_time()
         # self.scheduled_running_speed()
+        self.scheduled_poisson_wait_time()
 
-    def prepare_gtfs_records(self, records:pd.DataFrame):
+        logger.info(f'Metrics aggregation for time period {start_time} - {end_time} completed.')
 
-        records = deepcopy(records).reset_index()
-        records.loc[:, 'next_stop'] = records.groupby(by='trip_id')['stop_id'].shift(-1)
-        records.loc[:, 'next_stop_arrival_time'] = records.groupby(by='trip_id')['arrival_time'].shift(-1)
-        records.loc[:, 'stop_pair'] = pd.Series(list(zip(records.stop_id, records.next_stop)))
-        records = records.set_index('index')
-        records = records.dropna(subset=['next_stop'])
+    def prepare_metrics(self, metrics:pd.DataFrame, start_time:int, end_time:int, type:str):
 
-        return records
+        if type != 'route':
+            logger.debug(f'{type} metrics size before dropping last stop of trips: {metrics.shape}')
+            metrics = metrics.dropna(subset=['next_stop'])
+
+        logger.debug(f'{type} metrics size before time filtering: {metrics.shape}')
+        if type == 'route':
+            new_metrics = deepcopy(metrics.loc[(metrics['trip_start_time'] >= start_time) & (metrics['trip_start_time'] < end_time), :])
+        else:
+            new_metrics = deepcopy(metrics.loc[(metrics['arrival_time'] >= start_time) & (metrics['arrival_time'] < end_time), :])
+        logger.debug(f'{type} metrics size after time filtering: {new_metrics.shape}')
+
+        return metrics, new_metrics
 
     def generate_segments(self, records:pd.DataFrame):
         
-        logger.info(f'generating segments...')
+        logger.info(f'generating segments')
 
         # Get data structure for segments. Multiindex: route_id, stop_pair, hour       
-        segments = records.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].size().to_frame(name = 'scheduled_frequency')
+        segments = records.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
 
         return segments
     
     def generate_corridors(self, records:pd.DataFrame):
 
-        logger.info(f'generating corridors...')
-        corridors = records.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].size().to_frame(name = 'scheduled_frequency')
+        logger.info(f'generating corridors')
+        corridors = records.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
 
         return corridors
 
     def generate_routes(self, records:pd.DataFrame):
         
-        logger.info(f'generating routes...')
-        routes = records.groupby(self.ROUTE_MULTIINDEX)['trip_id'].size().to_frame(name = 'scheduled_frequency')
+        logger.info(f'generating routes')
+        routes = records.groupby(self.ROUTE_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
         return routes
 
     def stop_spacing(self):
-        """Stop spacing in ft. Distance is returned from Valhalla trace route requests in unit of kilometers.
+        """Aggregated stop spacing in ft. Defined as the average stop_spacing of all trips on each segments/corridors level, 
+                and average of sum of stop_spacing of all stops along a route on the routes level.
+                This metric is not time-dependent, so use non-time-filtered metrics for calculations.
             Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
         """
-        logger.info(f'calculating stop spacing...')
-        # segments
-        ## note that merge action can change dataframe index if expanded. So reset then set index to keep the original index.
-        records = self.gtfs_records.reset_index()\
-                    .merge(self.shapes[['pattern_id', 'stop_pair', 'distance']], on=['pattern_id', 'stop_pair'], how='left')\
-                    .set_index('index')
-        self.segments['stop_spacing'] = (records.groupby(self.SEGMENT_MULTIINDEX)['distance'].mean() * KILOMETER_TO_FT).round(2)
+        logger.info(f'aggregating stop spacing')
 
-        # corridors
-        self.corridors['stop_spacing'] = (records.groupby(self.CORRIDOR_MULTIINDEX)['distance'].mean() * KILOMETER_TO_FT).round(2)
+        sig_fig = 0
 
-        # routes
-        routes_data = records[self.ROUTE_MULTIINDEX + ['stop_pair', 'trip_id', 'distance']].drop_duplicates()\
-                        .groupby(self.ROUTE_MULTIINDEX + ['trip_id'])['distance'].sum().reset_index()
-        self.routes['stop_spacing'] = (routes_data.groupby(self.ROUTE_MULTIINDEX)['distance'].mean() * KILOMETER_TO_FT).round(2)
+        self.segments['stop_spacing'] = self.stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
+        self.corridors['stop_spacing'] = self.stop_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
+        self.routes['stop_spacing'] = self.route_metrics.groupby(self.ROUTE_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
+        self.tpbp_segments['stop_spacing'] = self.tpbp_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
+        self.tpbp_corridors['stop_spacing'] = self.tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
 
-        # tpbp_segments
-        ## calculate the distance between timepoints using the above records dataframe
-        ## step 1: label timepoint pairs as tpbp_stop_pair, each tpbp_stop_pair could correspond to multiple consecutive stop_pairs
-        ##           stops that don't belong to a tpbp_stop_pair but is a tp_bp (e.g. the last tp_bp of a route) are labeled -1
-        records['tpbp_stop_pair'] = self.tpbp_gtfs_records['stop_pair']
-        records.loc[(records['tp_bp']==1) & (records['tpbp_stop_pair'].isnull()), 'tpbp_stop_pair'] = -1
-        records['tpbp_stop_pair'] = records.groupby('trip_id')['tpbp_stop_pair'].fillna(method='ffill')
-        ## step 2: calculate the culmulative distance of each stop along the trip, and keep only the last record of each tpbp_stop_pair
-        ##           since the last culmulative distance encompasses the distances of all stop_pairs within the same tpbp_stop_pair
-        records['distance_cumsum'] = records.groupby('trip_id')['distance'].cumsum()
-        records = records[~records.duplicated(subset=['trip_id', 'tpbp_stop_pair'], keep='last')]
-        ## step 3: distance between timepoints = difference between kept tpbp_stop_pair culmulative distances
-        records['tpbp_distance'] = records.groupby('trip_id')['distance_cumsum'].diff().fillna(records['distance_cumsum'])
+    def span_of_service(self):
+        """Aggregated service start/end in sec since epoch. Defined as the first arrival at first stop (service start) and the last arrival 
+                at last stop (service end) of all trips on each aggregation level. This metric is not time-dependent, so use non-time-filtered 
+                metrics for calculations.
+            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """
+        logger.info(f'aggregating span of service')
 
-        self.tpbp_gtfs_records = self.tpbp_gtfs_records.reset_index()\
-                                .merge(records[['pattern_id', 'tpbp_stop_pair', 'tpbp_distance']].drop_duplicates(), \
-                                    left_on=['pattern_id', 'stop_pair'], right_on=['pattern_id', 'tpbp_stop_pair'], how='left')\
-                                .set_index('index')
+        self.segments['service_start'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
+        self.segments['service_end'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')
 
-        self.tpbp_segments['stop_spacing'] = (self.tpbp_gtfs_records.groupby(self.SEGMENT_MULTIINDEX)['tpbp_distance'].mean() * KILOMETER_TO_FT).round(2)
-        self.tpbp_corridors['stop_spacing'] = (self.tpbp_gtfs_records.groupby(self.CORRIDOR_MULTIINDEX)['tpbp_distance'].mean() * KILOMETER_TO_FT).round(2)
+        self.corridors['service_start'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')
+        self.corridors['service_end'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')
+
+        self.routes['service_start'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_start_time'].agg('min')
+        self.routes['service_end'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_end_time'].agg('max')
+
+        self.tpbp_segments['service_start'] = self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
+        self.tpbp_segments['service_end'] = self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')
+
+        self.tpbp_corridors['service_start'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')
+        self.tpbp_corridors['service_end'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')
+
+    def revenue_hour(self):
+        """Aggregated revenue hours in hr. Defined as the difference between service_end and service_start. This metric is not 
+                time-dependent, so use non-time-filtered metrics for calculations.
+            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """
+        logger.info(f'aggregating revenue hour')
+
+        sig_fig = 1
+
+        self.segments['revenue_hour'] = ((self.segments['service_end'] - self.segments['service_start']) / 3660).round(sig_fig)
+        self.corridors['revenue_hour'] = ((self.corridors['service_end'] - self.corridors['service_start']) / 3660).round(sig_fig)
+        self.routes['revenue_hour'] = ((self.routes['service_end'] - self.routes['service_start']) / 3660).round(sig_fig)
+        self.tpbp_segments['revenue_hour'] = ((self.tpbp_segments['service_end'] - self.tpbp_segments['service_start']) / 3660).round(sig_fig)
+        self.tpbp_corridors['revenue_hour'] = ((self.tpbp_corridors['service_end'] - self.tpbp_corridors['service_start']) / 3660).round(sig_fig)
+
+    def scheduled_frequency(self):
+        """Aggregated scheduled frequency in trips/hr. Defined as the number of trips divided by service span (revenue hour).
+            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """
+        logger.info(f'aggregating scheduled frequency')
+
+        sig_fig = 1
+
+        self.segments['scheduled_frequency'] = (self.segments['trip_counts'] / self.segments['revenue_hour']).round(sig_fig)
+        self.corridors['scheduled_frequency'] = (self.corridors['trip_counts'] / self.corridors['revenue_hour']).round(sig_fig)
+        self.routes['scheduled_frequency'] = (self.routes['trip_counts'] / self.routes['revenue_hour']).round(sig_fig)
+        self.tpbp_segments['scheduled_frequency'] = (self.tpbp_segments['trip_counts'] / self.tpbp_segments['revenue_hour']).round(sig_fig)
+        self.tpbp_corridors['scheduled_frequency'] = (self.tpbp_corridors['trip_counts'] / self.tpbp_corridors['revenue_hour']).round(sig_fig)
+
 
     def scheduled_headway(self, method:str='mean'):
-        """Scheduled headway in minutes. Defined as the difference between two consecutive arrival times at the first stop of a stop pair.
-            Levels: segments, corridors
+        """Aggregated scheduled headway in minutes. Defined as the average or mode of scheduled headway of all trips on each aggregation level.
+            Levels: segments, tpbp_segments
         Args:
             method (str, optional): mean - average headway; mode - the first mode value of headways. Defaults to 'mean'.
 
         Raises:
             ValueError: the provided method is not one of: 'mean', 'mode'.
         """
-        logger.info(f'calculating scheduled headway...')
-        records = deepcopy(self.gtfs_records)
-
-        records['headway'] = records.sort_values(['route_id', 'pattern_id', 'stop_pair', 'arrival_time'])\
-                                .groupby(['route_id', 'pattern_id', 'stop_pair'])['arrival_time'].diff()
+        logger.info(f'aggregating scheduled headway')
 
         if method == 'mean':
             func = pd.Series.mean
@@ -136,71 +179,67 @@ class MetricAggregation():
         else:
             raise ValueError(f'Invalid method: {method}.')
 
-        # segments
-        self.segments['scheduled_headway'] = records.groupby(self.SEGMENT_MULTIINDEX)['headway']\
-                                                .agg(func) // 60
-        # corridors
-        self.corridors['scheduled_headway'] = records.groupby(self.CORRIDOR_MULTIINDEX)['headway']\
-                                                .agg(func) // 60
+        sig_fig = 0
+
+        self.segments['scheduled_headway'] = (self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
+                                                .agg(func) // 60).round(sig_fig)
+        self.tpbp_segments['scheduled_headway'] = (self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
+                                                .agg(func) // 60).round(sig_fig)
 
     def scheduled_running_time(self):
-        """Running time in minutes. Defined as the difference between departure time at a stop and arrival time at the next stop.
+        """Aggregated running time in minutes. Defined as the average scheduled running time of all trips on each segments/corridors level, 
+                and average of sum of running time of all stops along a route on the routes level.
             Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
         """
-        logger.info(f'calculating scheduled running time...')
+        logger.info(f'aggregating scheduled running time')
 
-        records = deepcopy(self.gtfs_records)
-        records['running_time'] = ((records['next_stop_arrival_time'] - records['departure_time']) / 60).round(2)
+        sig_fig = 1
 
-        # segments
-        self.segments['scheduled_running_time'] = records.groupby(self.SEGMENT_MULTIINDEX)['running_time'].mean().round(1)
-        # corridors
-        self.corridors['scheduled_running_time'] = records.groupby(self.CORRIDOR_MULTIINDEX)['running_time'].mean().round(1)
-        # routes
-        routes_data = records[self.ROUTE_MULTIINDEX + ['stop_pair', 'trip_id', 'running_time']].drop_duplicates()\
-                        .groupby(self.ROUTE_MULTIINDEX + ['trip_id'])['running_time'].sum().reset_index()
-        self.routes['scheduled_running_time'] = routes_data.groupby(self.ROUTE_MULTIINDEX)['running_time'].mean().round(1)
-        
+        self.segments['scheduled_running_time'] = self.stop_metrics_time_filtered\
+                                                    .groupby(self.SEGMENT_MULTIINDEX)['scheduled_running_time'].mean().round(sig_fig)
+        self.corridors['scheduled_running_time'] = self.stop_metrics_time_filtered\
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)['scheduled_running_time'].mean().round(sig_fig)
+        self.routes['scheduled_running_time'] = self.route_metrics_time_filtered\
+                                                    .groupby(self.ROUTE_MULTIINDEX)['scheduled_running_time'].mean().round(sig_fig)
+        self.tpbp_segments['scheduled_running_time'] = self.tpbp_metrics_time_filtered\
+                                                    .groupby(self.SEGMENT_MULTIINDEX)['scheduled_running_time'].mean().round(sig_fig)
+        self.tpbp_corridors['scheduled_running_time'] = self.tpbp_metrics_time_filtered\
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)['scheduled_running_time'].mean().round(sig_fig)
 
-        tpbp_records = deepcopy(self.tpbp_gtfs_records)
-        tpbp_records['running_time'] = ((tpbp_records['next_stop_arrival_time'] - tpbp_records['departure_time']) / 60).round(2)
 
-        # tpbp_segments
-        self.tpbp_segments['scheduled_running_time'] = tpbp_records.groupby(self.SEGMENT_MULTIINDEX)['running_time'].mean().round(1)
-        # tpbp_corridors
-        self.tpbp_corridors['scheduled_running_time'] = tpbp_records.groupby(self.CORRIDOR_MULTIINDEX)['running_time'].mean().round(1)
-
-    def revenue_hour(self):
-        """Revenue hours in hr. Defined as the difference between first arrival at first stop and last arrival at last stop.
-                Since data is stratified in hours, revenue_hour for each hour is capped at 1 (even though the actual value can be above 1,
-                because 'hour' is defined as the starting hour of the trip, and a trip can end in a different hour).
-            Levels: routes
-        """
-        logger.info(f'calculating revenue hour...')
-
-        records = deepcopy(self.gtfs_records)
-
-        records['first_stop_arrival'] = records.groupby('trip_id')['arrival_time'].transform('min')
-        records['last_stop_arrival'] = records.groupby('trip_id')['arrival_time'].transform('max')
-
-        # routes
-        routes_data = records[self.ROUTE_MULTIINDEX + ['trip_id', 'first_stop_arrival', 'last_stop_arrival']].drop_duplicates()
-        routes_data['first_trip_first_stop_arrival'] = routes_data.groupby(self.ROUTE_MULTIINDEX)['first_stop_arrival'].transform('min')
-        routes_data['last_trip_last_stop_arrival'] = routes_data.groupby(self.ROUTE_MULTIINDEX)['last_stop_arrival'].transform('max')
-        routes_data['revenue_hour'] = ((routes_data['last_trip_last_stop_arrival'] - routes_data['first_trip_first_stop_arrival']) / 3660).round(2)
-
-        self.routes['revenue_hour'] = routes_data[self.ROUTE_MULTIINDEX + ['revenue_hour']].drop_duplicates()\
-                                        .groupby(self.ROUTE_MULTIINDEX)['revenue_hour'].sum().round(1).clip(upper=1)
-        
     def scheduled_running_speed(self):
-        """Scheduled running speed in mph. Defined as stop spacing divided by running time.
+        """Aggregated scheduled running speed in mph. Defined as the average scheduled running speed of all trips on each segments/corridors level, 
+                and average of (sum of stop spacing of all stops) / (sum of running time of all stops) along a route on the routes level.
             Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
         """
 
-        logger.info(f'calculating scheduled speed...')
+        logger.info(f'aggregating scheduled speed')
 
-        self.segments['scheduled_speed'] = ((self.segments['stop_spacing'] / self.segments['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(0)
-        self.corridors['scheduled_speed'] = ((self.corridors['stop_spacing'] / self.corridors['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(0)
-        self.routes['scheduled_speed'] = ((self.routes['stop_spacing'] / self.routes['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(0)
-        self.tpbp_segments['scheduled_speed'] = ((self.tpbp_segments['stop_spacing'] / self.tpbp_segments['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(0)
-        self.tpbp_corridors['scheduled_speed'] = ((self.tpbp_corridors['stop_spacing'] / self.tpbp_corridors['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(0)
+        sig_fig = 0
+
+        self.segments['scheduled_running_speed'] = self.stop_metrics_time_filtered\
+                                                    .groupby(self.SEGMENT_MULTIINDEX)['scheduled_running_speed'].mean().round(sig_fig)
+        self.corridors['scheduled_running_speed'] = self.stop_metrics_time_filtered\
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)['scheduled_running_speed'].mean().round(sig_fig)
+        self.routes['scheduled_running_speed'] = self.route_metrics_time_filtered\
+                                                    .groupby(self.ROUTE_MULTIINDEX)['scheduled_running_speed'].mean().round(sig_fig)
+        self.tpbp_segments['scheduled_running_speed'] = self.tpbp_metrics_time_filtered\
+                                                    .groupby(self.SEGMENT_MULTIINDEX)['scheduled_running_speed'].mean().round(sig_fig)
+        self.tpbp_corridors['scheduled_running_speed'] = self.tpbp_metrics_time_filtered\
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)['scheduled_running_speed'].mean().round(sig_fig)
+
+    def scheduled_poisson_wait_time(self):
+        """Aggregated wait time in minuntes. Defined as headway mean / 2 + variance / (2 * mean), assuming passenger arrival follows a Poisson process.
+                See Equation 2.66 in Larson, R. C. & Odoni, A. R. (1981) Urban operations research. Englewood Cliffs, N.J: Prentice-Hall.
+            Levels: segments
+        """
+        logger.info(f'aggregating scheduled poisson wait time')
+
+        segments_data = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
+                                                    .agg('mean').to_frame('scheduled_headway_mean')
+        segments_data['scheduled_headway_variance'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
+                                                        .agg('var')
+        self.segments['scheduled_poisson_wait_time'] = (((segments_data['scheduled_headway_mean'] / 2) \
+                                                        + (segments_data['scheduled_headway_variance'] / (2 * segments_data['scheduled_headway_mean']))) / 60).round(1)
+
+    
