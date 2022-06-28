@@ -22,9 +22,10 @@ PARAMETERS = {
         }
 class BaseShape():
 
-    def __init__(self, patterns, outpath, parameters=PARAMETERS):
+    def __init__(self, patterns, outpath, parameters=PARAMETERS, mode='bus'):
         
         logger.info(f'Generating shapes...')
+        self.mode = mode
         self.PARAMETERS = parameters
         self.patterns = self.check_patterns(patterns)
         self.outpath = check_parent_dir(outpath)
@@ -112,8 +113,11 @@ class BaseShape():
         matched_output = [
                             {
                                 **{'pattern_id': p_name,
-                                    'seg_index':f'{p_name}-{s_name[0]}-{s_name[1]}',
-                                    'stop_pair': s_name}, 
+                                    'route_id': f"{p_name.split('-')[0]}",
+                                    'direction_id': f"{p_name.split('-')[1]}",
+                                    'seg_index':f"{p_name.split('-')[0]}-{s_name[0]}-{s_name[1]}",
+                                    'stop_pair': s_name, 
+                                    'mode': self.mode},
                                 **s_info
                             }
                             for p_name, segments in all_matched.items() \

@@ -55,8 +55,9 @@ OPTIONAL_DATA_SPEC = {
 
 class GTFS(BaseData):
 
-    def __init__(self, alias, path, rove_params):
-        super().__init__(alias, path, rove_params)
+    def __init__(self, alias, rove_params, mode='bus'):
+        self.mode = mode
+        super().__init__(alias, rove_params)        
 
         # create the records table that contains all stop events info and trips info
         self.records = self.get_gtfs_records()
@@ -92,7 +93,7 @@ class GTFS(BaseData):
             quit()
 
         # Load GTFS feed
-        view = {'routes.txt': {'route_type': rove_params.config['route_type']}, 'trips.txt': {'service_id': service_id_list}}
+        view = {'routes.txt': {'route_type': rove_params.config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
@@ -279,24 +280,33 @@ class GTFS(BaseData):
 
         stops:pd.DataFrame = gtfs['stops']
         
-        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash (pattern_id) of the stop_ids list
+        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash of the stop_ids list
         trip_stops = records.groupby('trip_id')['stop_id'].apply(list).reset_index(name='stop_ids')
-        trip_stops['pattern_id'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
+        trip_stops['hash'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
 
         # Verify that number of unique hashes indeed match with number of unique sequence of stops
-        if trip_stops.astype(str).nunique()['pattern_id'] != trip_stops.astype(str).nunique()['stop_ids']:
+        if trip_stops.astype(str).nunique()['hash'] != trip_stops.astype(str).nunique()['stop_ids']:
             raise ValueError(f'Number of unique hashes should match number of unique lists of ordered stops. '+\
                                 'Use debug mode to find out why there is a mismatch. You may need to change the hashing method.')
         else:
             logger.debug(f'Summary of unique trip hashes: \n{trip_stops.astype(str).nunique()}')
 
+
         # Add pattern_id column to the trips table
-        trip_hash_lookup = trip_stops.set_index('trip_id')['pattern_id'].to_dict()
-        records['pattern_id'] = records['trip_id'].map(trip_hash_lookup)
+        trip_hash_lookup = trip_stops.set_index('trip_id')['hash'].to_dict()
+        records['hash'] = records['trip_id'].map(trip_hash_lookup)
+        records['hash_count'] = (records.drop_duplicates(['route_id', 'direction_id', 'hash'])\
+                                    .groupby(['route_id','direction_id']).cumcount()+1).reindex(records.index).ffill()
+        records['hash_count'] = records['hash_count'].round().astype(int)
+        records['pattern_id'] = records['route_id'].astype(str) + '-' + records['direction_id'].astype(str) + '-'  + records['hash_count'].astype(str)
 
         # Generate dict of patterns. 
+        # Get a dict of <hash: list of stop ids>
+        hash_stops_lookup = trip_stops.set_index('hash')['stop_ids'].to_dict()
+        
+        records['stop_ids'] = records['hash'].map(hash_stops_lookup)
         # Get a dict of <pattern_id: list of stop ids>
-        hash_stops_lookup = trip_stops.set_index('pattern_id')['stop_ids'].to_dict()
+        pattern_stops_lookup = records.set_index('pattern_id')['stop_ids'].to_dict()
 
         # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
         stops = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
@@ -306,7 +316,7 @@ class GTFS(BaseData):
         # Get a dict of <pattern_id: segments>
         # e.g. {2188571819865: {('64', '1'):[(lat64, lon64), (lat1, lon1)], ('1', '2'): [(lat1, lon1), (lat2, lon2)]...}...}
         patterns = {pattern_id: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
-                                    for i in range(len(stop_ids)-1)} for pattern_id, stop_ids in hash_stops_lookup.items()}
+                                    for i in range(len(stop_ids)-1)} for pattern_id, stop_ids in pattern_stops_lookup.items()}
 
         logger.info(f'gtfs patterns generated')
 
