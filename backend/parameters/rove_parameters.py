@@ -59,6 +59,7 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         # date : sample date for analysis
         self.sample_date = self.__generate_sample_date()
+        logger.info(f'Sample date: {self.sample_date}')
         logger.info(f'parameters generated')
 
     def get_input_paths(self):

@@ -37,9 +37,9 @@ class BaseShape():
 
         if not isinstance(patterns, Dict):
             raise TypeError(f'patterns must be given as a dict to be processed for shapes')
-        for pattern_id, segments in patterns.items():
+        for pattern, segments in patterns.items():
             if not isinstance(segments, Dict):
-                raise TypeError(f'segments for pattern: {pattern_id} must be given as a dict')
+                raise TypeError(f'segments for pattern: {pattern} must be given as a dict')
             for seg_id, seg_info in segments.items():
                 if not isinstance(seg_info, List) or not all([isinstance(coords, Tuple) for coords in seg_info]):
                     raise TypeError(f'info for segment: {seg_id} must be a list of coordinates')
@@ -50,7 +50,7 @@ class BaseShape():
         """_summary_
 
         Returns:
-            Dict: Pattern dict - key: pattern_id; value: Segment dict (a segment is a section of road between two transit stops). 
+            Dict: Pattern dict - key: pattern; value: Segment dict (a segment is a section of road between two transit stops). 
                     Segment dict - key: tuple of stop IDs at the beginning and end of the segment; 
                                     value: segment information (geometry, distance).
         """
@@ -112,10 +112,10 @@ class BaseShape():
 
         matched_output = [
                             {
-                                **{'pattern_id': p_name,
-                                    'route_id': f"{p_name.split('-')[0]}",
-                                    'direction_id': f"{p_name.split('-')[1]}",
-                                    'seg_index':f"{p_name.split('-')[0]}-{s_name[0]}-{s_name[1]}",
+                                **{'pattern': p_name,
+                                    'route_id': f"{'-'.join(p_name.split('-')[0:-2])}",
+                                    'direction': int(p_name.split('-')[-2]),
+                                    'seg_index':f"{'-'.join(p_name.split('-')[0:-2])}-{s_name[0]}-{s_name[1]}",
                                     'stop_pair': s_name, 
                                     'mode': self.mode},
                                 **s_info
@@ -128,7 +128,7 @@ class BaseShape():
 
         skipped_output = [
                             {
-                                **{'pattern_id': p_name,
+                                **{'pattern': p_name,
                                     'seg_index':f'{p_name}-{s_name[0]}-{s_name[1]}',
                                     'stop_pair': s_name}, 
                                 **s_info

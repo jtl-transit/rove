@@ -11,7 +11,7 @@ import shutil
 import logging
 import workalendar.usa
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 import pandas as pd
 import json
 
@@ -173,7 +173,7 @@ def read_shapes(path:str):
             shapes = pd.json_normalize(shapes_json)
             shapes['stop_pair'] = shapes.apply(lambda x: tuple(x.stop_pair), axis=1)
             specs = {
-                'pattern_id':'string',
+                'pattern':'string',
                 'distance':'float64'
             }
             cols = list(specs.keys())
@@ -182,3 +182,55 @@ def read_shapes(path:str):
     except FileNotFoundError:
         logger.exception(f'No shapes file found.')
         return None
+
+def load_csv_to_dataframe(path:str):
+        """Read in csv data and return a dataframe
+
+        Args:
+            path (str): path to the csv file
+
+        Returns:
+            DataFrame: dataframe read from the csv file
+        
+        Raises:
+            ValueError: the given file path does not end with .csv
+        """
+        
+        in_path = check_is_file(path, '.csv')
+        try:
+            data = pd.read_csv(in_path)
+        except pd.errors.EmptyDataError as err:
+            logger.warning(f'{err}: Data read from {in_path} is empty!')
+            data = pd.DataFrame()
+        return data
+
+def check_dataframe_column(df:pd.DataFrame, column_name, criteria='0or1'):
+    """Check that column_name column exists in gtfs_table_name and satisfys the criteria.
+        Criteria: 0or1 - only values 0 or 1 exists in the column.
+                (other criteria can be added)
+    Args:
+        column_name (str): column to be checked
+        criteria (str): type of criteria to be used. Defaults to '0or1'.
+
+    Raises:
+        ValueError: either gtfs_table_name is not stored in validated_data or 
+                    column_name is not in the GTFS table
+    """
+
+    # check that the records table has column_name column
+    if column_name not in df.columns:
+        raise ValueError(f'{column_name} column not in dataframe.')
+
+    valid_criteria = ['0or1']
+
+    if criteria == '0or1':
+        # fill in NaN values in column with 0
+        df[column_name] = df[column_name].fillna(0).astype(int)
+        # check that only values 1 and 0 exist in column_name column
+        if df.loc[~df[column_name].isin([0,1]),column_name].shape[0]>0:
+            raise ValueError(f'The {column_name} column cannot contain any value other than 0 or 1.')
+        num_ones = df.loc[df[column_name] == 1,column_name].shape[0]
+        logger.debug(f'number of {column_name}: {num_ones}')
+    
+    else:
+        raise ValueError(f'Invalid criteria. Select from: {valid_criteria}.')

@@ -80,25 +80,3 @@ class BaseData(metaclass=ABCMeta):
             obj: validated data
         """
         pass
-
-    # helpful functions
-    def load_csv_in_dataframe(self, path:str):
-        """Read in csv data and return a dataframe
-
-        Args:
-            path (str): path to the csv file
-
-        Returns:
-            DataFrame: dataframe read from the csv file
-        
-        Raises:
-            ValueError: the given file path does not end with .csv
-        """
-        
-        in_path = check_is_file(path, '.csv')
-        try:
-            data = pd.read_csv(in_path)
-        except pd.errors.EmptyDataError as err:
-            logger.warning(f'{err}: Data read from {in_path} is empty!')
-            data = pd.DataFrame()
-        return data
