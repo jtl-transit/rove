@@ -10,9 +10,12 @@ logger = logging.getLogger("backendLogger")
 FEET_TO_METERS = 0.3048
 KILOMETER_TO_FT = 3280.84
 FT_PER_MIN_TO_MPH = 0.0113636
+FEET_TO_MILES = 0.000189394
 SPEED_RANGE = [0, 65]
 MS_TO_MPH = 3.6/1.6
 MAX_HEADWAY = 90
+MAX_SPEED_MPH = 65
+MEAN_SPEED_MPH = 30
 
 class MetricCalculation():
     
@@ -30,20 +33,22 @@ class MetricCalculation():
         self.avl_records = self.prepare_stop_event_records(avl_records, 'AVL')
 
         # ---- GTFS metrics ----
-        # self.stop_spacing(shapes)
-        # self.scheduled_headway()
-        # self.scheduled_running_time()
-        # self.scheduled_running_speed()
+        self.stop_spacing(shapes)
+        self.scheduled_headway()
+        self.scheduled_running_time()
+        self.scheduled_speed()
 
         # ---- AVL metrics ----
-        # self.observed_headway()
-        # self.observed_running_time()
-        # self.observed_speed_without_dwell()
-        # self.observed_running_time_with_dwell()
-        # self.observed_speed_with_dwell()
-        # self.boardings()
-        # self.on_time_performance()
+        self.observed_headway()
+        self.observed_running_time()
+        self.observed_speed_without_dwell()
+        self.observed_running_time_with_dwell()
+        self.observed_speed_with_dwell()
+        self.boardings()
+        self.on_time_performance()
+        self.passenger_load()
         self.crowding()
+        self.congestion_delay()
         logger.info(f'Metrics calculation completed.')
 
     def prepare_stop_event_records(self, records:pd.DataFrame, type:str):
@@ -61,6 +66,9 @@ class MetricCalculation():
         elif type == 'AVL':
             groups = ['svc_date', 'trip_id']
             arrival_time_col = 'stop_time'
+            records = records.rename(columns={
+                'route': 'route_id'
+            })
         else:
             raise ValueError(f'Invalid type {type}, must be one of: GTFS, AVL')
 
@@ -135,29 +143,29 @@ class MetricCalculation():
         self.tpbp_metrics['scheduled_running_time'] = self.stop_metrics['tpbp_scheduled_running_time']
 
 
-    def scheduled_running_speed(self):
+    def scheduled_speed(self):
         """Scheduled running speed in mph. Defined as stop spacing divided by running time.
         """
         logger.info(f'calculating scheduled speed')
 
-        self.stop_metrics['scheduled_running_speed'] = ((self.stop_metrics['stop_spacing'] / self.stop_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.stop_metrics['scheduled_speed'] = ((self.stop_metrics['stop_spacing'] / self.stop_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.route_metrics['scheduled_running_speed'] = ((self.route_metrics['stop_spacing'] / self.route_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.route_metrics['scheduled_speed'] = ((self.route_metrics['stop_spacing'] / self.route_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.tpbp_metrics['scheduled_running_speed'] = ((self.tpbp_metrics['stop_spacing'] / self.tpbp_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.tpbp_metrics['scheduled_speed'] = ((self.tpbp_metrics['stop_spacing'] / self.tpbp_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
 
     def observed_headway(self):
         
         logger.info(f'calculating observed headway')
 
-        self.avl_records['observed_headway_by_date'] = self.avl_records.groupby(['svc_date', 'route', 'stop_pair'])['stop_time'].diff()
+        self.avl_records['observed_headway_by_date'] = self.avl_records.groupby(['svc_date', 'route_id', 'stop_pair'])['stop_time'].diff()
         
-        avg_stop_avl_temp = self.avl_records.groupby(['route', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
                         .reset_index().rename(columns={'observed_headway_by_date': 'observed_headway'})
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'stop_pair'], right_on=['route', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'stop_pair'], how='left')
         
-        self.tpbp_metrics = self.tpbp_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'stop_pair'], right_on=['route', 'stop_pair'], how='left')
+        self.tpbp_metrics = self.tpbp_metrics.merge(avg_stop_avl_temp, on=['route_id', 'stop_pair'], how='left')
 
     def observed_running_time(self):
 
@@ -167,14 +175,14 @@ class MetricCalculation():
                                                     - self.avl_records['dwell_time']).clip(lower=0) / 60).round(2)
         
         # average over service dates
-        avg_stop_avl_temp = self.avl_records.groupby(['route', 'trip_id', 'stop_pair'])['observed_running_time'].agg('mean').round(2).reset_index()
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['observed_running_time'].agg('mean').round(2).reset_index()
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'trip_id', 'stop_pair'], right_on=['route', 'trip_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
         
-        route_avl_temp = self.avl_records.groupby(['svc_date', 'route', 'trip_id'])['observed_running_time'].sum().reset_index()
-        route_avl_temp = route_avl_temp.groupby(['route', 'trip_id'])['observed_running_time'].agg('mean').round(2).reset_index()
+        route_avl_temp = self.avl_records.groupby(['svc_date', 'route_id', 'trip_id'])['observed_running_time'].sum().reset_index()
+        route_avl_temp = route_avl_temp.groupby(['route_id', 'trip_id'])['observed_running_time'].agg('mean').round(2).reset_index()
 
-        self.route_metrics = self.route_metrics.merge(route_avl_temp, left_on=['route_id', 'trip_id'], right_on=['route', 'trip_id'], how='left')
+        self.route_metrics = self.route_metrics.merge(route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
         self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
         self.stop_metrics['tpbp_observed_running_time'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['observed_running_time'].transform('sum')
@@ -197,14 +205,14 @@ class MetricCalculation():
         self.avl_records['observed_running_time_with_dwell'] = ((self.avl_records['next_stop_arrival_time'] - self.avl_records['stop_time']).clip(lower=0) / 60).round(2)
         
         # average over service dates
-        avg_stop_avl_temp = self.avl_records.groupby(['route', 'trip_id', 'stop_pair'])['observed_running_time_with_dwell'].agg('mean').round(2).reset_index()
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['observed_running_time_with_dwell'].agg('mean').round(2).reset_index()
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'trip_id', 'stop_pair'], right_on=['route', 'trip_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
         
-        route_avl_temp = self.avl_records.groupby(['svc_date', 'route', 'trip_id'])['observed_running_time_with_dwell'].sum().reset_index()
-        route_avl_temp = route_avl_temp.groupby(['route', 'trip_id'])['observed_running_time_with_dwell'].agg('mean').round(2).reset_index()
+        route_avl_temp = self.avl_records.groupby(['svc_date', 'route_id', 'trip_id'])['observed_running_time_with_dwell'].sum().reset_index()
+        avg_route_avl_temp = route_avl_temp.groupby(['route_id', 'trip_id'])['observed_running_time_with_dwell'].agg('mean').round(2).reset_index()
 
-        self.route_metrics = self.route_metrics.merge(route_avl_temp, left_on=['route_id', 'trip_id'], right_on=['route', 'trip_id'], how='left')
+        self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
         self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
         self.stop_metrics['tpbp_observed_running_time_with_dwell'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['observed_running_time_with_dwell'].transform('sum')
@@ -225,14 +233,14 @@ class MetricCalculation():
         logger.info(f'calculating boardings')
 
         # average over service dates
-        avg_stop_avl_temp = self.avl_records.groupby(['route', 'trip_id', 'stop_pair'])['passenger_on'].agg('mean').round(0).reset_index().rename(columns={'passenger_on': 'boardings'})
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['passenger_on'].agg('mean').round(0).reset_index().rename(columns={'passenger_on': 'boardings'})
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'trip_id', 'stop_pair'], right_on=['route', 'trip_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
         
-        route_avl_temp = self.avl_records.groupby(['svc_date', 'route', 'trip_id'])['passenger_on'].sum().reset_index()
-        route_avl_temp = route_avl_temp.groupby(['route', 'trip_id'])['passenger_on'].agg('mean').round(2).reset_index().rename(columns={'passenger_on': 'boardings'})
+        route_avl_temp = self.avl_records.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_on'].sum().reset_index()
+        avg_route_avl_temp = route_avl_temp.groupby(['route_id', 'trip_id'])['passenger_on'].agg('mean').round(2).reset_index().rename(columns={'passenger_on': 'boardings'})
 
-        self.route_metrics = self.route_metrics.merge(route_avl_temp, left_on=['route_id', 'trip_id'], right_on=['route', 'trip_id'], how='left')
+        self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
         self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
         self.stop_metrics['tpbp_boardings'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['boardings'].transform('sum')
@@ -253,23 +261,66 @@ class MetricCalculation():
         if no_earlier_than > 0 or no_later_than < 0:
             raise ValueError(f'no_earlier_than must be a negative value, no_later_than must be a positive value.')
         
-        stop_avl_temp = self.avl_records.merge(self.stop_metrics, left_on=['route', 'trip_id', 'stop_pair'], right_on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        stop_avl_temp = self.avl_records.merge(self.stop_metrics[['route_id', 'trip_id', 'stop_pair', 'arrival_time']], on=['route_id', 'trip_id', 'stop_pair'], how='left')
         stop_avl_temp['on_time_performance'] = stop_avl_temp['stop_time'] - stop_avl_temp['arrival_time']
         # average over service dates
-        avg_stop_avl_temp = stop_avl_temp.groupby(['route', 'trip_id', 'stop_pair'])['on_time_performance'].agg('mean').round(0).reset_index()
+        avg_stop_avl_temp = stop_avl_temp.groupby(['route_id', 'trip_id', 'stop_pair'])['on_time_performance'].agg('mean').round(0).reset_index()
 
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, left_on=['route_id', 'trip_id', 'stop_pair'], right_on=['route', 'trip_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
 
         stop_avl_temp['is_on_time'] = ((stop_avl_temp['on_time_performance'] > no_earlier_than * 60) & (stop_avl_temp['on_time_performance'] < no_later_than * 60)).astype(int)
-        route_avl_temp = stop_avl_temp.groupby(['svc_date', 'route', 'trip_id'])['is_on_time'].sum().to_frame('on_time_count')
-        route_avl_temp['total_stops'] = stop_avl_temp.groupby(['svc_date', 'route', 'trip_id'])['stop_pair'].count()
+        route_avl_temp = stop_avl_temp.groupby(['svc_date', 'route_id', 'trip_id'])['is_on_time'].sum().to_frame('on_time_count')
+        route_avl_temp['total_stops'] = stop_avl_temp.groupby(['svc_date', 'route_id', 'trip_id'])['stop_pair'].count()
         route_avl_temp['on_time_performance'] = route_avl_temp['on_time_count'] / route_avl_temp['total_stops'] * 100
 
         # average over service dates
-        route_avl_temp = route_avl_temp.reset_index().groupby(['route', 'trip_id'])['on_time_performance'].agg('mean').round(0).reset_index()
+        avg_route_avl_temp = route_avl_temp.reset_index().groupby(['route_id', 'trip_id'])['on_time_performance'].agg('mean').round(0).reset_index()
 
-        self.route_metrics = self.route_metrics.merge(route_avl_temp, left_on=['route_id', 'trip_id'], right_on=['route', 'trip_id'], how='left')
+        self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
+
+    def passenger_load(self):
+
+        logger.info(f'calculating passenger load')
+        
+        # average over service dates
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['passenger_load'].agg('mean').round(0).reset_index()
+        
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        
+        route_avl_temp = self.avl_records.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_load'].max().reset_index()
+        avg_route_avl_temp = route_avl_temp.groupby(['route_id', 'trip_id'])['passenger_load'].agg('mean').round(0).reset_index()
+
+        self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
+
 
     def crowding(self):
 
         logger.info(f'calculating crowding')
+
+        self.avl_records['crowding'] = self.avl_records['passenger_load'] / self.avl_records['seat_capacity'] * 100
+        
+        # average over service dates
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['crowding'].agg('mean').round(0).reset_index()
+
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        
+        # average over service dates
+        route_avl_temp = self.avl_records.groupby(['svc_date', 'route_id', 'trip_id'])['crowding'].max().round(0).reset_index()
+        avg_route_avl_temp = route_avl_temp.groupby(['route_id', 'trip_id'])['crowding'].agg('mean').round(0).reset_index()
+
+        self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
+
+    def congestion_delay(self):
+        """Congestion delay in min/mile or pax-min/mile.
+        """
+        logger.info(f'calculating congestion delay')
+
+        self.stop_metrics['free_flow_speed'] = self.stop_metrics.groupby(['stop_pair'])['observed_speed_without_dwell'].transform('max')\
+                                                .clip(upper=MAX_SPEED_MPH).fillna(MEAN_SPEED_MPH)
+        self.stop_metrics['free_flow_travel_time'] = self.stop_metrics['stop_distance'] / (self.stop_metrics['free_flow_speed'] / FT_PER_MIN_TO_MPH)
+        self.stop_metrics['observed_travel_time'] = self.stop_metrics['stop_distance'] / (self.stop_metrics['observed_speed_without_dwell'] / FT_PER_MIN_TO_MPH)
+
+        self.stop_metrics['vehicle_congestion_delay'] = (self.stop_metrics['observed_travel_time'] - self.stop_metrics['free_flow_travel_time']) \
+                                                / (self.stop_metrics['stop_distance'] * FEET_TO_MILES)
+        
+        self.stop_metrics['passenger_congestion_delay'] = self.stop_metrics['vehicle_congestion_delay'] * self.stop_metrics['passenger_load']

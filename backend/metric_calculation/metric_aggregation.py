@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List, Callable
+
 from parameters.rove_parameters import ROVE_params
 import scipy.stats
 import inspect
@@ -17,7 +18,7 @@ class MetricAggregation():
     def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, \
                     start_time:List, end_time:List, percentile:int, redValues:dict):
 
-        logger.info(f'Aggregating metrics for {start_time} - {end_time}...')
+        logger.info(f'aggregating metrics for period: {start_time} - {end_time}, percentile: {percentile}')
 
         if not isinstance(start_time, List) or not isinstance(end_time, List) or \
             len(start_time) != 2 or len(end_time) != 2:
@@ -54,23 +55,27 @@ class MetricAggregation():
         self.span_of_service()
         self.revenue_hour()
         self.scheduled_frequency()
-        self.scheduled_poisson_wait_time()
+        self.poisson_wait_time('scheduled')
 
         # metrics that can be aggregated by percentile
         self.headway('percentile', percentile, 'scheduled')
         self.running_time(percentile, 'scheduled')
-        self.running_speed(percentile, 'scheduled')
+        self.speed(percentile, 'scheduled')
 
         # ---- AVL metrics ----
         self.headway('percentile', percentile, 'observed')
         self.running_time(percentile, 'observed')
-        self.running_speed(percentile, 'observed', 'without_dwell')
-        self.running_speed(percentile, 'observed', 'with_dwell')
-        # self.boardings()
-        # self.on_time_performance()
+        self.speed(percentile, 'observed', 'without_dwell')
+        self.speed(percentile, 'observed', 'with_dwell')
+        self.boardings(percentile)
+        self.on_time_performance()
+        self.crowding()
+        self.passenger_load(percentile)
+        self.poisson_wait_time('observed')
+        self.excess_wait_time()
+        self.congestion_delay()
+        self.productivity()
         
-        logger.info(f'Metrics aggregation completed for {start_time} - {end_time}')
-
     def get_percentile(self, p:int, metric_name:str):
 
         if isinstance(p, int) and p >= 0 and p <= 100:
@@ -180,8 +185,9 @@ class MetricAggregation():
         """Aggregated scheduled headway in minutes. Defined as the average or mode of scheduled headway of all trips on each aggregation level.
             Levels: segments, tpbp_segments
         Args:
-            method (str, optional): mean - average headway; mode - the first mode value of headways. Defaults to 'mean'.
-
+            method (str): mean - average headway; mode - the first mode value of headways; percentile - choose value based on percentile.
+            percentile (int): the percentile that metrics are aggregated at.
+            type (str): e.g. 'scheduled' or 'observed'
         Raises:
             ValueError: the provided method is not one of: 'mean', 'mode'.
         """
@@ -191,7 +197,7 @@ class MetricAggregation():
         metric_name = f'{type}_headway'
 
         if method == 'percentile':
-            percentile = self.get_percentile(percentile, inspect.stack()[0][3])
+            percentile = self.get_percentile(percentile, metric_name)
 
             self.segments[metric_name] = (self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)[metric_name]\
                                                 .quantile(percentile) // 60).round(sig_fig)
@@ -215,12 +221,15 @@ class MetricAggregation():
         """Aggregated running time in minutes. Defined as the average scheduled running time of all trips on each segments/corridors level, 
                 and average of sum of running time of all stops along a route on the routes level.
             Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        Args:
+            percentile (int): the percentile that metrics are aggregated at.
+            type (str): e.g. 'scheduled' or 'observed'
         """
-
-        percentile = self.get_percentile(percentile, inspect.stack()[0][3])
         sig_fig = 1
         metric_name = f'{type}_running_time'
 
+        percentile = self.get_percentile(percentile, metric_name)
+
         self.segments[metric_name] = self.stop_metrics_time_filtered\
                                                     .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
         self.corridors[metric_name] = self.stop_metrics_time_filtered\
@@ -233,19 +242,24 @@ class MetricAggregation():
                                                     .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
 
 
-    def running_speed(self, percentile:int, type:str, dwell=''):
+    def speed(self, percentile:int, type:str, dwell:str=''):
         """Aggregated scheduled running speed in mph. Defined as the average scheduled running speed of all trips on each segments/corridors level, 
                 and average of (sum of stop spacing of all stops) / (sum of running time of all stops) along a route on the routes level.
             Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        Args:
+            percentile (int): the percentile that metrics are aggregated at.
+            type (str): e.g. 'scheduled' or 'observed'
+            dwell (str): e.g. 'with_dwell' or 'without_dwell'
         """
-
-        percentile = self.get_percentile(percentile, inspect.stack()[0][3])
-
+       
         sig_fig = 0
         if dwell == '':
-            metric_name = f'{type}_running_speed'
+            metric_name = f'{type}_speed'
         else:
-            metric_name = f'{type}_running_speed_{dwell}'
+            metric_name = f'{type}_speed_{dwell}'
+
+        percentile = self.get_percentile(percentile, metric_name)
+
 
         self.segments[metric_name] = self.stop_metrics_time_filtered\
                                                     .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
@@ -258,33 +272,101 @@ class MetricAggregation():
         self.tpbp_corridors[metric_name] = self.tpbp_metrics_time_filtered\
                                                     .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
 
-    def scheduled_poisson_wait_time(self):
+    def poisson_wait_time(self, type:str):
         """Aggregated wait time in minuntes. Defined as headway mean / 2 + variance / (2 * mean), assuming passenger arrival follows a Poisson process.
                 See Equation 2.66 in Larson, R. C. & Odoni, A. R. (1981) Urban operations research. Englewood Cliffs, N.J: Prentice-Hall.
             Levels: segments
         """
 
-        segments_data = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
-                                                    .agg('mean').to_frame('scheduled_headway_mean')
-        segments_data['scheduled_headway_variance'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['scheduled_headway']\
+        sig_fig = 0
+        metric_name = f'{type}_poisson_wait_time'
+        segments_data = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)[f'{type}_headway']\
+                                                    .agg('mean').to_frame(f'{type}_headway_mean')
+        segments_data[f'{type}_headway_variance'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)[f'{type}_headway']\
                                                         .agg('var')
-        self.segments['scheduled_poisson_wait_time'] = (((segments_data['scheduled_headway_mean'] / 2) \
-                                                        + (segments_data['scheduled_headway_variance'] / (2 * segments_data['scheduled_headway_mean']))) / 60).round(1)
+        self.segments[metric_name] = (((segments_data[f'{type}_headway_mean'] / 2) \
+                                        + (segments_data[f'{type}_headway_variance'] \
+                                            / (2 * segments_data[f'{type}_headway_mean']))) / 60).round(sig_fig)
 
-    def boardings(self):
-        
+    def excess_wait_time(self):
+
+        self.segments['excess_wait_time'] = self.segments['observed_wait_time'] - self.segments['scheduled_wait_time']
+
+
+    def boardings(self, percentile:int):
+        """Aggregated boardings in pax. Defined as the average boardings of all trips on each stop/stop aggregated level,
+                and the sum of boardings at all stops averaged over all trips on the route level.
+            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        Args:
+            percentile (int): the percentile that metrics are aggregated at
+        """
         sig_fig = 0
 
-        self.segments['boardings'] = self.stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['boardings'].mean().round(sig_fig)
-        self.corridors['boardings'] = self.stop_metrics.groupby(self.CORRIDOR_MULTIINDEX)['boardings'].mean().round(sig_fig)
-        self.routes['boardings'] = self.route_metrics.groupby(self.ROUTE_MULTIINDEX)['boardings'].mean().round(sig_fig)
-        self.tpbp_segments['boardings'] = self.tpbp_metrics.groupby(self.SEGMENT_MULTIINDEX)['boardings'].mean().round(sig_fig)
-        self.tpbp_corridors['boardings'] = self.tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['boardings'].mean().round(sig_fig)
+        percentile = self.get_percentile(percentile, 'boardings')
+
+        self.segments['boardings'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['boardings'].quantile(percentile).round(sig_fig)
+        self.corridors['boardings'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['boardings'].quantile(percentile).round(sig_fig)
+        self.routes['boardings'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['boardings'].quantile(percentile).round(sig_fig)
+        self.tpbp_segments['boardings'] = self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['boardings'].quantile(percentile).round(sig_fig)
+        self.tpbp_corridors['boardings'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['boardings'].quantile(percentile).round(sig_fig)
 
     def on_time_performance(self):
+        """Aggregated on-time performance in seconds or %. Defined as the average arrival delay of all trips on segment level,
+                and the percent of late trips averaged over all trips on the route level.
+            Levels: segments, routes
+        """
+        sig_fig = 0
+
+        self.segments['on_time_performance'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+        self.routes['on_time_performance'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+    
+    def crowding(self):
+        """Aggregated crowding in %. Defined as the average crowding of all trips on each stop/stop aggregated level,
+                and peak crowding averaged over all trips on the route level.
+            Levels: segments, corridors, routes
+        """
+        sig_fig = 0
+
+        self.segments['crowding'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['crowding'].mean().round(sig_fig)
+        self.corridors['boardings'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['boardings'].mean().round(sig_fig)
+        self.routes['crowding'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['crowding'].mean().round(sig_fig)
+    
+    def passenger_load(self, percentile:int):
+        """Aggregated passenger loading in pax. Defined as the average passenger load of all trips on each segments level.
+            Levels: segments
+
+        Args:
+            percentile (int): the percentile that metrics are aggregated at
+        """
+        sig_fig = 0
+        percentile = self.get_percentile(percentile, 'passenger_load')
+
+        self.segments['passenger_load'] = self.stop_metrics_time_filtered\
+                                                    .groupby(self.SEGMENT_MULTIINDEX)['passenger_load'].quantile(percentile).round(sig_fig)
+
+    def passenger_flow(self):
+        """Aggregated passenger flow in pax/hr. Defined as the sum of passenger load divided by the lenghth of time period.
+            Levels: segments, corridors
+        """
+        sig_fig = 0
+
+        period = self.end_time - self.start_time
+
+        self.segments['passenger_flow'] = (self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['passenger_load'].sum() / period).round(sig_fig)
+        self.corridors['passenger_flow'] = (self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['passenger_load'].sum() / period).round(sig_fig)
+
+    def congestion_delay(self):
+        """Aggregated vehicle- and passenger-weighted congestion delay in min/mile or pax-min/mile. Defined as the sum of congestion
+            delays over all trips.
+        """
+        sig_fig = 0
+
+        self.segments['vehicle_congestion_delay'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['vehicle_congestion_delay'].sum().round(sig_fig)
+        self.segments['passenger_congestion_delay'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['passenger_congestion_delay'].sum().round(sig_fig)
+
+    def productivity(self):
 
         sig_fig = 0
 
-        self.segments['on_time_performance'] = self.stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
-        self.routes['on_time_performance'] = self.route_metrics.groupby(self.ROUTE_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
-        
+        self.routes['productivity'] = (self.route_metrics.groupby(self.ROUTE_MULTIINDEX)['boardings'].sum() \
+                                        / self.route_metrics['revenue_hour']).round(sig_fig)
