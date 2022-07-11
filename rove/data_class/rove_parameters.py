@@ -3,7 +3,7 @@ import datetime
 from typing import List
 from .helper_functions import day_list_generation
 import logging
-from .config import Config
+import json
 
 logger = logging.getLogger("backendLogger")
 
@@ -15,8 +15,7 @@ class ROVE_params(object, metaclass=ABCMeta):
                 MONTH='',
                 YEAR='',
                 DATE_TYPE='',
-                DATA_OPTION=[],
-                additional_params={}):
+                DATA_OPTION=[]):
         """Instantiate rove parameters.
         """
         logger.info(f'Generating parameters...')
@@ -28,6 +27,8 @@ class ROVE_params(object, metaclass=ABCMeta):
         self.year = YEAR
         self.date_type = DATE_TYPE
 
+        self.suffix = f'_{self.agency}_{self.month}_{self.year}'
+
         # list (str) : list of input data used for backend calculations
         self.data_option = DATA_OPTION
 
@@ -35,66 +36,55 @@ class ROVE_params(object, metaclass=ABCMeta):
         #       Example of additional parameters that can be specified: 
         #       --> additional_input_paths : list of file paths to additional input files other than the default ones
         #       --> additional_output_paths: list of paths to additional output files
-        if not isinstance(additional_params, dict):
-            raise TypeError(f'additional_params must be a dict.')
-        self.additional_params = additional_params or {}
 
         # dict <str, str> : dict of paths to input and output data
         # self._input_paths = self._additional_params.get('additional_input_paths', {})
         # self.output_paths = self.additional_params.get('additional_output_paths', {})
-
+        self.input_paths = self.get_input_paths()
+        self.output_paths = self.get_output_paths()
+        
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
-        self.config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
+        with open(self.input_paths['frontend_config']) as json_file:
+            config = json.load(json_file)
+            self.redValues = config['redValues']
+        
+        with open(self.input_paths['backend_config']) as json_file:
+            self.config = json.load(json_file)
+            
+        # self.config = Config('config', f'data/{self.agency}/config/{self.agency}_param_config.json').validated_data
 
         # list (datetime) : list of dates of given month, year, agency
         self.date_list = self.__generate_date_list()
 
         # date : sample date for analysis
         self.sample_date = self.__generate_sample_date()
+        logger.info(f'Sample date: {self.sample_date}')
         logger.info(f'parameters generated')
 
-    @property
-    def suffix(self):
-        """suffix used in file names (e.g. WMATA_02_2019)
-
-        Returns:
-            str: concatenate agency_month_year 
+    def get_input_paths(self):
+        """Set paths to input data
         """
-        return f'_{self.agency}_{self.month}_{self.year}'
-
-    def output_paths(self, additional_output_paths):
-        """Set paths to output data
-
-        Args:
-            additional_output_paths (dict <str, str>, optional): additional paths to output data. Defaults to {}.
-        """
-        suffix = f'_{self.agency}_{self.month}_{self.year}'
-
-        # TODO: Pick output paths based on analysis type (shape generation, or link selection, or journey visualization)
-        # Output data paths
-        default_paths = {
-            'shapes_outpath': f'bustool/static/inputs/{self.agency}/shapes/bus-shapes{suffix}.json',
-            'lookup_outpath': f'bustool/static/inputs/{self.agency}/lookup/lookup{suffix}.json',
-            'segment_shapes_outpath': f'bustool/static/inputs/{self.agency}/shapes/segment_shapes{suffix}.json',
-            'tp_shapes_outpath': f'bustool/static/inputs/{self.agency}/shapes/timepoint_shapes{suffix}.json',
-            'segstop_shapes_outpath': f'bustool/static/inputs/{self.agency}/stops/segstopdata{suffix}.json',
-            'tpstop_shapes_outpath': f'bustool/static/inputs/{self.agency}/stops/tpstopdata{suffix}.json',
-            'seg_data_outpath': f'data/{self.agency}/selectlink/sl-seg-data{suffix}.json',
-            'tp_data_outpath': f'data/{self.agency}/selectlink/sl-tp-data{suffix}.json',
-            'metric_calculation_timepoints_outpath': f'bustool/static/inputs/{self.agency}/timepoints/timepoints{suffix}.json',
-            'metric_calculation_peak_outpath': f'bustool/static/inputs/{self.agency}/peak/peak{suffix}.json',
-            'metric_calculation_aggre_outpath': f'data/{self.agency}/metrics/METRICS{suffix}.p',
-            'metric_calculation_aggre_10min_outpath': f'data/{self.agency}/metrics/METRICS_10MIN{suffix}.p'
+        return {
+            'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
+            'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
+            'odx': f'data/{self.agency}/odx/ODX{self.suffix}.csv',
+            'backend_config': f'data/{self.agency}/config/{self.agency}_param_config.json',
+            'frontend_config': f'frontend/static/inputs/{self.agency}/config.json',
+            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
         }
 
-        if not isinstance(additional_output_paths, dict):
-            raise TypeError('additional_output_paths must be a dict')
+    def get_output_paths(self):
+        """Set paths to output data
+        """
 
-        output_paths = {**default_paths, **additional_output_paths}
-        self._output_paths = output_paths
-
-        logger.debug(f'{len(output_paths.keys())} output file paths are set.')
+        return {
+            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json',
+            'metric_calculation_timepoints': f'frontend/static/inputs/{self.agency}/timepoints/timepoints{self.suffix}.json',
+            'metric_calculation_peak': f'frontend/static/inputs/{self.agency}/peak/peak{self.suffix}.json',
+            'metric_calculation_aggre': f'data/{self.agency}/metrics/METRICS{self.suffix}.p',
+            'metric_calculation_aggre_10min': f'data/{self.agency}/metrics/METRICS_10MIN{self.suffix}.p'
+        }
 
     def __generate_date_list(self)->List[datetime.datetime]:
         """Generate list of dates of date_type in the given month and year.

@@ -6,6 +6,7 @@ import numpy as np
 from typing import Tuple, Dict, Set, List
 import requests
 import json
+from time import sleep
 
 logger = logging.getLogger("backendLogger")
 
@@ -60,8 +61,10 @@ class Valhalla_Request():
                             'maneuver_penalty': 43200
                             }
                         },
-                trace_options_turn_penalty_factor=100000):
+                trace_options_turn_penalty_factor=100000,
+                max_retry=10):
         
+        self.max_retry = max_retry
         self.shape_name = shape_name
         self.shape = shape
         self.costing = costing
@@ -81,7 +84,7 @@ class Valhalla_Request():
                 'trace_options.turn_penalty_factor': self.trace_options_turn_penalty_factor 
                 }
 
-    def get_trace_route_response(self, timeout=60):
+    def get_trace_route_response(self, timeout=100):
         """_summary_
 
         Args:
@@ -99,43 +102,49 @@ class Valhalla_Request():
         skipped = {}
 
         request_data = self.request_parameters()
-        try:
-            response = requests.post('http://localhost:8002/trace_route',
-                                data = json.dumps(request_data),
-                                timeout = timeout)
-            result = response.json()
-                    
-            if 'status_code' in result and result['status_code'] != 200:
-                status_code = result['status_code']
-                status = result['status']
-                raise requests.HTTPError(f'Invalid response from Valhalla. '\
-                    f'Status code: {status_code}. Status: {status}.')
+        retry_count = 0
+        while retry_count < self.max_retry:
+            try:
+                response = requests.post('http://localhost:8002/trace_route',
+                                    data = json.dumps(request_data),
+                                    timeout = timeout)
+                result = response.json()
+                        
+                if 'status_code' in result and result['status_code'] != 200:
+                    status_code = result['status_code']
+                    status = result['status']
+                    raise requests.HTTPError(f'Invalid response from Valhalla. '\
+                        f'Status code: {status_code}. Status: {status}.')
+            except requests.exceptions.ConnectionError:
+                sleep(1)
+            except ConnectionError:
+                logger.exception(f'Error connecting to Valhalla service. Retry count {retry_count}...')
+                retry_count += 1
+            except requests.HTTPError:
+                # logger.exception(f'Bad Valhalla request for {self.shape_name}.')
+                if self.shape_name not in skipped:
+                        skipped[self.shape_name] = {}
 
-        except ConnectionError:
-            logger.exception(f'Error connecting to Valhalla service.')
-            quit()
-        except requests.HTTPError:
-            # logger.exception(f'Bad Valhalla request for {self.shape_name}.')
-            if self.shape_name not in skipped:
-                    skipped[self.shape_name] = {}
-
-            skipped[self.shape_name] = {
-                'shape_input': self.shape,
-                'result': result
-            }
-
-        else:
-            for leg_index in range(len(result['trip']['legs'])):
-                leg = result['trip']['legs'][0]
-                geometry = leg['shape']
-                length = leg['summary']['length']
-                
-                if self.shape_name not in matched:
-                    matched[self.shape_name] = {}
-                                    
-                matched[self.shape_name][leg_index] = {
-                    'geometry': geometry,
-                    'distance': length
+                skipped[self.shape_name] = {
+                    'shape_input': self.shape,
+                    'result': result
                 }
+                break
+            else:
+                for leg_index in range(len(result['trip']['legs'])):
+                    leg = result['trip']['legs'][0]
+                    geometry = leg['shape']
+                    length = leg['summary']['length']
+                    
+                    if self.shape_name not in matched:
+                        matched[self.shape_name] = {}
+                                        
+                    matched[self.shape_name][leg_index] = {
+                        'geometry': geometry,
+                        'distance': length
+                    }
+                break
+        if retry_count == self.max_retry:
+            raise ConnectionError(f'Max retry reached. Unable to proceed.')
 
         return matched, skipped

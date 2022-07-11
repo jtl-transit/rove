@@ -3,6 +3,8 @@
 
 from abc import ABCMeta, abstractmethod
 import logging
+
+from parameters.rove_parameters import ROVE_params
 from .helper_functions import check_is_file
 import pandas as pd
 
@@ -13,9 +15,8 @@ class BaseData(metaclass=ABCMeta):
     """
     
     def __init__(self,
-                alias,
-                path,
-                rove_params=None
+                alias:str,
+                rove_params:ROVE_params
                 ):
         """Instantiate a data class.
         Creates a data class that stores raw and validated data.
@@ -35,18 +36,19 @@ class BaseData(metaclass=ABCMeta):
 
         self.alias = alias
 
-        if rove_params is not None:
-            from .rove_parameters import ROVE_params
-            if not isinstance(rove_params, ROVE_params):
-                raise TypeError(f'Not a valid ROVE_params object.')
-            else:
-                self.rove_params = rove_params
-        else:
-            self.rove_params = None
-
+        # if rove_params is not None:
+        #     from .rove_parameters import ROVE_params
+        #     if not isinstance(rove_params, ROVE_params):
+        #         raise TypeError(f'Not a valid ROVE_params object.')
+        #     else:
+        #         self.rove_params = rove_params
+        # else:
+        #     self.rove_params = None
+        self.rove_params = rove_params
+        
         # Raw data (read-only) read from the given path.
         logger.info(f'loading {alias} data...')
-        path = check_is_file(path)
+        path = check_is_file(rove_params.input_paths[alias])
         self.raw_data = self.load_data(path)
         logger.info(f'{alias} data is loaded')
         
@@ -78,25 +80,3 @@ class BaseData(metaclass=ABCMeta):
             obj: validated data
         """
         pass
-
-    # helpful functions
-    def load_csv_in_dataframe(self, path:str):
-        """Read in csv data and return a dataframe
-
-        Args:
-            path (str): path to the csv file
-
-        Returns:
-            DataFrame: dataframe read from the csv file
-        
-        Raises:
-            ValueError: the given file path does not end with .csv
-        """
-        
-        in_path = check_is_file(path, '.csv')
-        try:
-            data = pd.read_csv(in_path)
-        except pd.errors.EmptyDataError as err:
-            logger.warning(f'{err}: Data read from {in_path} is empty!')
-            data = pd.DataFrame()
-        return data

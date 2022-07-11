@@ -1,20 +1,15 @@
 """Data class for GTFS data.
 """
 
-from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Set, Tuple
-from xmlrpc.client import Boolean
-from argon2 import Parameters
+from typing import Dict
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-from .base_data_class import BaseData
+from ..base_data_class import BaseData
 from copy import deepcopy
-import json
-from .helper_functions import check_is_file
-from .helper_functions import get_hash_of_stop_list
+from ..helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 
@@ -23,6 +18,7 @@ logger = logging.getLogger("backendLogger")
 REQUIRED_DATA_SPEC = {
                     'stops':{
                         'stop_id':'string',
+                        'stop_code':'string',
                         'stop_lat':'float64',
                         'stop_lon':'float64'
                         }, 
@@ -55,21 +51,22 @@ OPTIONAL_DATA_SPEC = {
 
 class GTFS(BaseData):
 
-    def __init__(self, alias, path, rove_params):
-        super().__init__(alias, path, rove_params)
+    def __init__(self, alias, rove_params, mode='bus'):
+        self.mode = mode
+        super().__init__(alias, rove_params)        
 
         # create the records table that contains all stop events info and trips info
-        self.records = self.get_gtfs_records()
+        self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
         self.add_timepoints()
-        self.__check_gtfs_records_column('timepoint', '0or1')
+        check_dataframe_column(self.records, 'timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
         self.add_branchpoints()
-        self.__check_gtfs_records_column('branchpoint', '0or1')
-        
-        # create the patterns dict. Key: pattern_id, value: segment dict 
+        check_dataframe_column(self.records, 'branchpoint', '0or1')
+
+        # create the patterns dict. Key: pattern, value: segment dict 
         #   segment dict key: tuple of stops defining the segment, value: coordinates of the segment)
         self.patterns_dict = self.generate_patterns()
 
@@ -92,7 +89,7 @@ class GTFS(BaseData):
             quit()
 
         # Load GTFS feed
-        view = {'routes.txt': {'route_type': rove_params.config['route_type']}, 'trips.txt': {'service_id': service_id_list}}
+        view = {'routes.txt': {'route_type': rove_params.config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
@@ -103,7 +100,7 @@ class GTFS(BaseData):
 
         return {**required_data, **optional_data}
 
-    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:Boolean=False)\
+    def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:bool=False)\
                                     ->Dict[str, DataFrame]:
         """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
         For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
@@ -190,38 +187,6 @@ class GTFS(BaseData):
         #         .drop_duplicates(subset=['stop_id', 'trip_id'])
         return gtfs_df
 
-    def __check_gtfs_records_column(self, column_name, criteria='0or1'):
-        """Check that column_name column exists in gtfs_table_name and satisfys the criteria.
-            Criteria: 0or1 - only values 0 or 1 exists in the column.
-                    (other criteria can be added)
-        Args:
-            column_name (str): column to be checked
-            criteria (str): type of criteria to be used. Defaults to '0or1'.
-
-        Raises:
-            ValueError: either gtfs_table_name is not stored in validated_data or 
-                        column_name is not in the GTFS table
-        """
-        records = self.records
-        # check that the records table has column_name column
-        if column_name not in records.columns:
-            raise ValueError(f'{column_name} column not in GTFS records.')
-
-        valid_criteria = ['0or1']
-
-        if criteria == '0or1':
-            # fill in NaN values in column with 0
-            records[column_name] = records[column_name].fillna(0).astype(int)
-            # check that only values 1 and 0 exist in column_name column
-            if records.loc[~records[column_name].isin([0,1]),column_name].shape[0]>0:
-                raise ValueError(f'The {column_name} column cannot contain any value other than 0 or 1.')
-            num_ones = records.loc[records[column_name] == 1,column_name].shape[0]
-            logger.debug(f'number of {column_name}: {num_ones}')
-        
-        else:
-            raise ValueError(f'Invalid criteria. Select from: {valid_criteria}.')
-
-    
     def add_timepoints(self):
         pass
 
@@ -263,13 +228,13 @@ class GTFS(BaseData):
         records.loc[records.groupby('trip_id')['tp_bp'].head(1).index, 'tp_bp'] = 1
 
     def generate_patterns(self) -> Dict[str, Dict]:
-        """Generate a dict of patterns from validated GTFS data. Add a "pattern_id" column to the trips table.
+        """Generate a dict of patterns from validated GTFS data. Add a "pattern" column to the trips table.
 
         Raises:
             ValueError: number of unique trip hashes does not match with number of unique sequence of stops
 
         Returns:
-            Dict: Pattern dict - key: pattern_id; value: Segment dict (a segment is a section of road between two transit stops). 
+            Dict: Pattern dict - key: pattern; value: Segment dict (a segment is a section of road between two transit stops). 
                     Segment dict - key: tuple of stop IDs at the beginning and end of the segment; value: list of coordinates defining the segment.
         """
         logger.info(f'generating patterns with GTFS data...')
@@ -279,34 +244,43 @@ class GTFS(BaseData):
 
         stops:pd.DataFrame = gtfs['stops']
         
-        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash (pattern_id) of the stop_ids list
+        # Generate a dataframe of trip_id (unique), list of stop_ids, and hash of the stop_ids list
         trip_stops = records.groupby('trip_id')['stop_id'].apply(list).reset_index(name='stop_ids')
-        trip_stops['pattern_id'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
+        trip_stops['hash'] = trip_stops['stop_ids'].apply(lambda x: get_hash_of_stop_list(x))
 
         # Verify that number of unique hashes indeed match with number of unique sequence of stops
-        if trip_stops.astype(str).nunique()['pattern_id'] != trip_stops.astype(str).nunique()['stop_ids']:
+        if trip_stops.astype(str).nunique()['hash'] != trip_stops.astype(str).nunique()['stop_ids']:
             raise ValueError(f'Number of unique hashes should match number of unique lists of ordered stops. '+\
                                 'Use debug mode to find out why there is a mismatch. You may need to change the hashing method.')
         else:
             logger.debug(f'Summary of unique trip hashes: \n{trip_stops.astype(str).nunique()}')
 
-        # Add pattern_id column to the trips table
-        trip_hash_lookup = trip_stops.set_index('trip_id')['pattern_id'].to_dict()
-        records['pattern_id'] = records['trip_id'].map(trip_hash_lookup)
+
+        # Add pattern column to the trips table
+        trip_hash_lookup = trip_stops.set_index('trip_id')['hash'].to_dict()
+        records['hash'] = records['trip_id'].map(trip_hash_lookup)
+        records['hash_count'] = (records.drop_duplicates(['route_id', 'direction_id', 'hash'])\
+                                    .groupby(['route_id','direction_id']).cumcount()+1).reindex(records.index).ffill()
+        records['hash_count'] = records['hash_count'].round().astype(int)
+        records['pattern'] = records['route_id'].astype(str) + '-' + records['direction_id'].astype(str) + '-'  + records['hash_count'].astype(str)
 
         # Generate dict of patterns. 
-        # Get a dict of <pattern_id: list of stop ids>
-        hash_stops_lookup = trip_stops.set_index('pattern_id')['stop_ids'].to_dict()
+        # Get a dict of <hash: list of stop ids>
+        hash_stops_lookup = trip_stops.set_index('hash')['stop_ids'].to_dict()
+        
+        records['stop_ids'] = records['hash'].map(hash_stops_lookup)
+        # Get a dict of <pattern: list of stop ids>
+        pattern_stops_lookup = records.set_index('pattern')['stop_ids'].to_dict()
 
         # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
         stops = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
         stops['coords'] = list(zip(stops.stop_lat, stops.stop_lon))
         stop_coords_lookup = stops.set_index('stop_id')['coords'].to_dict()
 
-        # Get a dict of <pattern_id: segments>
+        # Get a dict of <pattern: segments>
         # e.g. {2188571819865: {('64', '1'):[(lat64, lon64), (lat1, lon1)], ('1', '2'): [(lat1, lon1), (lat2, lon2)]...}...}
-        patterns = {pattern_id: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
-                                    for i in range(len(stop_ids)-1)} for pattern_id, stop_ids in hash_stops_lookup.items()}
+        patterns = {pattern: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
+                                    for i in range(len(stop_ids)-1)} for pattern, stop_ids in pattern_stops_lookup.items()}
 
         logger.info(f'gtfs patterns generated')
 
@@ -333,23 +307,24 @@ class GTFS(BaseData):
         # Get dict of <trip_id: shape_id>
         trip_shape_lookup = trips[['trip_id', 'shape_id']].set_index('trip_id')['shape_id'].to_dict()
 
-        # Get dict of <pattern_id: list of trip_ids>
-        hash_trips_lookup = records[['pattern_id', 'trip_id']].drop_duplicates()\
-                                .groupby('pattern_id')['trip_id'].agg(list).to_dict()
+        # Get dict of <pattern: list of trip_ids>
+        hash_trips_lookup = records[['pattern', 'trip_id']].drop_duplicates()\
+                                .groupby('pattern')['trip_id'].agg(list).to_dict()
 
-        for pattern_id, segments in patterns.items():
-            
+        for pattern, segments in patterns.items():
+            if pattern == '120-0-1':
+                print(1)
             # Find a representative shape ID and the corresponding list of shape coordinates
-            trips = hash_trips_lookup[pattern_id]
+            trips = hash_trips_lookup[pattern]
             try:
                 example_shape = next(trip_shape_lookup[t] for t in trips if t in trip_shape_lookup)
             except StopIteration as err:
-                logger.debug(f'{err}: no example shape can be found for pattern_id: {pattern_id}.')
+                logger.debug(f'{err}: no example shape can be found for pattern: {pattern}.')
                 example_shape = -1
                 continue
             
             shape_coords = shape_coords_lookup[example_shape]
-            
+            last_stop_match_index = 0
             # For each segment, find the closest match of start and end stops in the list of shape coordinates.
             #   If more than two matched coordinates in GTFS shapes can be found, then use GTFS shapes.
             #   Otherwise, keep using the stop coordinates from GTFS stops.
@@ -360,6 +335,7 @@ class GTFS(BaseData):
                 intermediate_shape_coords = \
                             shape_coords[first_stop_match_index : last_stop_match_index+1]
 
+                shape_coords = shape_coords[last_stop_match_index:]
                 if len(intermediate_shape_coords)>2:
                     segments[id_pair] = intermediate_shape_coords
 
