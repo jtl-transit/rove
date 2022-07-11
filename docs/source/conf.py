@@ -1,6 +1,9 @@
 # Configuration file for the Sphinx documentation builder.
 
 # -- Project information
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../backend/'))
 
 project = 'Rove'
 copyright = '2022, MIT Transit Lab'
