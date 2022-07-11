@@ -21,6 +21,13 @@ rove.data\_class.base\_data\_class module
    :undoc-members:
    :show-inheritance:
 
+The ``BaseData`` class
+*****************************
+.. autoclass:: rove.data_class.base_data_class.BaseData
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 rove.data\_class.config module
 ------------------------------
 
