@@ -42,7 +42,15 @@ class AVL(BaseData):
 
         self.correct_passenger_load()
 
-    def load_data(self, path: str):
+    def load_data(self, path: str) -> pd.DataFrame:
+        """Load in AVL data from the given path.
+
+        :param path: file path to raw AVL data
+        :type path: str
+        :raises ValueError: raw AVL data file is empty
+        :return: dataframe of AVL data with all required columns
+        :rtype: pd.DataFrame
+        """
         raw_avl = load_csv_to_dataframe(path)
 
         if raw_avl.empty:
