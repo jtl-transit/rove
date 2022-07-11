@@ -4,10 +4,10 @@ rove.metric\_aggregation package
 Submodules
 ----------
 
-rove.metric\_aggregation.metric\_aggregation module
+rove..metrics.metric\_aggregation module
 ---------------------------------------------------
 
-.. automodule:: rove.metric_aggregation.metric_aggregation
+.. automodule:: rove.metrics.metric_aggregation
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ rove.metric\_aggregation.metric\_aggregation module
 Module contents
 ---------------
 
-.. automodule:: rove.metric_aggregation
+.. automodule:: rove.metrics.metric_aggregation
    :members:
    :undoc-members:
    :show-inheritance:
