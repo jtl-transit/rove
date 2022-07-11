@@ -124,8 +124,8 @@ class MetricCalculation():
         """
         logger.info(f'calculating scheduled headway')
         
-        self.stop_metrics['scheduled_headway'] = self.stop_metrics.groupby(['route_id', 'stop_pair'])['arrival_time'].diff()
-        self.tpbp_metrics['scheduled_headway'] = self.tpbp_metrics.groupby(['route_id', 'stop_pair'])['arrival_time'].diff()
+        self.stop_metrics['scheduled_headway'] = (self.stop_metrics.sort_values(['route_id', 'direction_id', 'pattern', 'stop_pair', 'arrival_time'])\
+                                                    .groupby(['route_id', 'direction_id', 'pattern', 'stop_pair'])['arrival_time'].diff())/60
 
 
     def scheduled_running_time(self):
@@ -142,7 +142,7 @@ class MetricCalculation():
         self.stop_metrics['tpbp_scheduled_running_time'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['scheduled_running_time'].transform('sum')
         self.tpbp_metrics['scheduled_running_time'] = self.stop_metrics['tpbp_scheduled_running_time']
 
-
+    
     def scheduled_speed(self):
         """Scheduled running speed in mph. Defined as stop spacing divided by running time.
         """
@@ -158,14 +158,13 @@ class MetricCalculation():
         
         logger.info(f'calculating observed headway')
 
-        self.avl_records['observed_headway_by_date'] = self.avl_records.groupby(['svc_date', 'route_id', 'stop_pair'])['stop_time'].diff()
+        self.avl_records['observed_headway_by_date'] = (self.avl_records.sort_values(['svc_date', 'route_id', 'stop_pair', 'stop_time'])\
+                                                            .groupby(['svc_date', 'route_id', 'stop_pair'])['stop_time'].diff())/60
         
-        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
                         .reset_index().rename(columns={'observed_headway_by_date': 'observed_headway'})
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'stop_pair'], how='left')
-        
-        self.tpbp_metrics = self.tpbp_metrics.merge(avg_stop_avl_temp, on=['route_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
 
     def observed_running_time(self):
 
@@ -317,10 +316,10 @@ class MetricCalculation():
 
         self.stop_metrics['free_flow_speed'] = self.stop_metrics.groupby(['stop_pair'])['observed_speed_without_dwell'].transform('max')\
                                                 .clip(upper=MAX_SPEED_MPH).fillna(MEAN_SPEED_MPH)
-        self.stop_metrics['free_flow_travel_time'] = self.stop_metrics['stop_distance'] / (self.stop_metrics['free_flow_speed'] / FT_PER_MIN_TO_MPH)
-        self.stop_metrics['observed_travel_time'] = self.stop_metrics['stop_distance'] / (self.stop_metrics['observed_speed_without_dwell'] / FT_PER_MIN_TO_MPH)
+        self.stop_metrics['free_flow_travel_time'] = self.stop_metrics['stop_spacing'] / (self.stop_metrics['free_flow_speed'] / FT_PER_MIN_TO_MPH)
+        self.stop_metrics['observed_travel_time'] = self.stop_metrics['stop_spacing'] / (self.stop_metrics['observed_speed_without_dwell'] / FT_PER_MIN_TO_MPH)
 
         self.stop_metrics['vehicle_congestion_delay'] = (self.stop_metrics['observed_travel_time'] - self.stop_metrics['free_flow_travel_time']) \
-                                                / (self.stop_metrics['stop_distance'] * FEET_TO_MILES)
+                                                / (self.stop_metrics['stop_spacing'] * FEET_TO_MILES)
         
         self.stop_metrics['passenger_congestion_delay'] = self.stop_metrics['vehicle_congestion_delay'] * self.stop_metrics['passenger_load']

@@ -6,6 +6,7 @@ import numpy as np
 from typing import Tuple, Dict, Set, List
 import requests
 import json
+from time import sleep
 
 logger = logging.getLogger("backendLogger")
 
@@ -114,7 +115,8 @@ class Valhalla_Request():
                     status = result['status']
                     raise requests.HTTPError(f'Invalid response from Valhalla. '\
                         f'Status code: {status_code}. Status: {status}.')
-
+            except requests.exceptions.ConnectionError:
+                sleep(1)
             except ConnectionError:
                 logger.exception(f'Error connecting to Valhalla service. Retry count {retry_count}...')
                 retry_count += 1

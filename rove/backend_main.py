@@ -1,12 +1,15 @@
 # import logging
+from data_class.gtfs.gtfs import GTFS
+from data_class.gtfs.mbta_gtfs import MBTA_GTFS
+from data_class.gtfs.wmata_gtfs import WMATA_GTFS
+from data_class.avl.avl import AVL
+from data_class.avl.mbta_avl import MBTA_AVL
 from shape_generation.base_shape import BaseShape
 from logger.backend_logger import getLogger
 from metric_calculation.metric_calculation import MetricCalculation
-from metric_calculation.metric_aggregation import MetricAggregation
-from parameters.rove_parameters import ROVE_params
-from parameters.mbta_gtfs import MBTA_GTFS
-from parameters.mbta_avl import MBTA_AVL
-from parameters.helper_functions import read_shapes
+from metric_aggregation.metric_aggregation import MetricAggregation
+from data_class.rove_parameters import ROVE_params
+from data_class.helper_functions import read_shapes
 import pandas as pd
 import numpy as np
 import os
@@ -17,9 +20,9 @@ from tqdm.auto import tqdm
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MBTA" # CTA, MBTA, WMATA
-MONTH = "03" # MM in string format
-YEAR = "2022" # YYYY in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "10" # MM in string format
+YEAR = "2021" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 MODE_OPTION = ['shape_generation']
 DATA_OPTION = ['GTFS'] # GTFS, GTFS-AVL, GTFS-AVL-ODX
@@ -47,14 +50,20 @@ def __main__():
     params = ROVE_params(AGENCY, MONTH, YEAR, DATE_TYPE, DATA_OPTION)
 
     # ------data generation------
-    DATA_GENERATION = False
+    DATA_GENERATION = True
     if DATA_GENERATION:
-        bus_gtfs = MBTA_GTFS('gtfs', params, mode='bus')
+        if AGENCY == 'MBTA':
+            bus_gtfs = MBTA_GTFS('gtfs', params, mode='bus')
+        elif AGENCY == 'WMATA':
+            bus_gtfs = WMATA_GTFS('gtfs', params, mode='bus')
+        else:
+            bus_gtfs = GTFS('gtfs', params, mode='bus')
         gtfs_records = bus_gtfs.records
-        gtfs_records.to_csv('mbta_03_2022_gtfs_records.csv')
+        # gtfs_records.to_csv('mbta_03_2022_gtfs_records.csv')
+        gtfs_records.to_csv('wmata_10_2021_gtfs_records.csv')
 
     else:
-        r_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'local', 'mbta_03_2022_gtfs_records.csv'))
+        r_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'local', 'wmata_10_2021_gtfs_records.csv'))
         gtfs_records = pd.read_csv(r_path, converters={"stop_pair": ast.literal_eval})
         specs = {
             'stop_id':'string',
@@ -72,8 +81,8 @@ def __main__():
     # timepoints = CSV_DATA(in_path=params.input_paths['timepoints_inpath'])
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
 
-    # ------shape generation------
-    SHAPE_GENERATION = False
+    # ------shape generation------ 
+    SHAPE_GENERATION = True
     if SHAPE_GENERATION or read_shapes(params.output_paths['shapes']).empty:
         shapes = BaseShape(bus_gtfs.patterns_dict, outpath=params.output_paths['shapes']).shapes
     else:
@@ -81,9 +90,12 @@ def __main__():
 
     # ------metric calculation------
     # data_prep = DataPrep(gtfs)
-    AVL_GENERATION = False
+    AVL_GENERATION = True
     if AVL_GENERATION:
-        avl = MBTA_AVL('avl', params)
+        if AGENCY == 'MBTA':
+            avl = MBTA_AVL('avl', params)
+        else:
+            avl = AVL('avl', params) 
         avl_records = avl.records
         avl_records.to_csv('mbta_03_2022_avl_records.csv')
     else:
@@ -113,38 +125,32 @@ def __main__():
         '90': 90
     }
     redValues = params.redValues
-    segment_table_rename = {
-        'route_id': 'route',
-        'stop_pair': 'segment'
-    }
-    corridor_table_ranem = {
-        'stop_pair': 'corridor'
-    }
-    route_table_rename = {
-        'route_id': 'route',
-        'direction_id': 'direction'
-    }
+
     # ------metric aggregation by time periods------
     METRIC_AGGREGATION_FULL = False
     if METRIC_AGGREGATION_FULL:
         time_dict:dict = params.config['time_periods']
         agg_metrics = {}
-        for period_name, period in tqdm(time_dict.items(), desc='Aggregating metrics by time periods', position=0):
+        for period_name, period in time_dict.items():
             start_time, end_time = period
             for agg_method, percentile in aggregation_method.items():
 
                 agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, start_time, end_time, percentile, redValues)
 
-                agg_metrics[f'{period_name}-segment-{agg_method}'] = agg.segments.reset_index().rename(columns=segment_table_rename)
-                agg_metrics[f'{period_name}-corridor-{agg_method}'] = agg.corridors.reset_index().rename(columns=corridor_table_ranem)
-                agg_metrics[f'{period_name}-route-{agg_method}'] = agg.routes.reset_index().rename(columns=route_table_rename)
-                agg_metrics[f'{period_name}-segment-timepoints-{agg_method}'] = agg.tpbp_segments.reset_index().rename(columns=segment_table_rename)
-                agg_metrics[f'{period_name}-corridor-timepoints-{agg_method}'] = agg.tpbp_corridors.reset_index().rename(columns=corridor_table_ranem)
+                agg_metrics[f'{period_name}-segment-{agg_method}'] = agg.segments_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-corridor-{agg_method}'] = agg.corridors_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-route-{agg_method}'] = agg.routes_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-segment-timepoints-{agg_method}'] = agg.tpbp_segments_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-corridor-timepoints-{agg_method}'] = agg.tpbp_corridors_agg_metrics.to_json(orient='records')
 
         pickle.dump(agg_metrics, open(params.output_paths['metric_calculation_aggre'], "wb"))
 
     # ------metric aggregation by 10-minute interval------
     METRIC_AGGREGATION_10_MIN = False
+    aggregation_10min_methods = {
+        'median': 50,
+        '90_percentile': 90
+    }
     if METRIC_AGGREGATION_10_MIN:
         
         SECONDS_IN_MINUTE = 60
@@ -165,27 +171,27 @@ def __main__():
             all_10_min_intervals.append(((second_to_interval(interval_start_second)), (second_to_interval(interval_end_second))))
 
         agg_metrics_10_min = {}
-        for interval in tqdm(all_10_min_intervals, desc='Aggregating metrics by 10-min intervals', position=0):
+        for interval in all_10_min_intervals:
             interval_start, interval_end = interval
 
             agg_metrics_10_min[interval] = {}
 
-            for agg_method, percentile in aggregation_method.items():
+            for agg_method, percentile in aggregation_10min_methods.items():
 
                 agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, \
                                         list(interval_start), list(interval_end), percentile, redValues)
 
                 agg_metrics_10_min[interval][agg_method] = (
-                    agg.segments.reset_index(),
-                    agg.corridors.reset_index(),
-                    agg.routes.reset_index(),
-                    agg.tpbp_segments.reset_index(),
-                    agg.tpbp_corridors.reset_index()
+                    agg.segments_agg_metrics,
+                    agg.corridors_agg_metrics,
+                    agg.routes_agg_metrics,
+                    agg.tpbp_segments_agg_metrics,
+                    agg.tpbp_corridors_agg_metrics
                 )
 
         pickle.dump(agg_metrics_10_min, open(params.output_paths['metric_calculation_aggre_10min'], "wb"))
 
-    logger.info(f'completed')
+    logger.info(f'ROVE backend process completed')
 
 if __name__ == "__main__":
     __main__()

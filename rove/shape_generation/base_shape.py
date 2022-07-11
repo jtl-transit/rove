@@ -14,7 +14,7 @@ import math
 logger = logging.getLogger("backendLogger")
 
 PARAMETERS = {
-            'stop_distance_meter': 1000, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
+            'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
             'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
             'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
             'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
@@ -23,7 +23,7 @@ PARAMETERS = {
 class BaseShape():
 
     def __init__(self, patterns, outpath, parameters=PARAMETERS, mode='bus'):
-        
+
         logger.info(f'Generating shapes...')
         self.mode = mode
         self.PARAMETERS = parameters
@@ -34,7 +34,16 @@ class BaseShape():
         logger.info(f'shapes generated')
 
     def check_patterns(self, patterns:Dict) -> Dict:
+        """_summary_
 
+        :param patterns: _description_
+        :type patterns: Dict
+        :raises TypeError: _description_
+        :raises TypeError: _description_
+        :raises TypeError: _description_
+        :return: _description_
+        :rtype: Dict
+        """
         if not isinstance(patterns, Dict):
             raise TypeError(f'patterns must be given as a dict to be processed for shapes')
         for pattern, segments in patterns.items():
@@ -60,9 +69,7 @@ class BaseShape():
 
         pbar = tqdm(total=len(self.patterns.keys()), desc='Generating pattern shapes', position=0)
         for p_name, segments in self.patterns.items():
-            
             for s_name, coords in segments.items():
-
                 stop_distance = PARAMETERS['stop_distance_meter']
                 found_geometry = False
                 break_radius = PARAMETERS['stop_radius']
@@ -76,7 +83,7 @@ class BaseShape():
                     segment_length = self.__get_distance(coords[0], coords[-1])
                     interval_count = max(math.floor(segment_length/stop_distance)+1,1) # min: 1
                     step = math.ceil((len(coords)-1) / interval_count ) # max: len(coords)-1
-                    coords_to_use = [coords[i] for i in np.arange(0, len(coords), step)]
+                    coords_to_use = [coords[i] for i in np.unique(np.append(np.arange(0, len(coords), step),[len(coords)-1]))]
 
                     # build segment shape to be passed to Valhalla
                     for i in range(len(coords_to_use)):
@@ -144,21 +151,21 @@ class BaseShape():
         return pd.json_normalize(matched_output)
 
     def __get_distance(self, start:Tuple[float, float], end:Tuple[float, float]) -> float:
-            """Get distance (in m) from a pair of lat, long coord tuples.
+        """Get distance (in m) from a pair of lat, long coord tuples.
 
-            Args:
-                start (Tuple[float, float]): coord of start point
-                end (Tuple[float, float]): coord of end point
+        Args:
+            start (Tuple[float, float]): coord of start point
+            end (Tuple[float, float]): coord of end point
 
-            Returns:
-                float: distance in meters between start and end point
-            """
-            R = 6372800 # earth radius in m
-            lat1, lon1 = start
-            lat2, lon2 = end
-            
-            phi1, phi2 = math.radians(lat1), math.radians(lat2) 
-            dphi = math.radians(lat2 - lat1)
-            dlambda = math.radians(lon2 - lon1) 
-            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2    
-            return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)
+        Returns:
+            float: distance in meters between start and end point
+        """
+        R = 6372800 # earth radius in m
+        lat1, lon1 = start
+        lat2, lon2 = end
+        
+        phi1, phi2 = math.radians(lat1), math.radians(lat2) 
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1) 
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2    
+        return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)

@@ -7,9 +7,9 @@ import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-from .base_data_class import BaseData
+from ..base_data_class import BaseData
 from copy import deepcopy
-from .helper_functions import get_hash_of_stop_list, check_dataframe_column
+from ..helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 
@@ -18,6 +18,7 @@ logger = logging.getLogger("backendLogger")
 REQUIRED_DATA_SPEC = {
                     'stops':{
                         'stop_id':'string',
+                        'stop_code':'string',
                         'stop_lat':'float64',
                         'stop_lon':'float64'
                         }, 
@@ -55,7 +56,7 @@ class GTFS(BaseData):
         super().__init__(alias, rove_params)        
 
         # create the records table that contains all stop events info and trips info
-        self.records = self.get_gtfs_records()
+        self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
         self.add_timepoints()
@@ -311,7 +312,8 @@ class GTFS(BaseData):
                                 .groupby('pattern')['trip_id'].agg(list).to_dict()
 
         for pattern, segments in patterns.items():
-            
+            if pattern == '120-0-1':
+                print(1)
             # Find a representative shape ID and the corresponding list of shape coordinates
             trips = hash_trips_lookup[pattern]
             try:
@@ -322,7 +324,7 @@ class GTFS(BaseData):
                 continue
             
             shape_coords = shape_coords_lookup[example_shape]
-            
+            last_stop_match_index = 0
             # For each segment, find the closest match of start and end stops in the list of shape coordinates.
             #   If more than two matched coordinates in GTFS shapes can be found, then use GTFS shapes.
             #   Otherwise, keep using the stop coordinates from GTFS stops.
@@ -333,6 +335,7 @@ class GTFS(BaseData):
                 intermediate_shape_coords = \
                             shape_coords[first_stop_match_index : last_stop_match_index+1]
 
+                shape_coords = shape_coords[last_stop_match_index:]
                 if len(intermediate_shape_coords)>2:
                     segments[id_pair] = intermediate_shape_coords
 
