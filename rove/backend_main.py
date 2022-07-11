@@ -1,15 +1,10 @@
 # import logging
-from data_class.gtfs.gtfs import GTFS
-from data_class.gtfs.mbta_gtfs import MBTA_GTFS
-from data_class.gtfs.wmata_gtfs import WMATA_GTFS
-from data_class.avl.avl import AVL
-from data_class.avl.mbta_avl import MBTA_AVL
-from shape_generation.base_shape import BaseShape
+from rove.data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
+from rove.shape_generation import BaseShape
 from logger.backend_logger import getLogger
-from metric_calculation.metric_calculation import MetricCalculation
-from metric_aggregation.metric_aggregation import MetricAggregation
+from rove.metrics import MetricCalculation, MetricAggregation
 from data_class.rove_parameters import ROVE_params
-from data_class.helper_functions import read_shapes
+from .helper_functions import read_shapes
 import pandas as pd
 import numpy as np
 import os

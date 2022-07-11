@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
-from parameters.helper_functions import check_parent_dir
+from ..helper_functions import check_parent_dir
 from .misc_shape_classes import Valhalla_Point, Valhalla_Request
 from typing import Tuple, Dict, Set, List
 import math

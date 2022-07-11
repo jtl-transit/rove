@@ -3,9 +3,8 @@
 
 from abc import ABCMeta, abstractmethod
 import logging
-
-from data_class.rove_parameters import ROVE_params
-from .helper_functions import check_is_file
+from rove.data_class import ROVE_params
+from ..helper_functions import check_is_file
 import pandas as pd
 
 logger = logging.getLogger("backendLogger")

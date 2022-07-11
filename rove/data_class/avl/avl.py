@@ -9,10 +9,10 @@ import numpy as np
 import logging
 import time
 from tqdm import tqdm
-from ..base_data_class import BaseData
+from rove.data_class import BaseData
 from copy import deepcopy
 import json
-from ..helper_functions import load_csv_to_dataframe
+from ...helper_functions import load_csv_to_dataframe
 
 
 logger = logging.getLogger("backendLogger")

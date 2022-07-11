@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import datetime
 from typing import List
-from .helper_functions import day_list_generation
+from ..helper_functions import day_list_generation
 import logging
 import json
 

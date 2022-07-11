@@ -6,6 +6,6 @@ from rove.data_class.gtfs.gtfs import GTFS
 from rove.data_class.gtfs.mbta_gtfs import MBTA_GTFS
 from rove.data_class.gtfs.wmata_gtfs import WMATA_GTFS
 
-# __all__ = [
-#     "BaseData", "ROVE_params", "AVL", "MBTA_AVL", "GTFS", "MBTA_GTFS", "WMATA_GTFS"
-# ]
+__all__ = [
+    "BaseData", "ROVE_params", "AVL", "MBTA_AVL", "GTFS", "MBTA_GTFS", "WMATA_GTFS"
+]

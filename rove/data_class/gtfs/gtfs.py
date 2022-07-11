@@ -7,9 +7,9 @@ import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-from ..base_data_class import BaseData
+from rove.data_class import BaseData
 from copy import deepcopy
-from ..helper_functions import get_hash_of_stop_list, check_dataframe_column
+from ...helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 
