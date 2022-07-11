@@ -1,7 +1,7 @@
-rove
-====
+data_class
+==========
 
 .. toctree::
    :maxdepth: 4
 
-   rove
+   data_class

@@ -4,7 +4,7 @@
 from abc import ABCMeta, abstractmethod
 import logging
 
-from parameters.rove_parameters import ROVE_params
+from data_class.rove_parameters import ROVE_params
 from .helper_functions import check_is_file
 import pandas as pd
 
@@ -18,32 +18,17 @@ class BaseData(metaclass=ABCMeta):
                 alias:str,
                 rove_params:ROVE_params
                 ):
-        """Instantiate a data class.
-        Creates a data class that stores raw and validated data.
+        """An abstract data class that stores raw and validated input data for ROVE.
 
-        Args:
-            alias (str): alias of the data, used as key when referencing input paths and logging
-            path (str): path to the raw data
-            rove_params (ROVE_params, optional): a ROVE_params object that stores data needed throughout the backend. 
-                                                Defaults to None. This argument should not be specified when creating
-                                                a data class that will be stored in rove_params (e.g. config), to avoid 
-                                                circular reference.
-
-        Raises:
-            TypeError: if the given ROVE_params is not valid
+        :param alias: alias of the data, used as key when referencing input paths and logging
+        :type alias: str
+        :param rove_params: a ROVE_params object that stores data needed throughout the backend.
+        :type rove_params: ROVE_params
         """
         logger.info(f'creating a BaseData object for {alias}...')
 
         self.alias = alias
 
-        # if rove_params is not None:
-        #     from .rove_parameters import ROVE_params
-        #     if not isinstance(rove_params, ROVE_params):
-        #         raise TypeError(f'Not a valid ROVE_params object.')
-        #     else:
-        #         self.rove_params = rove_params
-        # else:
-        #     self.rove_params = None
         self.rove_params = rove_params
         
         # Raw data (read-only) read from the given path.
@@ -60,23 +45,22 @@ class BaseData(metaclass=ABCMeta):
         logger.info(f'BaseData object created for {alias}')
 
     @abstractmethod
-    def load_data(self, path:str):
+    def load_data(self, path:str) -> object:
         """Abstract method that reads input data from a file
 
-        Args:
-            path (str): path to the raw data
-        
-        Returns:
-            obj: raw data
+        :param path: path to the raw data
+        :type path: str
+        :return raw data
+        :rtype a data object
         """
         pass
 
     @abstractmethod
-    def validate_data(self):
+    def validate_data(self) -> object:
         """Validate that the raw data conforms with a documented standard spec. 
         If the raw data doesn't conform, try to convert it to meet the standard.
 
-        Returns:
-            obj: validated data
+        :return: validated data
+        :rtype: a data object
         """
         pass

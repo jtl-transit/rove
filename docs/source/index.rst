@@ -22,8 +22,7 @@ Contents
 .. toctree::
 
    install
-   rove
-   modules
+   backend
    frontend
 
 Indices and tables

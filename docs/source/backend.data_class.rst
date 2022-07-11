@@ -1,6 +1,15 @@
 rove.data\_class package
 ========================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   rove.data_class.gtfs
+   rove.data_class.avl
+
 Submodules
 ----------
 
@@ -20,14 +29,6 @@ rove.data\_class.config module
    :undoc-members:
    :show-inheritance:
 
-rove.data\_class.helper\_functions module
------------------------------------------
-
-.. automodule:: rove.data_class.helper_functions
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 rove.data\_class.pattern module
 -------------------------------
 
@@ -40,14 +41,6 @@ rove.data\_class.rove\_parameters module
 ----------------------------------------
 
 .. automodule:: rove.data_class.rove_parameters
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: rove.data_class
    :members:
    :undoc-members:
    :show-inheritance:

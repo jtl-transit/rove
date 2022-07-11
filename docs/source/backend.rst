@@ -1,21 +1,27 @@
-backend package
-===============
+ROVE Backend
+============
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   backend.data_class
+   rove.metric_aggregation
+   rove.metric_calculation
+   rove.shape_generation
 
 Submodules
 ----------
 
-backend.backend\_main module
-----------------------------
+rove.backend\_main module
+-------------------------
 
-.. automodule:: backend.backend_main
+.. automodule:: rove.backend_main
    :members:
    :undoc-members:
    :show-inheritance:
 
-Module contents
+Example Use
 ---------------
-
-.. automodule:: backend
-   :members:
-   :undoc-members:
-   :show-inheritance:

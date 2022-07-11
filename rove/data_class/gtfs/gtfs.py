@@ -76,8 +76,10 @@ class GTFS(BaseData):
         if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
         the required and optional specs. Store the retrieved raw data tables in a dict.
 
-        Returns:
-            dict <str, DataFrame>: key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
+        :param path: path to the raw data
+        :type path: str
+        :return: a dict containing raw GTFS data. Key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
+        :rtype: Dict[str, DataFrame]
         """
         rove_params = self.rove_params
 
@@ -107,17 +109,10 @@ class GTFS(BaseData):
         For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
         For tables in any spec, all spec columns must exist if the spec table is not empty.
 
-        Args:
-            feed (ptg.readers.Feed): GTFS feed
-            table_col_spec (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
-            requied (bool, optional): whether the table_col_spec is required. Defaults to False.
-
-        Raises:
-            ValueError: table is found in the feed, but is empty.
-            AttributeError: a table name specified in table_col_spec is not found in GTFS feed.
-
-        Returns:
-            Dict[str, DataFrame]: key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :raises ValueError: table is found in the feed, but is empty.
+        :raises KeyError: table is missing at least one of the required columns
+        :return: a dict containing raw GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :rtype: Dict[str, DataFrame]
         """
         data = {}
         for table_name, columns in table_col_spec.items():
@@ -149,11 +144,8 @@ class GTFS(BaseData):
     def validate_data(self):
         """Clean up raw data by converting column types to those listed in the spec.
 
-        Raises:
-            ValueError: if any one type of the required raw data is empty
-
-        Returns:
-            dict <str, DataFrame>: validated and cleaned-up data
+        :return: a dict containing cleaned-up GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :rtype: Dict[str, DataFrame]
         """
         # avoid changing the raw data object
         data:Dict = deepcopy(self.raw_data)
