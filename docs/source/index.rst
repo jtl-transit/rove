@@ -23,5 +23,5 @@ Contents
 :maxdepth: 2
 :caption: Contents:
 
-install
-rove
+   install
+   rove
