@@ -20,8 +20,14 @@ Contents
 --------
 
 .. toctree::
-:maxdepth: 2
-:caption: Contents:
 
    install
    rove
+   modules
+   frontend
+
+Indices and tables
+==================
+
+* :ref:`install`
+* :ref:`rove`
