@@ -1,4 +1,4 @@
-from .avl import AVL
+from ..avl import AVL
 import pandas as pd
 
 class MBTA_AVL(AVL):

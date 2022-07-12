@@ -1,5 +1,5 @@
 from numpy import dtype
-from .gtfs import GTFS
+from ..gtfs import GTFS
 import pandas as pd
 
 class WMATA_GTFS(GTFS):

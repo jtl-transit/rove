@@ -1,10 +1,10 @@
 # import logging
-from rove.data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
-from rove.shape_generation import BaseShape
+from data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
+from rove.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
 from rove.metrics import MetricCalculation, MetricAggregation
 from data_class.rove_parameters import ROVE_params
-from .helper_functions import read_shapes
+from helper_functions import read_shapes
 import pandas as pd
 import numpy as np
 import os
@@ -15,9 +15,9 @@ from tqdm.auto import tqdm
 
 SUPPORTED_AGENCIES = ['CTA', 'MBTA', 'WMATA']
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "10" # MM in string format
-YEAR = "2021" # YYYY in string format
+AGENCY = "MBTA" # CTA, MBTA, WMATA
+MONTH = "03" # MM in string format
+YEAR = "2022" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 MODE_OPTION = ['shape_generation', 'metric_calculation', 'metric_aggregation']
 DATA_OPTION = ['GTFS'] # GTFS, GTFS-AVL, GTFS-AVL-ODX
@@ -54,11 +54,11 @@ def __main__():
         else:
             bus_gtfs = GTFS('gtfs', params, mode='bus')
         gtfs_records = bus_gtfs.records
-        # gtfs_records.to_csv('mbta_03_2022_gtfs_records.csv')
-        gtfs_records.to_csv('wmata_10_2021_gtfs_records.csv')
+        gtfs_records.to_csv('mbta_03_2022_gtfs_records.csv')
+        # gtfs_records.to_csv('wmata_10_2021_gtfs_records.csv')
 
     else:
-        r_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'local', 'wmata_10_2021_gtfs_records.csv'))
+        r_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'local', 'mbta_03_2022_gtfs_records.csv'))
         gtfs_records = pd.read_csv(r_path, converters={"stop_pair": ast.literal_eval})
         specs = {
             'stop_id':'string',
@@ -77,7 +77,7 @@ def __main__():
     # test = CSV_DATA(in_path=params.input_paths['test_inpath'])
 
     # ------shape generation------ 
-    SHAPE_GENERATION = True
+    SHAPE_GENERATION = False
     if SHAPE_GENERATION or read_shapes(params.output_paths['shapes']).empty:
         shapes = BaseShape(bus_gtfs.patterns_dict, outpath=params.output_paths['shapes']).shapes
     else:

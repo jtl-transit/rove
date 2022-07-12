@@ -1,4 +1,4 @@
-from .gtfs import GTFS
+from ..gtfs import GTFS
 import pandas as pd
 
 class MBTA_GTFS(GTFS):

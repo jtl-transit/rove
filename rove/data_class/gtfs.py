@@ -7,9 +7,9 @@ import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-from rove.data_class import BaseData
+from .base_data_class import BaseData
 from copy import deepcopy
-from ...helper_functions import get_hash_of_stop_list, check_dataframe_column
+from rove.helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 
@@ -304,8 +304,7 @@ class GTFS(BaseData):
                                 .groupby('pattern')['trip_id'].agg(list).to_dict()
 
         for pattern, segments in patterns.items():
-            if pattern == '120-0-1':
-                print(1)
+
             # Find a representative shape ID and the corresponding list of shape coordinates
             trips = hash_trips_lookup[pattern]
             try:

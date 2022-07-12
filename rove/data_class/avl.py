@@ -9,10 +9,10 @@ import numpy as np
 import logging
 import time
 from tqdm import tqdm
-from rove.data_class import BaseData
+from .base_data_class import BaseData
 from copy import deepcopy
 import json
-from ...helper_functions import load_csv_to_dataframe
+from rove.helper_functions import load_csv_to_dataframe
 
 
 logger = logging.getLogger("backendLogger")
@@ -176,4 +176,3 @@ class AVL(BaseData):
 
         logger.info(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
         records[['passenger_off', 'passenger_load']] = p[['passenger_off', 'passenger_load']]
-        print(1)
