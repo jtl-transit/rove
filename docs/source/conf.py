@@ -4,7 +4,9 @@
 import os
 import sys
 print(sys.executable)
-sys.path.insert(0, os.path.abspath('../../'))
+# sys.path.insert(0, os.path.abspath('../../rove/'))
+sys.path.index(0, os.path.abspath(os.path.join('..', '..', 'rove')))
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
 # autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm"]
 
