@@ -51,6 +51,7 @@ class AVL(BaseData):
         :return: dataframe of AVL data with all required columns
         :rtype: pd.DataFrame
         """
+
         raw_avl = load_csv_to_dataframe(path)
 
         if raw_avl.empty:
@@ -101,6 +102,7 @@ class AVL(BaseData):
         Returns:
             pd.Series, pd.Seires: column of stop times in integer seconds, and column of operation dates
         """
+        
         stop_time_dt = pd.to_datetime(data)
         stop_time_hour = stop_time_dt.dt.hour
         stop_time_min = stop_time_dt.dt.minute

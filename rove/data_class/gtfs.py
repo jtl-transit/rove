@@ -81,6 +81,7 @@ class GTFS(BaseData):
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
         :rtype: Dict[str, DataFrame]
         """
+
         rove_params = self.rove_params
 
         # Retrieve GTFS data for the sample date
@@ -114,6 +115,7 @@ class GTFS(BaseData):
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
         :rtype: Dict[str, DataFrame]
         """
+
         data = {}
         for table_name, columns in table_col_spec.items():
             try:
@@ -147,6 +149,7 @@ class GTFS(BaseData):
         :return: a dict containing cleaned-up GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
         :rtype: Dict[str, DataFrame]
         """
+
         # avoid changing the raw data object
         data:Dict = deepcopy(self.raw_data)
         data_specs = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
@@ -229,6 +232,7 @@ class GTFS(BaseData):
             Dict: Pattern dict - key: pattern; value: Segment dict (a segment is a section of road between two transit stops). 
                     Segment dict - key: tuple of stop IDs at the beginning and end of the segment; value: list of coordinates defining the segment.
         """
+
         logger.info(f'generating patterns with GTFS data...')
 
         gtfs:Dict = self.validated_data
@@ -287,6 +291,7 @@ class GTFS(BaseData):
             at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes
             to enrich the segment profile.
         """
+        
         logger.info(f'improving pattern with GTFS shapes table...')
 
         trips = gtfs['trips']

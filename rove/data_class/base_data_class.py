@@ -52,6 +52,7 @@ class BaseData(metaclass=ABCMeta):
         :return raw data
         :rtype a data object
         """
+
         pass
 
     @abstractmethod
@@ -62,4 +63,5 @@ class BaseData(metaclass=ABCMeta):
         :return: validated data
         :rtype: a data object
         """
+        
         pass

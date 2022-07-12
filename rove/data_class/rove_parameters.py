@@ -10,6 +10,7 @@ logger = logging.getLogger("backendLogger")
 class ROVE_params(object, metaclass=ABCMeta):
     """Data structure that stores all parameters needed throughout the backend.
     """
+
     def __init__(self,
                 AGENCY='',
                 MONTH='',
@@ -18,6 +19,7 @@ class ROVE_params(object, metaclass=ABCMeta):
                 DATA_OPTION=[]):
         """Instantiate rove parameters.
         """
+
         logger.info(f'Generating parameters...')
         # str : analyzed transit agency
         self.agency = AGENCY
@@ -65,6 +67,7 @@ class ROVE_params(object, metaclass=ABCMeta):
     def get_input_paths(self):
         """Set paths to input data
         """
+
         return {
             'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
             'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
@@ -117,6 +120,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         Returns:
             datetime.datetime: A sample date.
         """
+        
         if self.date_list:
             if self.date_type=='Workday':
                 from calendar import WEDNESDAY

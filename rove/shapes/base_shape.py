@@ -42,6 +42,7 @@ class BaseShape():
         :return: _description_
         :rtype: Dict
         """
+        
         if not isinstance(patterns, Dict):
             raise TypeError(f'patterns must be given as a dict to be processed for shapes')
         for pattern, segments in patterns.items():
@@ -61,6 +62,7 @@ class BaseShape():
                     Segment dict - key: tuple of stop IDs at the beginning and end of the segment; 
                                     value: segment information (geometry, distance).
         """
+
         PARAMETERS = self.PARAMETERS
         all_matched = {}
         all_skipped = {}
@@ -158,6 +160,7 @@ class BaseShape():
         Returns:
             float: distance in meters between start and end point
         """
+
         R = 6372800 # earth radius in m
         lat1, lon1 = start
         lat2, lon2 = end
@@ -256,6 +259,7 @@ class Valhalla_Request():
                                 leg dict - key: leg index; value: geometry (encoded polyline), length
             skipped (Dict): skipped dict - key: shape name; value: list of Valhalla points info
         """
+
         matched = {}
         skipped = {}
 

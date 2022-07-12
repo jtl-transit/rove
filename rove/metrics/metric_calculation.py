@@ -60,6 +60,7 @@ class MetricCalculation():
         Returns:
             records: GTFS records with new columns
         """
+
         if type == 'GTFS':
             groups = ['trip_id']
             arrival_time_col = 'arrival_time'
@@ -89,6 +90,7 @@ class MetricCalculation():
     def stop_spacing(self, shapes):
         """Stop spacing in ft. Distance is returned from Valhalla trace route requests in unit of kilometers.
         """
+
         logger.info(f'calculating stop spacing')
 
         records = self.stop_metrics.reset_index()\
@@ -122,6 +124,7 @@ class MetricCalculation():
     def scheduled_headway(self):
         """Scheduled headway in minutes. Defined as the difference between two consecutive arrival times at the first stop of a stop pair.
         """
+
         logger.info(f'calculating scheduled headway')
         
         self.stop_metrics['scheduled_headway'] = (self.stop_metrics.sort_values(['route_id', 'direction_id', 'pattern', 'stop_pair', 'arrival_time'])\
@@ -131,6 +134,7 @@ class MetricCalculation():
     def scheduled_running_time(self):
         """Running time in minutes. Defined as the difference between departure time at a stop and arrival time at the next stop.
         """
+
         logger.info(f'calculating scheduled running time')
 
         self.stop_metrics['scheduled_running_time'] = ((self.stop_metrics['next_stop_arrival_time'] - self.stop_metrics['departure_time']) / 60).round(2)
@@ -146,6 +150,7 @@ class MetricCalculation():
     def scheduled_speed(self):
         """Scheduled running speed in mph. Defined as stop spacing divided by running time.
         """
+
         logger.info(f'calculating scheduled speed')
 
         self.stop_metrics['scheduled_speed'] = ((self.stop_metrics['stop_spacing'] / self.stop_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
@@ -255,6 +260,7 @@ class MetricCalculation():
         Raises:
             ValueError: no_earlier_than is positive or no_later_than is negative
         """
+
         logger.info(f'calculating on time performance')
 
         if no_earlier_than > 0 or no_later_than < 0:
@@ -312,6 +318,7 @@ class MetricCalculation():
     def congestion_delay(self):
         """Congestion delay in min/mile or pax-min/mile.
         """
+        
         logger.info(f'calculating congestion delay')
 
         self.stop_metrics['free_flow_speed'] = self.stop_metrics.groupby(['stop_pair'])['observed_speed_without_dwell'].transform('max')\
