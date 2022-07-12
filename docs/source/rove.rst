@@ -21,13 +21,6 @@ rove.backend\_main module
    :undoc-members:
    :show-inheritance:
 
-rove.helper\_functions module
------------------------------
-
-.. automodule:: rove.helper_functions
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 Module contents
 ---------------
