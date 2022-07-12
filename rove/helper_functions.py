@@ -9,7 +9,7 @@ import datetime
 import os
 import shutil
 import logging
-import workalendar.usa
+from workalendar import usa
 from pathlib import Path
 from typing import Dict, List
 import pandas as pd
