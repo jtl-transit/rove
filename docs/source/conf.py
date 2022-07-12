@@ -7,7 +7,7 @@ print(sys.executable)
 sys.path.insert(0, os.path.abspath('../../rove/'))
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
-autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm"]
+autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge"]
 
 project = 'Rove'
 copyright = '2022, MIT Transit Lab'
