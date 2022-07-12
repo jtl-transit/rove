@@ -6,6 +6,8 @@ import sys
 print(sys.executable)
 sys.path.insert(0, os.path.abspath('../../rove/'))
 
+autodoc_mock_imports = ["workalendar"]
+
 project = 'Rove'
 copyright = '2022, MIT Transit Lab'
 author = 'Yuzhu Huang'
