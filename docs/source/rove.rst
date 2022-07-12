@@ -9,7 +9,6 @@ Subpackages
 
    rove.data_class
    rove.metrics
-   rove.shape_generation
 
 Submodules
 ----------
