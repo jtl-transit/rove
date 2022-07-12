@@ -24,6 +24,7 @@ Contents
    install
    backend
    frontend
+   rove
 
 Indices and tables
 ==================

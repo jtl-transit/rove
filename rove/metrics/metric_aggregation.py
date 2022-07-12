@@ -258,6 +258,7 @@ class MetricAggregation():
             percentile (int): the percentile that metrics are aggregated at.
             data_type (str): e.g. 'scheduled' or 'observed'
         """
+        
         sig_fig = 1
         metric_name = f'{data_type}_running_time'
 
@@ -334,6 +335,7 @@ class MetricAggregation():
         Args:
             percentile (int): the percentile that metrics are aggregated at
         """
+
         sig_fig = 0
 
         percentile = self.get_percentile(percentile, 'boardings')
@@ -349,6 +351,7 @@ class MetricAggregation():
                 and the percent of late trips averaged over all trips on the route level.
             Levels: segments, routes
         """
+
         sig_fig = 0
 
         self.segments['on_time_performance'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
@@ -359,6 +362,7 @@ class MetricAggregation():
                 and peak crowding averaged over all trips on the route level.
             Levels: segments, corridors, routes
         """
+
         sig_fig = 0
 
         self.segments['crowding'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['crowding'].mean().round(sig_fig)
@@ -372,6 +376,7 @@ class MetricAggregation():
         Args:
             percentile (int): the percentile that metrics are aggregated at
         """
+
         sig_fig = 0
         percentile = self.get_percentile(percentile, 'passenger_load')
 
@@ -382,6 +387,7 @@ class MetricAggregation():
         """Aggregated passenger flow in pax/hr. Defined as the sum of passenger load divided by the lenghth of time period.
             Levels: segments, corridors
         """
+
         sig_fig = 0
 
         period = self.end_time - self.start_time
@@ -393,6 +399,7 @@ class MetricAggregation():
         """Aggregated vehicle- and passenger-weighted congestion delay in min/mile or pax-min/mile. Defined as the sum of congestion
             delays over all trips.
         """
+        
         sig_fig = 0
 
         self.segments['vehicle_congestion_delay'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['vehicle_congestion_delay'].sum().round(sig_fig)
