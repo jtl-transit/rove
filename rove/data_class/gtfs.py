@@ -53,7 +53,7 @@ OPTIONAL_DATA_SPEC = {
 
 class GTFS(BaseData):
     """GTFS data class. Stores a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
-        Also generate and store a dict of route patterns (patterns_dict).
+    Also generate and store a dict of route patterns (patterns_dict).
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
     :type rove_params: ROVE_params
@@ -95,9 +95,9 @@ class GTFS(BaseData):
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
-            route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
-            if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
-            the required and optional specs. Store the retrieved raw data tables in a dict.
+        route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
+        if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
+        the required and optional specs. Store the retrieved raw data tables in a dict.
 
         :param path: path to the raw data
         :type path: str
@@ -129,9 +129,9 @@ class GTFS(BaseData):
     def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:bool=False)\
                                     ->Dict[str, DataFrame]:
         """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
-            For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
-            For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
-            For tables in any spec, all spec columns must exist if the spec table is not empty.
+        For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
+        For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
+        For tables in any spec, all spec columns must exist if the spec table is not empty.
 
         :raises ValueError: table is found in the feed, but is empty.
         :raises KeyError: table is missing at least one of the required columns
@@ -187,11 +187,11 @@ class GTFS(BaseData):
 
     def get_gtfs_records(self) -> pd.DataFrame:
         """Return a dataframe that is the validated GTFS stop_times table left joined by the validated GTFS trips table. 
-            Values are sorted by [route_id, trip_id, stop_sequence]. Additional columns are added for the convenience of downstream
-            calculations: 
-                - 'hour' - the hour that the arrival time is in;
-                - 'trip_start_time': start time of the trip that this stop event record is associated with;
-                - 'trip_end_time': end time of the trip that this stop event record is associated with.
+        Values are sorted by [route_id, trip_id, stop_sequence]. Additional columns are added for the convenience of downstream
+        calculations: 
+            - 'hour' - the hour that the arrival time is in;
+            - 'trip_start_time': start time of the trip that this stop event record is associated with;
+            - 'trip_end_time': end time of the trip that this stop event record is associated with.
 
         :return: the merged dataframe and additional columns
         :rtype: pd.DataFrame
@@ -211,16 +211,16 @@ class GTFS(BaseData):
 
     def add_timepoints(self):
         """Add, or repopulate, the 'timepoint' column in the GTFS records table (created from get_gtfs_records()). 'timepoint' is an optional column in GTFS standards, but
-            we require the identification of timepoints in each trip for timepoint-level metric calculations. Therefore, each agency must either supply
-            the 'timepoint' info in the 'timepoint' column of the 'stop_times' table in GTFS data, or provide additional data source and extend the standard
-            GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. 
+        we require the identification of timepoints in each trip for timepoint-level metric calculations. Therefore, each agency must either supply
+        the 'timepoint' info in the 'timepoint' column of the 'stop_times' table in GTFS data, or provide additional data source and extend the standard
+        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. 
         """
 
         pass
 
     def add_branchpoints(self):
         """Add the 'branchpoint' and 'tp_bp' columns in the GTFS records table. 'branchpoint' is defined as stops where routes converge or diverge between two timepoints.
-            The 'tp_bp' column marks stops that are either a timepoint or a branchpoint. The 'tp_bp' stop pairs are the basis of aggregation for 'timepoint' and 'timepoint-aggregated' metrics.
+        The 'tp_bp' column marks stops that are either a timepoint or a branchpoint. The 'tp_bp' stop pairs are the basis of aggregation for 'timepoint' and 'timepoint-aggregated' metrics.
         """
 
         records = self.records
