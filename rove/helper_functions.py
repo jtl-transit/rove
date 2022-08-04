@@ -9,7 +9,7 @@ import datetime
 import os
 import shutil
 import logging
-import workalendar
+import workalendar.usa
 from pathlib import Path
 from typing import Dict, List
 import pandas as pd
@@ -162,7 +162,7 @@ def get_stop_value(stop:str) -> int:
     Returns:
         value of a stop
     """
-    
+
     try:
         num = int(stop)
     except ValueError as err: # the given stop ID is not a numerical value

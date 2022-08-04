@@ -51,14 +51,16 @@ class MetricCalculation():
         self.congestion_delay()
         logger.info(f'Metrics calculation completed.')
 
-    def prepare_stop_event_records(self, records:pd.DataFrame, type:str):
-        """Add three columns to gtfs records: next_stop, next_stop_arrival_time, stop_pair while keeping original index.
+    def prepare_stop_event_records(self, records:pd.DataFrame, type:str) -> pd.DataFrame:
+        """Add three columns to the records table: next_stop, next_stop_arrival_time, stop_pair while keeping original index.
 
-        Args:
-            records (pd.DataFrame): GTFS records
-
-        Returns:
-            records: GTFS records with new columns
+        :param records: GTFS records
+        :type records: pd.DataFrame
+        :param type: depending on 'GTFS' or 'AVL', a different grouping is used to populate the next stop ID and its arrival time for each stop record
+        :type type: str
+        :raises ValueError: a type that is not 'GTFS' or 'AVL' is given
+        :return: the records table with the three added columns
+        :rtype: pd.DataFrame
         """
 
         if type == 'GTFS':
@@ -71,7 +73,7 @@ class MetricCalculation():
                 'route': 'route_id'
             })
         else:
-            raise ValueError(f'Invalid type {type}, must be one of: GTFS, AVL')
+            raise ValueError(f"Invalid type {type}, must be one of: 'GTFS', 'AVL'.")
 
         records = deepcopy(records).reset_index()
         records.loc[:, 'next_stop'] = records.groupby(by=groups)['stop_id'].shift(-1)
@@ -81,8 +83,14 @@ class MetricCalculation():
 
         return records
 
-    def prepare_route_metrics(self, records:pd.DataFrame):
+    def prepare_route_metrics(self, records:pd.DataFrame) -> pd.DataFrame:
+        """Prepare the route metrics table with columns: 'pattern', 'route_id', 'direction_id', 'trip_id', 'trip_start_time', 'trip_end_time'.
 
+        :param records: GTFS records
+        :type records: pd.DataFrame
+        :return: table with unique records of specified columns
+        :rtype: pd.DataFrame
+        """
         route_metrics = records[self.ROUTE_METRICS_KEY_COLUMNS + ['trip_start_time', 'trip_end_time']].drop_duplicates()
 
         return route_metrics
@@ -122,7 +130,7 @@ class MetricCalculation():
                                 .set_index('index').rename(columns={'tpbp_distance': 'stop_spacing'})
 
     def scheduled_headway(self):
-        """Scheduled headway in minutes. Defined as the difference between two consecutive arrival times at the first stop of a stop pair.
+        """Scheduled headway in minutes. Defined as the difference between two consecutive scheduled arrivals of a route at the first stop of a stop pair.
         """
 
         logger.info(f'calculating scheduled headway')
@@ -132,7 +140,7 @@ class MetricCalculation():
 
 
     def scheduled_running_time(self):
-        """Running time in minutes. Defined as the difference between departure time at a stop and arrival time at the next stop.
+        """Running time in minutes. Defined as the difference between the departure time at a stop and arrival time at the next stop.
         """
 
         logger.info(f'calculating scheduled running time')
@@ -142,9 +150,10 @@ class MetricCalculation():
         routes_data = self.stop_metrics.groupby(self.ROUTE_METRICS_KEY_COLUMNS)['scheduled_running_time'].sum().reset_index()
         self.route_metrics = self.route_metrics.merge(routes_data, on=self.ROUTE_METRICS_KEY_COLUMNS, how='left')
 
-        self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
-        self.stop_metrics['tpbp_scheduled_running_time'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['scheduled_running_time'].transform('sum')
-        self.tpbp_metrics['scheduled_running_time'] = self.stop_metrics['tpbp_scheduled_running_time']
+        tpbp_metrics_temp = self.stop_metrics.copy()
+        tpbp_metrics_temp['tpbp_group'] = tpbp_metrics_temp.groupby(['trip_id'])['tp_bp'].cumsum()
+        tpbp_metrics_temp['tpbp_scheduled_running_time'] = tpbp_metrics_temp.groupby(['trip_id', 'tpbp_group'])['scheduled_running_time'].transform('sum')
+        self.tpbp_metrics['scheduled_running_time'] = tpbp_metrics_temp['tpbp_scheduled_running_time']
 
     
     def scheduled_speed(self):
@@ -160,18 +169,24 @@ class MetricCalculation():
         self.tpbp_metrics['scheduled_speed'] = ((self.tpbp_metrics['stop_spacing'] / self.tpbp_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
 
     def observed_headway(self):
+        """Observed headway in minutes. Defined as the difference between two consecutive observed arrivals of a route at the first stop of a stop pair on each day, 
+        then averaged over all service dates.
+        """
         
         logger.info(f'calculating observed headway')
 
         self.avl_records['observed_headway_by_date'] = (self.avl_records.sort_values(['svc_date', 'route_id', 'stop_pair', 'stop_time'])\
                                                             .groupby(['svc_date', 'route_id', 'stop_pair'])['stop_time'].diff())/60
         
-        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'trip_id', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
+        avg_stop_avl_temp = self.avl_records.groupby(['route_id', 'stop_pair'])['observed_headway_by_date'].agg('mean').round(2)\
                         .reset_index().rename(columns={'observed_headway_by_date': 'observed_headway'})
         
-        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        self.stop_metrics = self.stop_metrics.merge(avg_stop_avl_temp, on=['route_id', 'stop_pair'], how='left')
 
     def observed_running_time(self):
+        """Observed running time without dwell in minutes. Defined as the time between departure at a stop and arrival at the next stop averaged over all service dates 
+        for each bus trip.
+        """
 
         logger.info(f'calculating observed running time without dwell')
 
@@ -188,11 +203,14 @@ class MetricCalculation():
 
         self.route_metrics = self.route_metrics.merge(route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
-        self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
-        self.stop_metrics['tpbp_observed_running_time'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['observed_running_time'].transform('sum')
-        self.tpbp_metrics['observed_running_time'] = self.stop_metrics['tpbp_observed_running_time']
+        tpbp_metrics_temp = self.stop_metrics.copy()
+        tpbp_metrics_temp['tpbp_group'] = tpbp_metrics_temp.groupby(['trip_id'])['tp_bp'].cumsum()
+        tpbp_metrics_temp['tpbp_observed_running_time'] = tpbp_metrics_temp.groupby(['trip_id', 'tpbp_group'])['observed_running_time'].transform('sum')
+        self.tpbp_metrics['observed_running_time'] = tpbp_metrics_temp['tpbp_observed_running_time']
 
     def observed_speed_without_dwell(self):
+        """Observed running speed without dwell in mph. Defined as stop spacing divided by the observed running time without dwell.
+        """
 
         logger.info(f'calculating observed speed without dwell')
 
@@ -203,6 +221,9 @@ class MetricCalculation():
         self.tpbp_metrics['observed_speed_without_dwell'] = ((self.tpbp_metrics['stop_spacing'] / self.tpbp_metrics['observed_running_time']) * FT_PER_MIN_TO_MPH).round(2)
 
     def observed_running_time_with_dwell(self):
+        """Observed running time with dwell in minutes. Defined as the time between arrival at a stop and arrival at the next stop averaged over all service dates 
+        for each bus trip.
+        """
 
         logger.info(f'calculating observed running time with dwell')
 
@@ -218,11 +239,14 @@ class MetricCalculation():
 
         self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
-        self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
-        self.stop_metrics['tpbp_observed_running_time_with_dwell'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['observed_running_time_with_dwell'].transform('sum')
-        self.tpbp_metrics['observed_running_time_with_dwell'] = self.stop_metrics['tpbp_observed_running_time_with_dwell']
+        tpbp_metrics_temp = self.stop_metrics.copy()
+        tpbp_metrics_temp['tpbp_group'] = tpbp_metrics_temp.groupby(['trip_id'])['tp_bp'].cumsum()
+        tpbp_metrics_temp['tpbp_observed_running_time_with_dwell'] = tpbp_metrics_temp.groupby(['trip_id', 'tpbp_group'])['observed_running_time_with_dwell'].transform('sum')
+        self.tpbp_metrics['observed_running_time_with_dwell'] = tpbp_metrics_temp['tpbp_observed_running_time_with_dwell']
 
     def observed_speed_with_dwell(self):
+        """Observed running speed with dwell in mph. Defined as stop spacing divided by the observed running time with dwell.
+        """
 
         logger.info(f'calculating observed speed with dwell')
 
@@ -233,6 +257,8 @@ class MetricCalculation():
         self.tpbp_metrics['observed_speed_with_dwell'] = ((self.tpbp_metrics['stop_spacing'] / self.tpbp_metrics['observed_running_time_with_dwell']) * FT_PER_MIN_TO_MPH).round(2)
 
     def boardings(self):
+        """Boardings in pax. Defined as the number of passengers boarding the bus at each stop averaged over all service dates for each bus trip.
+        """
 
         logger.info(f'calculating boardings')
 
@@ -246,19 +272,20 @@ class MetricCalculation():
 
         self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
-        self.stop_metrics['tpbp_group'] = self.stop_metrics.groupby(['trip_id'])['tp_bp'].cumsum()
-        self.stop_metrics['tpbp_boardings'] = self.stop_metrics.groupby(['trip_id', 'tpbp_group'])['boardings'].transform('sum')
-        self.tpbp_metrics['boardings'] = self.stop_metrics['tpbp_boardings']
+        tpbp_metrics_temp = self.stop_metrics.copy()
+        tpbp_metrics_temp['tpbp_group'] = tpbp_metrics_temp.groupby(['trip_id'])['tp_bp'].cumsum()
+        tpbp_metrics_temp['tpbp_boardings'] = tpbp_metrics_temp.groupby(['trip_id', 'tpbp_group'])['boardings'].transform('sum')
+        self.tpbp_metrics['boardings'] = tpbp_metrics_temp['tpbp_boardings']
 
     def on_time_performance(self, no_earlier_than=-1, no_later_than=5):
-        """On time performance in seconds of delay (actual arrival - scheduled arrival) for stop segments, and percentage of stops on time per trip for routes.
+        """On time performance in seconds of delay (actual arrival - scheduled arrival) for stop segments, and percentage of stops on time per trip for routes, 
+        averaged over all service dates for each bus trip.
 
-        Args:
-            no_earlier_than (int, optional): minutes that a bus can arrive early for to be on time. Must be negative. Defaults to -1.
-            no_later_than (int, optional): minutes that a bus can arrive late for to be on time. Must be positive. Defaults to 5.
-
-        Raises:
-            ValueError: no_earlier_than is positive or no_later_than is negative
+        :param no_earlier_than: minutes that a bus can arrive early for to be on time. Must be negative, defaults to -1
+        :type no_earlier_than: int, optional
+        :param no_later_than: minutes that a bus can arrive late for to be on time. Must be positive, defaults to 5
+        :type no_later_than: int, optional
+        :raises ValueError: no_earlier_than is positive or no_later_than is negative
         """
 
         logger.info(f'calculating on time performance')
@@ -284,6 +311,8 @@ class MetricCalculation():
         self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
     def passenger_load(self):
+        """Passenger load in pax. Defined as the number of passengers onboard the bus within each stop pair, averaged over all service dates for each bus trip.
+        """
 
         logger.info(f'calculating passenger load')
         
@@ -299,6 +328,9 @@ class MetricCalculation():
 
 
     def crowding(self):
+        """Crowding in percentage. Defined as the percent of passenger load over seated capacity for stop metrics, and percent of peak load over seated capacity for route metrics, 
+        averaged over all service dates for each bus trip.
+        """
 
         logger.info(f'calculating crowding')
 
@@ -316,7 +348,7 @@ class MetricCalculation():
         self.route_metrics = self.route_metrics.merge(avg_route_avl_temp, on=['route_id', 'trip_id'], how='left')
 
     def congestion_delay(self):
-        """Congestion delay in min/mile or pax-min/mile.
+        """Vehicle congestion delay in min/mile and passenger congestion delay in pax-min/mile.
         """
         
         logger.info(f'calculating congestion delay')

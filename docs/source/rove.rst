@@ -1,4 +1,4 @@
-rove package
+Backend
 ============
 
 Subpackages
@@ -8,24 +8,8 @@ Subpackages
    :maxdepth: 4
 
    rove.data_class
+   rove.shapes
    rove.metrics
 
-Submodules
-----------
-
-rove.backend\_main module
--------------------------
-
-.. automodule:: rove.backend_main
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: rove
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Example
+-----------

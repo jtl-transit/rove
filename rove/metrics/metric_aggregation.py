@@ -396,8 +396,7 @@ class MetricAggregation():
         self.corridors['passenger_flow'] = (self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['passenger_load'].sum() / period).round(sig_fig)
 
     def congestion_delay(self):
-        """Aggregated vehicle- and passenger-weighted congestion delay in min/mile or pax-min/mile. Defined as the sum of congestion
-            delays over all trips.
+        """Aggregated vehicle- and passenger-weighted congestion delay in min/mile or pax-min/mile. Defined as the sum of congestion delays over all trips.
         """
         
         sig_fig = 0

@@ -34,9 +34,17 @@ OPTIONAL_COL_SPEC = {
 }
 
 class AVL(BaseData):
+    """AVL data class. Stores a validated AVL data records table with passenger on, off and load values corrected.
 
-    def __init__(self, alias, rove_params):
-        super().__init__(alias, rove_params)
+    :param rove_params: a rove_params object that stores information needed throughout the backend
+    :type rove_params: ROVE_params
+    """
+
+    def __init__(self, rove_params):
+        """Instantiate an AVL data class.
+        """
+
+        super().__init__('avl', rove_params)
 
         self.records = self.get_avl_records()
 
@@ -71,7 +79,13 @@ class AVL(BaseData):
         return raw_avl
 
  
-    def validate_data(self):
+    def validate_data(self) -> pd.DataFrame:
+        """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
+        to integer seconds if necessary.
+
+        :return: a dataframe of validated AVL data
+        :rtype: pd.DataFrame
+        """
 
         data:pd.DataFrame = deepcopy(self.raw_data)
         
@@ -87,20 +101,26 @@ class AVL(BaseData):
                
         return data
     
-    def convert_dwell_time(self, data:pd.Series):
-        
+    def convert_dwell_time(self, data:pd.Series) -> pd.Series:
+        """Convert dwell times to integer seconds.
+
+        :param data: the column of dwell_time data
+        :type data: pd.Series
+        :return: column of dwell times in integer seconds
+        :rtype: pd.Series
+        """
+
         pass
 
-    def convert_stop_time(self, data:pd.Series):
+    def convert_stop_time(self, data:pd.Series) -> Tuple[pd.Series, pd.Series]:
         """Convert stop times to integer seconds since the beginning of service (defined in config). Also return a
-            column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
-            span is from 5 am to 3 am the next day.)
+        column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
+        span is from 5 am to 3 am the next day).
 
-        Args:
-            data (pd.Series): the column of stop_times data
-
-        Returns:
-            pd.Series, pd.Seires: column of stop times in integer seconds, and column of operation dates
+        :param data: the column of stop_time (time of arrival at a stop) data
+        :type data: pd.Series
+        :return: column of stop times in integer seconds, and column of operation dates
+        :rtype: Tuple[pd.Series, pd.Seires]
         """
         
         stop_time_dt = pd.to_datetime(data)
@@ -126,7 +146,13 @@ class AVL(BaseData):
 
 
     def get_avl_records(self) -> pd.DataFrame:
-        
+        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route', 'trip_id', 'stop_sequence'], 
+        and only unique columns of each ['svc_date', 'route', 'trip_id', 'stop_sequence'] are kept.
+
+        :return: dataframe containing validated and sorted AVL data
+        :rtype: pd.DataFrame
+        """
+
         avl_df:pd.DataFrame = deepcopy(self.validated_data)
 
         avl_df = avl_df.sort_values(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
@@ -136,6 +162,9 @@ class AVL(BaseData):
         return avl_df
     
     def correct_passenger_load(self):
+        """Enforce that no one alights at the first stop or boards at the last stop, and make sure the passenger_on, passenger_off and
+        passenger_load values of each trip add up.
+        """
 
         records = self.records
 

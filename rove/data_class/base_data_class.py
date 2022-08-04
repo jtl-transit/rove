@@ -24,24 +24,20 @@ class BaseData(metaclass=ABCMeta):
         :param rove_params: a ROVE_params object that stores data needed throughout the backend.
         :type rove_params: ROVE_params
         """
-        logger.info(f'creating a BaseData object for {alias}...')
 
         self.alias = alias
 
         self.rove_params = rove_params
         
         # Raw data (read-only) read from the given path.
-        logger.info(f'loading {alias} data...')
+        logger.info(f'loading {alias} data')
         path = check_is_file(rove_params.input_paths[alias])
         self.raw_data = self.load_data(path)
-        logger.info(f'{alias} data is loaded')
         
         # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
-        logger.info(f'validating {alias} data...')
+        logger.info(f'validating {alias} data')
         self.validated_data = self.validate_data()
-        logger.info(f'{alias} data is validated')
 
-        logger.info(f'BaseData object created for {alias}')
 
     @abstractmethod
     def load_data(self, path:str) -> object:
