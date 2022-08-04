@@ -1,9 +1,6 @@
 rove.data\_class package
 ========================
 
-Submodules
-----------
-   
 rove.data\_class.rove\_parameters module
 ----------------------------------------
 
@@ -36,10 +33,3 @@ rove.data\_class.avl module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: rove.data_class
-   :members:
-   :undoc-members:
-   :show-inheritance:

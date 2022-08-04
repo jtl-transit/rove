@@ -11,8 +11,8 @@ logger = logging.getLogger("backendLogger")
 class ROVE_params(object, metaclass=ABCMeta):
     """Data structure that stores all parameters needed throughout the backend.
     
-    :param AGENCY: name of the analyzed agency
-    :type AGENCY: str
+    :param agency: name of the analyzed agency
+    :type agency: str
     :param month: 2-character string of the analyzed month, e.g. 03 for March
     :type month: str
     :param year: 4-character string of the analyzed year, e.g. 2022
