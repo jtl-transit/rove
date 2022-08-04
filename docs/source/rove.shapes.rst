@@ -11,11 +11,3 @@ rove.shapes.base\_shape module
    :members:
    :undoc-members:
    :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: rove.shapes
-   :members:
-   :undoc-members:
-   :show-inheritance:

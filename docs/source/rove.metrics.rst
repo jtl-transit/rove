@@ -19,11 +19,3 @@ rove.metrics.metric\_calculation module
    :members:
    :undoc-members:
    :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: rove.metrics
-   :members:
-   :undoc-members:
-   :show-inheritance:

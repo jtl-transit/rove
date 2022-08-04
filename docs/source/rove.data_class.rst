@@ -3,11 +3,11 @@ rove.data\_class package
 
 Submodules
 ----------
+   
+rove.data\_class.rove\_parameters module
+----------------------------------------
 
-rove.data\_class.avl module
----------------------------
-
-.. automodule:: rove.data_class.avl
+.. automodule:: rove.data_class.rove_parameters
    :members:
    :undoc-members:
    :show-inheritance:
@@ -28,10 +28,10 @@ rove.data\_class.gtfs module
    :undoc-members:
    :show-inheritance:
 
-rove.data\_class.rove\_parameters module
-----------------------------------------
+rove.data\_class.avl module
+---------------------------
 
-.. automodule:: rove.data_class.rove_parameters
+.. automodule:: rove.data_class.avl
    :members:
    :undoc-members:
    :show-inheritance:
