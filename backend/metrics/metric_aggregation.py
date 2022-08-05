@@ -152,10 +152,10 @@ class MetricAggregation():
         return routes
 
     def stop_spacing(self):
-        """Aggregated stop spacing in ft. Defined as the average stop_spacing of all trips on each segments/corridors level, 
-                and average of sum of stop_spacing of all stops along a route on the routes level.
-                This metric is not time-dependent, so use non-time-filtered metrics for calculations.
-            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """Aggregated stop spacing in ft. This metric is not time-dependent, so use non-time-filtered metrics for calculations.
+            - stop/stop-aggregated level: stop_spacing of stop pairs averaged over all trips
+            - timepoint/timepoint-aggregated level: stop_spacing of timepoint pairs averaged over all trips
+            - routes level: sum of stop_spacing of all stops along a route averaged over all trips
         """
 
         sig_fig = 0
