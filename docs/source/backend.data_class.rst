@@ -1,7 +1,7 @@
 Data Class
 ========================
 
-backend.data\_class.rove\_parameters module
+rove\_parameters module
 ----------------------------------------
 
 .. automodule:: backend.data_class.rove_parameters
@@ -9,7 +9,7 @@ backend.data\_class.rove\_parameters module
    :undoc-members:
    :show-inheritance:
 
-backend.data\_class.base\_data\_class module
+base\_data\_class module
 -----------------------------------------
 
 .. automodule:: backend.data_class.base_data_class
@@ -17,7 +17,7 @@ backend.data\_class.base\_data\_class module
    :undoc-members:
    :show-inheritance:
 
-backend.data\_class.gtfs module
+gtfs module
 ----------------------------
 
 .. automodule:: backend.data_class.gtfs
@@ -25,7 +25,7 @@ backend.data\_class.gtfs module
    :undoc-members:
    :show-inheritance:
 
-backend.data\_class.avl module
+avl module
 ---------------------------
 
 .. automodule:: backend.data_class.avl

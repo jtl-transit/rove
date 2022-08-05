@@ -1,10 +1,7 @@
 Metrics Calculation and Aggregation
 ====================
 
-Submodules
-----------
-
-backend.metrics.metric\_calculation module
+metric\_calculation module
 ---------------------------------------
 
 .. automodule:: backend.metrics.metric_calculation
@@ -12,7 +9,7 @@ backend.metrics.metric\_calculation module
    :undoc-members:
    :show-inheritance:
 
-backend.metrics.metric\_aggregation module
+metric\_aggregation module
 ---------------------------------------
 
 .. automodule:: backend.metrics.metric_aggregation
