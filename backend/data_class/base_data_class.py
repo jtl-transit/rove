@@ -1,6 +1,3 @@
-"""Abstract class for all data classes
-"""
-
 from abc import ABCMeta, abstractmethod
 import logging
 from .rove_parameters import ROVE_params

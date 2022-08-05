@@ -1,6 +1,3 @@
-"""Data class for AVL data.
-"""
-
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Set, Tuple
 from xmlrpc.client import Boolean
@@ -34,7 +31,7 @@ OPTIONAL_COL_SPEC = {
 }
 
 class AVL(BaseData):
-    """AVL data class. Stores a validated AVL data records table with passenger on, off and load values corrected.
+    """Stores a validated AVL data records table with passenger on, off and load values corrected.
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
     :type rove_params: ROVE_params
@@ -46,7 +43,6 @@ class AVL(BaseData):
 
         super().__init__('avl', rove_params)
 
-        #: dataframe of AVL records
         self.records:pd.DataFrame = self.get_avl_records()
 
         self.correct_passenger_load()

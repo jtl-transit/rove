@@ -1,3 +1,6 @@
+"""_summary_
+"""
+
 import logging
 import pandas as pd
 import numpy as np
@@ -11,16 +14,36 @@ from time import sleep
 
 logger = logging.getLogger("backendLogger")
 
-PARAMETERS = {
-            'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
-            'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
-            'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
-            'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
-            'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
-        }
+
+
 class BaseShape():
+    """Stores a list of segment dicts, each dict contains keys: pattern (route_id - direction - count of pattern), 
+    route_id, direction (0 for outbound or 1 for inbound), seg_index (route_id - first stop_id - second stop_id), 
+    stop_pair (list of two stops), geometry (string of the encoded polyline), distance (length of segment in km), 
+    mode ('bus').
+
+    :param patterns: dict of patterns
+    :type patterns: Dict[str, Dict]
+    :param outpath: path to the shape json file
+    :type outpath: str
+    :param parameters: shape parameters, defaults to PARAMETERS
+    :type parameters: Dict[str, int], optional
+    :param mode: mode of the transit that the segments are of, defaults to 'bus'
+    :type mode: str, optional
+    """
+
+    #: parameters that are used to balance the accuracy vs. coverage of shapes returned by Valhalla
+    PARAMETERS = {
+        'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
+        'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
+        'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
+        'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
+        'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
+    }
 
     def __init__(self, patterns, outpath, parameters=PARAMETERS, mode='bus'):
+        """_summary_
+        """
 
         logger.info(f'Generating shapes...')
         self.mode = mode

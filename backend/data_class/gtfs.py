@@ -1,6 +1,3 @@
-"""Data class for GTFS data.
-"""
-
 from typing import Dict
 from pandas.core.frame import DataFrame
 import partridge as ptg
@@ -52,7 +49,7 @@ OPTIONAL_DATA_SPEC = {
                     }
 
 class GTFS(BaseData):
-    """GTFS data class. Stores a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
+    """Store a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
     Also generate and store a dict of route patterns (patterns_dict).
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
@@ -316,7 +313,7 @@ class GTFS(BaseData):
         return patterns
 
     def improve_pattern_with_shapes(self, patterns:Dict, records:pd.DataFrame, gtfs:Dict) -> Dict[str, Dict]:
-        """Improve the coordinates of each segment in each pattern by replacing the stop coordinates 
+        """Improve the coordinates of each segment in each pattern by supplementing the stop coordinates 
         with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates 
         at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes 
         to enrich the segment profile.
