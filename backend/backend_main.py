@@ -1,8 +1,8 @@
 # import logging
 from data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
-from rove.shapes.base_shape import BaseShape
+from backend.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
-from rove.metrics import MetricCalculation, MetricAggregation
+from backend.metrics import MetricCalculation, MetricAggregation
 from data_class.rove_parameters import ROVE_params
 from helper_functions import read_shapes
 import pandas as pd
@@ -20,8 +20,8 @@ YEAR = "2021" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
-SHAPE_GENERATION = True # True/False: whether generate shapes
-METRIC_CAL_AGG = False # True/False: whether run metric calculation and aggregation
+SHAPE_GENERATION = True # True/False: whether to generate shapes
+METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
 

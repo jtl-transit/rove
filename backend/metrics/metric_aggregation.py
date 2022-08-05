@@ -385,7 +385,8 @@ class MetricAggregation():
 
     def passenger_flow(self):
         """Aggregated passenger flow in pax/hr. Defined as the sum of passenger load divided by the lenghth of time period.
-            Levels: segments, corridors
+        
+        Levels: segments, corridors
         """
 
         sig_fig = 0

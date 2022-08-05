@@ -23,14 +23,14 @@ class MetricCalculation():
         
         logger.info(f'Calculating metrics...')
 
-        self.stop_metrics = self.prepare_stop_event_records(gtfs_records, 'GTFS')
+        self.stop_metrics = self.__prepare_stop_event_records(gtfs_records, 'GTFS')
 
-        self.tpbp_metrics = self.prepare_stop_event_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :], 'GTFS')
+        self.tpbp_metrics = self.__prepare_stop_event_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :], 'GTFS')
 
         self.ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
-        self.route_metrics = self.prepare_route_metrics(gtfs_records)
+        self.route_metrics = self.__prepare_route_metrics(gtfs_records)
 
-        self.avl_records = self.prepare_stop_event_records(avl_records, 'AVL')
+        self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
 
         # ---- GTFS metrics ----
         self.stop_spacing(shapes)
@@ -51,7 +51,7 @@ class MetricCalculation():
         self.congestion_delay()
         logger.info(f'Metrics calculation completed.')
 
-    def prepare_stop_event_records(self, records:pd.DataFrame, type:str) -> pd.DataFrame:
+    def __prepare_stop_event_records(self, records:pd.DataFrame, type:str) -> pd.DataFrame:
         """Add three columns to the records table: next_stop, next_stop_arrival_time, stop_pair while keeping original index.
 
         :param records: GTFS records
@@ -83,7 +83,7 @@ class MetricCalculation():
 
         return records
 
-    def prepare_route_metrics(self, records:pd.DataFrame) -> pd.DataFrame:
+    def __prepare_route_metrics(self, records:pd.DataFrame) -> pd.DataFrame:
         """Prepare the route metrics table with columns: 'pattern', 'route_id', 'direction_id', 'trip_id', 'trip_start_time', 'trip_end_time'.
 
         :param records: GTFS records

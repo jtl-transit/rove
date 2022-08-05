@@ -12,7 +12,7 @@ from tqdm import tqdm
 from .base_data_class import BaseData
 from copy import deepcopy
 import json
-from rove.helper_functions import load_csv_to_dataframe
+from backend.helper_functions import load_csv_to_dataframe
 
 
 logger = logging.getLogger("backendLogger")

@@ -1,21 +1,21 @@
-rove.metrics package
+Metrics Calculation and Aggregation
 ====================
 
 Submodules
 ----------
 
-rove.metrics.metric\_aggregation module
+backend.metrics.metric\_calculation module
 ---------------------------------------
 
-.. automodule:: rove.metrics.metric_aggregation
+.. automodule:: backend.metrics.metric_calculation
    :members:
    :undoc-members:
    :show-inheritance:
 
-rove.metrics.metric\_calculation module
+backend.metrics.metric\_aggregation module
 ---------------------------------------
 
-.. automodule:: rove.metrics.metric_calculation
+.. automodule:: backend.metrics.metric_aggregation
    :members:
    :undoc-members:
    :show-inheritance:

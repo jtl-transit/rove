@@ -11,7 +11,7 @@ import logging
 from .rove_parameters import ROVE_params
 from .base_data_class import BaseData
 from copy import deepcopy
-from rove.helper_functions import get_hash_of_stop_list, check_dataframe_column
+from backend.helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 

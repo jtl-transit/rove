@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from calendar import WEDNESDAY
 import datetime
 from typing import List
-from rove.helper_functions import day_list_generation
+from backend.helper_functions import day_list_generation
 import logging
 import json
 

@@ -4,7 +4,7 @@
 from abc import ABCMeta, abstractmethod
 import logging
 from .rove_parameters import ROVE_params
-from rove.helper_functions import check_is_file
+from backend.helper_functions import check_is_file
 import pandas as pd
 
 logger = logging.getLogger("backendLogger")
