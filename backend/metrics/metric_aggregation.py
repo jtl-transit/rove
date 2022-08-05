@@ -171,7 +171,7 @@ class MetricAggregation():
         """Aggregated service start/end in sec since epoch. 
         
             - all aggregation levels: the first arrival at first stop (service start) and the last arrival 
-        at last stop (service end) of all trips
+              at last stop (service end) of all trips
         """
 
         self.segments['service_start'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
@@ -219,14 +219,17 @@ class MetricAggregation():
 
 
     def headway(self, method:str, percentile:int, data_type:str):
-        """Aggregated scheduled headway in minutes. Defined as the average or mode of scheduled headway of all trips on each aggregation level.
-            Levels: segments, corridors
-        Args:
-            method (str): mean - average headway; mode - the first mode value of headways; percentile - choose value based on percentile.
-            percentile (int): the percentile that metrics are aggregated at.
-            data_type (str): e.g. 'scheduled' or 'observed'
-        Raises:
-            ValueError: the provided method is not one of: 'mean', 'mode'.
+        """Aggregated scheduled headway in minutes. 
+        
+            - all aggregation levels: the average or mode or percentile of scheduled headways of all trips
+
+        :param method: mean (average headway), mode (the first mode value of headways), or percentile (choose value based on percentile)
+        :type method: str
+        :param percentile: the percentile that metrics are aggregated at
+        :type percentile: int
+        :param data_type: e.g. 'scheduled' or 'observed'
+        :type data_type: str
+        :raises ValueError: the provided method is not one of: 'mean', 'mode', 'percentile'
         """
 
         sig_fig = 0
