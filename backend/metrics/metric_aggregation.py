@@ -171,7 +171,7 @@ class MetricAggregation():
         """Aggregated service start/end in sec since epoch. 
         
             - all aggregation levels: the first arrival at first stop (service start) and the last arrival 
-            at last stop (service end) of all trips
+        at last stop (service end) of all trips
         """
 
         self.segments['service_start'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
@@ -190,8 +190,9 @@ class MetricAggregation():
         self.tpbp_corridors['service_end'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')
 
     def revenue_hour(self):
-        """Aggregated revenue hours in hr. Defined as the difference between service_end and service_start.
-            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """Aggregated revenue hours in hr. 
+        
+            - all aggregation levels: the time lapse between service_end and service_start
         """
 
         sig_fig = 1
@@ -203,8 +204,9 @@ class MetricAggregation():
         self.tpbp_corridors['revenue_hour'] = ((self.tpbp_corridors['service_end'] - self.tpbp_corridors['service_start']) / 3660).round(sig_fig)
 
     def scheduled_frequency(self):
-        """Aggregated scheduled frequency in trips/hr. Defined as the number of trips divided by service span (revenue hour).
-            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """Aggregated scheduled frequency in trips/hr. 
+        
+            - all aggregation levels: the number of trips divided by service span (revenue hour)
         """
 
         sig_fig = 1
