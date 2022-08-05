@@ -10,7 +10,6 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 autodoc_default_options = {
     'members':         True,
     'member-order':    'bysource',
-    'special-members': '__init__',
 }
 
 autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge"]
