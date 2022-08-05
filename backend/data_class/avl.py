@@ -46,8 +46,10 @@ class AVL(BaseData):
 
         super().__init__('avl', rove_params)
 
-        self.records = self.get_avl_records()
+        # dataframe of AVL records
+        self.records:pd.DataFrame = self.get_avl_records()
 
+        # correct passenger on, off and load columns
         self.correct_passenger_load()
 
     def load_data(self, path: str) -> pd.DataFrame:
@@ -147,7 +149,7 @@ class AVL(BaseData):
 
     def get_avl_records(self) -> pd.DataFrame:
         """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route', 'trip_id', 'stop_sequence'], 
-        and only unique columns of each ['svc_date', 'route', 'trip_id', 'stop_sequence'] are kept.
+        and only unique rows of each combination of ['svc_date', 'route', 'trip_id', 'stop_sequence'] columns are kept.
 
         :return: dataframe containing validated and sorted AVL data
         :rtype: pd.DataFrame

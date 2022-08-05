@@ -1,7 +1,7 @@
 Shape Generation
 ===================
 
-shapes.base\_shape module
+base\_shape module
 ------------------------------
 
 .. automodule:: backend.shapes.base_shape

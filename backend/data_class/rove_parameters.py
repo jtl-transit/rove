@@ -61,8 +61,8 @@ class ROVE_params(object, metaclass=ABCMeta):
         self.data_option = data_option
 
         # dict <str, str> : dict of paths to input and output data
-        self.input_paths = self.get_input_paths()
-        self.output_paths = self.get_output_paths()
+        self.input_paths = self.__get_input_paths()
+        self.output_paths = self.__get_output_paths()
         
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
@@ -81,7 +81,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         logger.info(f'Sample date: {self.sample_date}')
         logger.info(f'parameters generated')
 
-    def get_input_paths(self):
+    def __get_input_paths(self):
         """Get predefined paths to input data.
 
         :return: dict of paths to input data. Key: alias of input data; value: path to the data file.
@@ -96,7 +96,7 @@ class ROVE_params(object, metaclass=ABCMeta):
             'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
         }
 
-    def get_output_paths(self):
+    def __get_output_paths(self):
         """Get predefined paths to output data.
 
         :return: dict of paths to output data. Key: alias of output data; value: path to the data file.
