@@ -22,11 +22,11 @@ Contents
 .. toctree::
 
    install
-   rove
+   backend
    frontend
 
 Indices and tables
 ==================
 
 * :ref:`install`
-* :ref:`rove`
+* :ref:`backend`
