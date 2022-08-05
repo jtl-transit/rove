@@ -32,5 +32,5 @@ avl module
    :members:
    :undoc-members:
    :show-inheritance:
-   .. autoattribute:: records
+   .. autoattribute:: backend.data_class.avl.records
 
