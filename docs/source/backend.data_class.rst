@@ -29,8 +29,8 @@ avl module
 ---------------------------
 
 .. automodule:: backend.data_class.avl
-   .. autoattribute:: records
    :members:
    :undoc-members:
    :show-inheritance:
+   .. autoattribute:: records
 
