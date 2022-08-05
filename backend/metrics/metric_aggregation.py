@@ -168,9 +168,10 @@ class MetricAggregation():
         self.tpbp_corridors['stop_spacing'] = self.tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
 
     def span_of_service(self):
-        """Aggregated service start/end in sec since epoch. Defined as the first arrival at first stop (service start) and the last arrival 
-                at last stop (service end) of all trips on each aggregation level.
-            Levels: segments, corridors, routes, tpbp_segments, tpbp_corridors
+        """Aggregated service start/end in sec since epoch. 
+        
+            - all aggregation levels: the first arrival at first stop (service start) and the last arrival 
+            at last stop (service end) of all trips
         """
 
         self.segments['service_start'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
