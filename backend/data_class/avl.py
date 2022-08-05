@@ -46,10 +46,9 @@ class AVL(BaseData):
 
         super().__init__('avl', rove_params)
 
-        # dataframe of AVL records
+        #: dataframe of AVL records
         self.records:pd.DataFrame = self.get_avl_records()
 
-        # correct passenger on, off and load columns
         self.correct_passenger_load()
 
     def load_data(self, path: str) -> pd.DataFrame:
