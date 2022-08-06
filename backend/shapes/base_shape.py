@@ -1,6 +1,3 @@
-"""_summary_
-"""
-
 import logging
 import pandas as pd
 import numpy as np
@@ -29,22 +26,21 @@ class BaseShape():
     :type patterns: Dict[str, Dict]
     :param outpath: path to the shape json file
     :type outpath: str
-    :param parameters: shape parameters, defaults to PARAMETERS
+    :param parameters: shape parameters, defaults to MAP_MATCHING_PARAMETERS
     :type parameters: Dict[str, int], optional
     :param mode: mode of the transit that the segments are of, defaults to 'bus'
     :type mode: str, optional
     """
 
-    #: parameters that are used to balance the accuracy vs. coverage of shapes returned by Valhalla
-    SHAPE_PARAMETERS = {
+    #: parameters that are used to in the map matching process to balance the accuracy vs. coverage of shapes returned by Valhalla
+    MAP_MATCHING_PARAMETERS = {
         'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
         'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
         'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
         'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
-        'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
-    }
+        'radius_increase_step': 10} # Step size used to increase search area when Valhalla cannot find an initial match (meters)
 
-    def __init__(self, patterns, outpath, parameters=SHAPE_PARAMETERS, mode='bus'):
+    def __init__(self, patterns, outpath, parameters=MAP_MATCHING_PARAMETERS, mode='bus'):
 
         logger.info(f'Generating shapes...')
         self.mode = mode
@@ -185,7 +181,7 @@ class BaseShape():
 
 class Valhalla_Point():
     """Store information of a point that will become part of a list of points passed to the Valhalla trace_attribute 
-    service. More detailed documentatino: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
+    service. More detailed documentation: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
 
     :param lat: latitude of the point
     :type lat: float
@@ -246,7 +242,7 @@ class Valhalla_Request():
     """Store the request content that can be sent to the Valhalla trace_attribute service. Provide method to send
     the request to Valhalla and save the output from Valhalla. 
     Each request is for one segment only. 
-    More detailed documentatino: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
+    More detailed documentation: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
 
     :param shape_name: name of the segment
     :type shape_name: str
@@ -297,7 +293,7 @@ class Valhalla_Request():
         """Return the request content for one segment
 
         :return: a dict of request content pertaining to a segment
-        :rtype: _type_
+        :rtype: Dict
         """
 
         return {'shape': self.shape,
@@ -311,9 +307,9 @@ class Valhalla_Request():
     def get_trace_route_response(self, timeout=100):
         """Retrieve the request content for a segment, then send the request to Valhalla. If a good response is returned, 
         then the geometry (encoded polyline) and distance are saved in the matched dict 
-        (e.g. {seg1_id: {0: {geometry: xxx, distance: 0.5}}, seg2_id: {0: {geometry: xxx, distance: 0.5}}}). Otherwise if 
+        (e.g. {'seg1_id': {0: {geometry: xxx, distance: 0.5}}, 'seg2_id': {0: {geometry: xxx, distance: 0.5}}}). Otherwise if 
         the response is invalid, then the segment information is stored in the skipped dict 
-        (e.g. {seg1_id: {'shape_input': {request_parameters}, 'result': {400: 'No suitable edges near location'}}}).
+        (e.g. {'seg1_id': {'shape_input': {request_parameters}, 'result': {400: 'No suitable edges near location'}}}).
 
         :param timeout: request timeout threshold in seconds, defaults to 100
         :type timeout: int, optional
