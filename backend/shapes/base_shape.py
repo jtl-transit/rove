@@ -14,12 +14,15 @@ from time import sleep
 
 logger = logging.getLogger("backendLogger")
 
-
-
 class BaseShape():
-    """Stores a list of segment dicts, each dict contains keys: pattern (route_id - direction - count of pattern), 
-    route_id, direction (0 for outbound or 1 for inbound), seg_index (route_id - first stop_id - second stop_id), 
-    stop_pair (list of two stops), geometry (string of the encoded polyline), distance (length of segment in km), 
+    """Stores a list of segment dicts and output the list to a json file. Each dict contains keys: 
+    pattern (route_id - direction - count of pattern), 
+    route_id, 
+    direction (0 for outbound or 1 for inbound), 
+    seg_index (route_id - first stop_id - second stop_id), 
+    stop_pair (list of two stops), 
+    geometry (string of the encoded polyline), 
+    distance (length of segment in km), 
     mode ('bus').
 
     :param patterns: dict of patterns
@@ -33,7 +36,7 @@ class BaseShape():
     """
 
     #: parameters that are used to balance the accuracy vs. coverage of shapes returned by Valhalla
-    PARAMETERS = {
+    SHAPE_PARAMETERS = {
         'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
         'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
         'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
@@ -41,30 +44,17 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
     }
 
-    def __init__(self, patterns, outpath, parameters=PARAMETERS, mode='bus'):
-        """_summary_
-        """
+    def __init__(self, patterns, outpath, parameters=SHAPE_PARAMETERS, mode='bus'):
 
         logger.info(f'Generating shapes...')
         self.mode = mode
         self.PARAMETERS = parameters
-        self.patterns = self.check_patterns(patterns)
+        self.patterns = self.__check_patterns(patterns)
         self.outpath = check_parent_dir(outpath)
 
         self.shapes = self.generate_shapes()
-        logger.info(f'shapes generated')
 
-    def check_patterns(self, patterns:Dict) -> Dict:
-        """_summary_
-
-        :param patterns: _description_
-        :type patterns: Dict
-        :raises TypeError: _description_
-        :raises TypeError: _description_
-        :raises TypeError: _description_
-        :return: _description_
-        :rtype: Dict
-        """
+    def __check_patterns(self, patterns:Dict) -> Dict:
         
         if not isinstance(patterns, Dict):
             raise TypeError(f'patterns must be given as a dict to be processed for shapes')
@@ -77,13 +67,12 @@ class BaseShape():
         logger.debug(f'total number of patterns: {len(patterns.keys())}')
         return patterns
 
-    def generate_shapes(self) -> Dict:
-        """_summary_
+    def generate_shapes(self) -> pd.DataFrame:
+        """For each segment, find its encoded polyline and distance, then save the data in a json file as well
+        as a dataframe.
 
-        Returns:
-            Dict: Pattern dict - key: pattern; value: Segment dict (a segment is a section of road between two transit stops). 
-                    Segment dict - key: tuple of stop IDs at the beginning and end of the segment; 
-                                    value: segment information (geometry, distance).
+        :return: a dataframe where each row contains all information of a segment
+        :rtype: pd.DataFrame
         """
 
         PARAMETERS = self.PARAMETERS
@@ -195,17 +184,36 @@ class BaseShape():
         return round(2*R*math.atan2(math.sqrt(a), math.sqrt(1 - a)),0)
 
 class Valhalla_Point():
+    """Store information of a point that will become part of a list of points passed to the Valhalla trace_attribute 
+    service. More detailed documentatino: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
 
+    :param lat: latitude of the point
+    :type lat: float
+    :param lon: longitude of the point
+    :type lon: float
+    :param type: "break" for endpoint of a segment or "via" for intermediate point of a segment
+    :type type: str
+    :param radius: see Valhalla documentation
+    :type radius: int
+    :param rank_candidates: see Valhalla documentation, defaults to 'true'
+    :type rank_candidates: str, optional
+    :param preferred_side: see Valhalla documentation, defaults to 'same'
+    :type preferred_side: str, optional
+    :param node_snap_tolerance: see Valhalla documentation, defaults to 0
+    :type node_snap_tolerance: int, optional
+    :param street_side_tolerance: see Valhalla documentation, defaults to 0
+    :type street_side_tolerance: int, optional
+    """
 
     def __init__(self, 
-                lat,
-                lon,
-                type,
-                radius,
-                rank_candidates='true',
-                preferred_side='same',
-                node_snap_tolerance=0,
-                street_side_tolerance=0,):
+                lat:float,
+                lon:float,
+                type:str,
+                radius:int,
+                rank_candidates:str='true',
+                preferred_side:str='same',
+                node_snap_tolerance:int=0,
+                street_side_tolerance:int=0,):
 
         self.lat = lat
         self.lon = lon
@@ -216,7 +224,12 @@ class Valhalla_Point():
         self.node_snap_tolerance = node_snap_tolerance
         self.street_side_tolerance = street_side_tolerance
 
-    def point_parameters(self):
+    def point_parameters(self) -> Dict:
+        """Return all information about a point
+
+        :return: a dict of informaiton pertaining to one point
+        :rtype: Dict
+        """
 
         return {'lat': self.lat,
                 'lon': self.lon,
@@ -230,24 +243,46 @@ class Valhalla_Point():
 
 
 class Valhalla_Request():
-    
+    """Store the request content that can be sent to the Valhalla trace_attribute service. Provide method to send
+    the request to Valhalla and save the output from Valhalla. 
+    Each request is for one segment only. 
+    More detailed documentatino: https://valhalla.readthedocs.io/en/latest/api/map-matching/api-reference/#example-trace_attributes-requests.
+
+    :param shape_name: name of the segment
+    :type shape_name: str
+    :param shape: shape parameters, i.e. a list of Valhalla_Points' point_parameters, each point is a point on the segment
+    :type shape: List
+    :param costing: see Valhalla documentation, defaults to 'bus'
+    :type costing: str, optional
+    :param shape_match: see Valhalla documentation, defaults to 'map_snap'
+    :type shape_match: str, optional
+    :param filters: see Valhalla documentation, defaults to { 'attributes': ['edge.id', 'edge.length', 'shape'], 'action':'include' }
+    :type filters: Dict, optional
+    :param costing_options: see Valhalla documentation, defaults to { 'bus':{ 'maneuver_penalty': 43200 } }
+    :type costing_options: Dict, optional
+    :param trace_options_turn_penalty_factor: see Valhalla documentation, defaults to 100000
+    :type trace_options_turn_penalty_factor: int, optional
+    :param max_retry: see Valhalla documentation, defaults to 10
+    :type max_retry: int, optional
+    """
+
     def __init__(self,
-                shape_name,
-                shape, # list of Valhalla_Point
-                costing='bus',
-                shape_match='map_snap',
-                filters={
+                shape_name:str,
+                shape:List,
+                costing:str='bus',
+                shape_match:str='map_snap',
+                filters:Dict={
                         'attributes': ['edge.id', 'edge.length', 'shape'],
                         'action':'include'
                         },
-                costing_options={
+                costing_options:Dict={
                         'bus':{
                             'maneuver_penalty': 43200
                             }
                         },
-                trace_options_turn_penalty_factor=100000,
-                max_retry=10):
-        
+                trace_options_turn_penalty_factor:int=100000,
+                max_retry:int=10):
+
         self.max_retry = max_retry
         self.shape_name = shape_name
         self.shape = shape
@@ -259,6 +294,11 @@ class Valhalla_Request():
 
 
     def request_parameters(self):
+        """Return the request content for one segment
+
+        :return: a dict of request content pertaining to a segment
+        :rtype: _type_
+        """
 
         return {'shape': self.shape,
                 'costing': self.costing,
@@ -269,18 +309,18 @@ class Valhalla_Request():
                 }
 
     def get_trace_route_response(self, timeout=100):
-        """_summary_
+        """Retrieve the request content for a segment, then send the request to Valhalla. If a good response is returned, 
+        then the geometry (encoded polyline) and distance are saved in the matched dict 
+        (e.g. {seg1_id: {0: {geometry: xxx, distance: 0.5}}, seg2_id: {0: {geometry: xxx, distance: 0.5}}}). Otherwise if 
+        the response is invalid, then the segment information is stored in the skipped dict 
+        (e.g. {seg1_id: {'shape_input': {request_parameters}, 'result': {400: 'No suitable edges near location'}}}).
 
-        Args:
-            timeout (int, optional): _description_. Defaults to 60.
-
-        Raises:
-            requests.HTTPError: _description_
-
-        Returns:
-            matched (Dict): matched dict - key: shape name; value: dict of legs info
-                                leg dict - key: leg index; value: geometry (encoded polyline), length
-            skipped (Dict): skipped dict - key: shape name; value: list of Valhalla points info
+        :param timeout: request timeout threshold in seconds, defaults to 100
+        :type timeout: int, optional
+        :raises requests.HTTPError: the response from Valhalla did not come back with a status code of 200
+        :raises ConnectionError: encounters Valhall connection error, will sleep for 1 second and retry
+        :return: tuple of matched and skipped dicts
+        :rtype: Tuple[Dict, Dict]
         """
 
         matched = {}
