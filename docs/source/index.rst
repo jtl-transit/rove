@@ -23,3 +23,10 @@ Contents
 
    install
    backend
+   frontend
+
+Indices and tables
+==================
+
+* :ref:`install`
+* :ref:`backend`

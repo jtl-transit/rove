@@ -1,15 +1,14 @@
-"""Data class for GTFS data.
-"""
-
 from typing import Dict
 from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-from ..base_data_class import BaseData
+
+from .rove_parameters import ROVE_params
+from .base_data_class import BaseData
 from copy import deepcopy
-from ..helper_functions import get_hash_of_stop_list, check_dataframe_column
+from backend.helper_functions import get_hash_of_stop_list, check_dataframe_column
 from scipy.spatial import distance
 
 
@@ -50,19 +49,36 @@ OPTIONAL_DATA_SPEC = {
                     }
 
 class GTFS(BaseData):
+    """Store a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
+    Also generate and store a dict of route patterns (patterns_dict).
 
-    def __init__(self, alias, rove_params, mode='bus'):
+    :param rove_params: a rove_params object that stores information needed throughout the backend
+    :type rove_params: ROVE_params
+    :param mode: the mode of transit that the GTFS data is for, defaults to 'bus'. The current implementation is developed for bus GTFS data only. 
+        Support for other transit modes may be added in the future.
+    :type mode: str, optional
+    """
+
+    def __init__(self, rove_params:ROVE_params, mode:str='bus'):
+        """Instantiate a GTFS data class.
+        """
+
+        if mode not in rove_params.config['route_type'].keys():
+            raise KeyError(f'Invalid mode: {mode}. Cannot find the corresponding route type value in the config file.')
         self.mode = mode
-        super().__init__(alias, rove_params)        
+
+        super().__init__('gtfs', rove_params)        
 
         # create the records table that contains all stop events info and trips info
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
+        logger.debug(f'adding timepoints to GTFS data')
         self.add_timepoints()
         check_dataframe_column(self.records, 'timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
+        logger.debug(f'adding branchpoints to GTFS data')
         self.add_branchpoints()
         check_dataframe_column(self.records, 'branchpoint', '0or1')
 
@@ -70,15 +86,22 @@ class GTFS(BaseData):
         #   segment dict key: tuple of stops defining the segment, value: coordinates of the segment)
         self.patterns_dict = self.generate_patterns()
 
+        if 'shapes' in self.validated_data.keys():
+            self.patterns_dict = self. improve_pattern_with_shapes(self.patterns_dict, self.records, self.validated_data)
+
+
     def load_data(self, path:str)->Dict[str, DataFrame]:
         """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
         if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
         the required and optional specs. Store the retrieved raw data tables in a dict.
 
-        Returns:
-            dict <str, DataFrame>: key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
+        :param path: path to the raw data
+        :type path: str
+        :return: a dict containing raw GTFS data. Key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
+        :rtype: Dict[str, DataFrame]
         """
+
         rove_params = self.rove_params
 
         # Retrieve GTFS data for the sample date
@@ -107,18 +130,12 @@ class GTFS(BaseData):
         For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
         For tables in any spec, all spec columns must exist if the spec table is not empty.
 
-        Args:
-            feed (ptg.readers.Feed): GTFS feed
-            table_col_spec (Dict[str,Dict[str,str]]): key: GTFS table name; value: dict of <column name: column dtype>
-            requied (bool, optional): whether the table_col_spec is required. Defaults to False.
-
-        Raises:
-            ValueError: table is found in the feed, but is empty.
-            AttributeError: a table name specified in table_col_spec is not found in GTFS feed.
-
-        Returns:
-            Dict[str, DataFrame]: key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :raises ValueError: table is found in the feed, but is empty.
+        :raises KeyError: table is missing at least one of the required columns
+        :return: a dict containing raw GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :rtype: Dict[str, DataFrame]
         """
+
         data = {}
         for table_name, columns in table_col_spec.items():
             try:
@@ -149,12 +166,10 @@ class GTFS(BaseData):
     def validate_data(self):
         """Clean up raw data by converting column types to those listed in the spec.
 
-        Raises:
-            ValueError: if any one type of the required raw data is empty
-
-        Returns:
-            dict <str, DataFrame>: validated and cleaned-up data
+        :return: a dict containing cleaned-up GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
+        :rtype: Dict[str, DataFrame]
         """
+
         # avoid changing the raw data object
         data:Dict = deepcopy(self.raw_data)
         data_specs = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
@@ -168,6 +183,16 @@ class GTFS(BaseData):
         return data
 
     def get_gtfs_records(self) -> pd.DataFrame:
+        """Return a dataframe that is the validated GTFS stop_times table left joined by the validated GTFS trips table. 
+        Values are sorted by [route_id, trip_id, stop_sequence]. Additional columns are added for the convenience of downstream
+        calculations: 
+            - 'hour' - the hour that the arrival time is in;
+            - 'trip_start_time': start time of the trip that this stop event record is associated with;
+            - 'trip_end_time': end time of the trip that this stop event record is associated with.
+
+        :return: the merged dataframe and additional columns
+        :rtype: pd.DataFrame
+        """
 
         trips:pd.DataFrame = self.validated_data['trips']
         stop_times:pd.DataFrame = self.validated_data['stop_times']
@@ -175,23 +200,26 @@ class GTFS(BaseData):
         gtfs_df = stop_times.merge(trips, on='trip_id', how='left')\
                         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])
         
-        # gtfs_df['arrival_time'] = pd.to_timedelta(gtfs_df['arrival_time'])
         gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
         gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
         gtfs_df['trip_end_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('max')
 
-        # gtfs_df = gtfs_df[
-        #     ['arrival_time', 'stop_id', 'stop_sequence', 'trip_id', 'route_id',
-        #     'direction_id', 'timepoint']]\
-        #         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])\
-        #         .drop_duplicates(subset=['stop_id', 'trip_id'])
         return gtfs_df
 
     def add_timepoints(self):
+        """Add, or repopulate, the 'timepoint' column in the GTFS records table (created from get_gtfs_records()). 'timepoint' is an optional column in GTFS standards, but
+        we require the identification of timepoints in each trip for timepoint-level metric calculations. Therefore, each agency must either supply
+        the 'timepoint' info in the 'timepoint' column of the 'stop_times' table in GTFS data, or provide additional data source and extend the standard
+        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. 
+        """
+
         pass
 
     def add_branchpoints(self):
-        
+        """Add the 'branchpoint' and 'tp_bp' columns in the GTFS records table. 'branchpoint' is defined as stops where routes converge or diverge between two timepoints.
+        The 'tp_bp' column marks stops that are either a timepoint or a branchpoint. The 'tp_bp' stop pairs are the basis of aggregation for 'timepoint' and 'timepoint-aggregated' metrics.
+        """
+
         records = self.records
 
         g = deepcopy(records)
@@ -217,7 +245,7 @@ class GTFS(BaseData):
         g['routes_diff_prev_len'] = g['routes_diff_prev'].apply(lambda x: len(x) if isinstance(x, set) else 0)
 
         # stops that have a different set of routes from adjacent stops and where shared routes appear more than once
-        # in adjacent stops are labeled as branchpoint
+        # in adjacent stops (i.e. shared routes not only share this stop, but also the previous or next stop) are labeled as branchpoint
         g['branchpoint'] = (((g['routes_diff_next_len'] + g['routes_diff_prev_len'])>0)\
                              & ~((g['routes_diff_prev']==g['routes_diff_next']) & (g['routes_diff_prev_len']!=0))).astype(int)
         records['branchpoint'] = g['branchpoint']
@@ -230,14 +258,13 @@ class GTFS(BaseData):
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern" column to the trips table.
 
-        Raises:
-            ValueError: number of unique trip hashes does not match with number of unique sequence of stops
-
-        Returns:
-            Dict: Pattern dict - key: pattern; value: Segment dict (a segment is a section of road between two transit stops). 
-                    Segment dict - key: tuple of stop IDs at the beginning and end of the segment; value: list of coordinates defining the segment.
+        :raises ValueError: number of unique trip hashes does not match with number of unique sequence of stops
+        :return: pattern dict - key: pattern (route_id - direction_id - hash count); value: Segment dict (a segment is a section of road between two transit stops). 
+            (Segment dict - key: tuple of first and last stops of the segment; value: list of coordinates defining the segment.)
+        :rtype: Dict[str, Dict]
         """
-        logger.info(f'generating patterns with GTFS data...')
+
+        logger.info(f'generating patterns from GTFS stop coordinates')
 
         gtfs:Dict = self.validated_data
         records = self.records
@@ -282,20 +309,26 @@ class GTFS(BaseData):
         patterns = {pattern: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
                                     for i in range(len(stop_ids)-1)} for pattern, stop_ids in pattern_stops_lookup.items()}
 
-        logger.info(f'gtfs patterns generated')
-
-        if 'shapes' in gtfs.keys():
-            patterns = self. __improve_pattern_with_shapes(patterns, records, gtfs)
-
+        
         return patterns
 
-    def __improve_pattern_with_shapes(self, patterns:Dict, records:pd.DataFrame, gtfs:Dict) -> Dict:
-        """Improve the coordinates of each segment in each pattern by replacing the stop coordinates
-            with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates
-            at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes
-            to enrich the segment profile.
+    def improve_pattern_with_shapes(self, patterns:Dict, records:pd.DataFrame, gtfs:Dict) -> Dict[str, Dict]:
+        """Improve the coordinates of each segment in each pattern by supplementing the stop coordinates 
+        with coordinates found in the GTFS shapes table, i.e. in addition to the two stop coordinates 
+        at both ends of the segment, also add additional intermediate coordinates given by GTFS shapes 
+        to enrich the segment profile.
+
+        :param patterns: dict of patterns
+        :type patterns: Dict
+        :param records: table of validated GTFS stop_times records
+        :type records: pd.DataFrame
+        :param gtfs: dict of validated GTFS tables
+        :type gtfs: Dict
+        :return: dict of patterns, where the list of coordinates of each segment is supplemented by the GTFS shapes table
+        :rtype: Dict[str, Dict]
         """
-        logger.info(f'improving pattern with GTFS shapes table...')
+        
+        logger.info(f'improving patterns with GTFS shapes')
 
         trips = gtfs['trips']
         shapes = gtfs['shapes'].sort_values(by=['shape_id', 'shape_pt_sequence'])
@@ -312,8 +345,7 @@ class GTFS(BaseData):
                                 .groupby('pattern')['trip_id'].agg(list).to_dict()
 
         for pattern, segments in patterns.items():
-            if pattern == '120-0-1':
-                print(1)
+
             # Find a representative shape ID and the corresponding list of shape coordinates
             trips = hash_trips_lookup[pattern]
             try:
@@ -339,7 +371,6 @@ class GTFS(BaseData):
                 if len(intermediate_shape_coords)>2:
                     segments[id_pair] = intermediate_shape_coords
 
-        logger.info(f'patterns improved with GTFS shapes')
         return patterns
 
     def __find_nearest_point(self, coord_list, coord):

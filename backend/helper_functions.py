@@ -32,6 +32,7 @@ def day_list_generation(MONTH, YEAR, DATE_TYPE, workalendarPath):
     Raises:
         ValueError: if MONTH is out of [1, 12] range or if DATE_TYPE is not one of "Workday", "Saturday", "Sunday"
     """
+
     MONTH = int(MONTH)
     YEAR = int(YEAR)
 
@@ -83,6 +84,7 @@ def check_is_file(path, extension=None):
     Returns:
         str : path to file
     """
+
     if os.path.isfile(path):
         if extension and not path.endswith(extension):
             raise ValueError(f'Not a valid {extension} file.')
@@ -116,6 +118,7 @@ def check_is_dir(path, overwrite=False, create_if_none=False):
     Returns:
         str: path to the output directory
     """
+
     if os.path.isdir(path):
         if overwrite:
             shutil.rmtree(path)
@@ -142,6 +145,7 @@ def get_hash_of_stop_list(stops:List[str]) -> int:
     Returns:
         string of hash value of the list of stops. Use string to avoid using large integers.
     """
+
     # hash_1 = sum((2*np.arange(1,len(stops)+1))**2)
     hash_2 = 0
     for i in range(len(stops)):
@@ -158,6 +162,7 @@ def get_stop_value(stop:str) -> int:
     Returns:
         value of a stop
     """
+
     try:
         num = int(stop)
     except ValueError as err: # the given stop ID is not a numerical value

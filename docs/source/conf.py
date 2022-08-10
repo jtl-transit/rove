@@ -1,6 +1,18 @@
 # Configuration file for the Sphinx documentation builder.
 
 # -- Project information
+import os
+import sys
+print(sys.executable)
+sys.path.insert(0, os.path.abspath('../../backend/'))
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+
+autodoc_default_options = {
+    'members':         True,
+    'member-order':    'bysource',
+}
+
+autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge"]
 
 project = 'Rove'
 copyright = '2022, MIT Transit Lab'
