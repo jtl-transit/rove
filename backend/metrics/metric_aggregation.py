@@ -5,31 +5,25 @@ import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List, Callable
 import scipy.stats
+import pickle
+from ..data_class.rove_parameters import ROVE_params
+from backend.helper_functions import check_parent_dir
+from tqdm.auto import tqdm
 
 logger = logging.getLogger("backendLogger")
 
 FT_PER_MIN_TO_MPH = 0.0113636
+SECONDS_IN_MINUTE = 60
+SECONDS_IN_HOUR = 3600
+SECONDS_IN_TEN_MINUTES = SECONDS_IN_MINUTE * 10
 
 class MetricAggregation():
     
-    def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, \
-                    start_time:List, end_time:List, percentile:int, redValues:dict):
-
-        logger.info(f'aggregating metrics for period: {start_time} - {end_time}, percentile: {percentile}')
-
-        if not isinstance(start_time, List) or not isinstance(end_time, List) or \
-            len(start_time) != 2 or len(end_time) != 2:
-            raise TypeError(f'start_time and end_time must both be lists of length 2: [hour, minute].')
-
-        self.start_time = start_time[0]*3600 + start_time[1]*60
-        self.end_time = end_time[0]*3600 + end_time[1]*60
-
-        if end_time < start_time:
-            raise ValueError(f'Start time must be smaller than end time.')
-
-        self.stop_metrics, self.stop_metrics_time_filtered = self.__prepare_metrics(stop_metrics, self.start_time, self.end_time, 'stop')
-        self.route_metrics, self.route_metrics_time_filtered = self.__prepare_metrics(route_metrics, self.start_time, self.end_time, 'route')
-        self.tpbp_metrics, self.tpbp_metrics_time_filtered = self.__prepare_metrics(tpbp_metrics, self.start_time, self.end_time, 'tpbp')
+    def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, params:ROVE_params):
+        logger.info(f'Aggregating metrics...')
+        self.stop_metrics = deepcopy(stop_metrics)
+        self.route_metrics = deepcopy(route_metrics) 
+        self.tpbp_metrics = deepcopy(tpbp_metrics)
 
         self.SEGMENT_MULTIINDEX = ['route_id', 'stop_pair']
         self.CORRIDOR_MULTIINDEX = ['stop_pair']
@@ -41,7 +35,44 @@ class MetricAggregation():
         self.tpbp_segments:pd.DataFrame = self.__generate_segments(self.tpbp_metrics)
         self.tpbp_corridors:pd.DataFrame = self.__generate_corridors(self.tpbp_metrics)
 
-        self.redValues = redValues
+        self.data_option = params.data_option
+        self.redValues = params.redValues
+        self.percentiles:dict = params.config['percentiles']
+        self.time_dict:dict = params.config['time_periods']
+
+        self.aggregate_by_time_periods(params.output_paths['metric_calculation_aggre'])
+        self.aggregate_by_10min_intervals(params.output_paths['metric_calculation_aggre_10min'])
+
+    def aggregate_by_start_end_time(self, start_time:List, end_time:List, percentile:int):
+        """Given a start_time and end_time, filter each metrics table to keep only stop arrivals within the time window, or 
+        trips that depart from the first stop within the time window, then calculate each time-dependent metric using the time-filtered metrics table. 
+        A non time-dependent metric is one that does not change with different trips, such as stop spacing. All other metrics are time-dependent, and 
+        therefore requries the time-filtered metrics for aggregation.
+
+        :param start_time: the time after which trips/stop events are considered for aggregation, given in a list of [hour, minute], e.g. [3, 0] is 3 am, 
+            and [25, 0] is 1 am of the same operation day
+        :type start_time: List
+        :param end_time: the time before which trips/stop events are considered for aggregation
+        :type end_time: List
+        :param percentile: percentile of metrics that is returned, e.g. 50 -> median, 90 -> worst decile
+        :type percentile: int
+        :raises TypeError: start_time or end_time is not provided in a list
+        :raises ValueError: end_time is earlier than start_time
+        """
+
+        if not isinstance(start_time, List) or not isinstance(end_time, List) or \
+            len(start_time) != 2 or len(end_time) != 2:
+            raise TypeError(f'start_time and end_time must both be lists of length 2: [hour, minute].')
+
+        start_time = start_time[0]*3600 + start_time[1]*60
+        end_time = end_time[0]*3600 + end_time[1]*60
+
+        if end_time < start_time:
+            raise ValueError(f'Start time must be smaller than end time.')
+        
+        self.stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.stop_metrics, start_time, end_time, 'stop')
+        self.route_metrics_time_filtered = self.__get_time_filtered_metrics(self.route_metrics, start_time, end_time, 'route')
+        self.tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.tpbp_metrics, start_time, end_time, 'tpbp')
 
         # not time-dependent (use non time-filtered data)
         self.stop_spacing()
@@ -58,24 +89,90 @@ class MetricAggregation():
         self.speed(percentile, 'scheduled')
 
         # ---- AVL metrics ----
-        self.headway('percentile', percentile, 'observed')
-        self.running_time(percentile, 'observed')
-        self.speed(percentile, 'observed', 'without_dwell')
-        self.speed(percentile, 'observed', 'with_dwell')
-        self.boardings(percentile)
-        self.on_time_performance()
-        self.crowding()
-        self.passenger_load(percentile)
-        self.wait_time('observed')
-        self.excess_wait_time()
-        self.congestion_delay()
-        self.productivity()
+        if 'AVL' in self.data_option:
+            self.headway('percentile', percentile, 'observed')
+            self.running_time(percentile, 'observed')
+            self.speed(percentile, 'observed', 'without_dwell')
+            self.speed(percentile, 'observed', 'with_dwell')
+            self.boardings(percentile)
+            self.on_time_performance()
+            self.crowding()
+            self.passenger_load(percentile)
+            self.wait_time('observed')
+            self.excess_wait_time()
+            self.congestion_delay()
+            self.productivity()
 
         self.segments_agg_metrics = self.__get_agg_metrics(self.segments.reset_index(), 'segments')
         self.corridors_agg_metrics = self.__get_agg_metrics(self.corridors.reset_index(), 'corridors')
         self.routes_agg_metrics = self.__get_agg_metrics(self.routes.reset_index(), 'routes')
         self.tpbp_segments_agg_metrics = self.__get_agg_metrics(self.tpbp_segments.reset_index(), 'segments')
         self.tpbp_corridors_agg_metrics = self.__get_agg_metrics(self.tpbp_corridors.reset_index(), 'corridors')
+
+    def aggregate_by_10min_intervals(self, output_path:str):
+        """Generate aggregation output for every 10-min interval of the day and write to a pickled file the results in a dict. 
+        Each key is a 10-min interval of the full day (defined in the config file under 'time_periods' -> 'full'), 
+        and each element is a dict, whose key is a percentile of aggregation (e.g. 50 or 90), and element is a 
+        tuple of five dataframes, each one containing the aggregated metrics of stop, stop-aggregated, route, timepoint, and
+        timepoint-aggregated metrics.
+        """
+        logger.info(f'aggregating metrics for 10-min intervals')
+        interval_to_second = lambda x: x[0] * SECONDS_IN_HOUR + x[1] * SECONDS_IN_MINUTE
+        second_to_interval = lambda x: (x // SECONDS_IN_HOUR, (x % SECONDS_IN_HOUR) // SECONDS_IN_MINUTE)
+        
+        day_start, day_end = self.time_dict['full']
+        day_start_sec = interval_to_second(day_start)
+        day_end_sec = interval_to_second(day_end)
+
+        all_10_min_intervals = []
+
+        for interval_start_second in np.arange(day_start_sec, day_end_sec, SECONDS_IN_TEN_MINUTES):
+            interval_end_second = min(day_end_sec, interval_start_second + SECONDS_IN_TEN_MINUTES)
+            all_10_min_intervals.append(((second_to_interval(interval_start_second)), (second_to_interval(interval_end_second))))
+
+        agg_metrics_10_min = {}
+        for interval in tqdm(all_10_min_intervals, desc='aggregating metrics for 10-min intervals'):
+            interval_start, interval_end = interval
+
+            agg_metrics_10_min[interval] = {}
+
+            for agg_method, percentile in self.percentiles.items():
+                
+                self.aggregate_by_start_end_time(list(interval_start), list(interval_end), percentile)
+
+                agg_metrics_10_min[interval][agg_method] = (
+                    self.segments_agg_metrics,
+                    self.corridors_agg_metrics,
+                    self.routes_agg_metrics,
+                    self.tpbp_segments_agg_metrics,
+                    self.tpbp_corridors_agg_metrics
+                )
+
+        output_path = check_parent_dir(output_path)
+        pickle.dump(agg_metrics_10_min, open(output_path, "wb"))
+
+    def aggregate_by_time_periods(self, output_path:str):
+        """Generate aggregation output by pre-defined time periods and write to a pickled file the results in a dict. Each 
+        key is a string concatenation of "time period name" - "aggregation level" - "percentile", e.g. (am_peak-segment-50), where 
+        "segment" means stop level aggregation, corridor means stop-aggregated, segment-timepoints means timepoint, and corridor-timepoints 
+        means timepoint-aggregated. Each key is the corresponding aggregated metrics table normalized to the JSON format.
+        """
+        agg_metrics = {}
+        for period_name, period in tqdm(self.time_dict.items(), desc='aggregating metrics for pre-defined time periods'):
+            start_time, end_time = period
+            for agg_percentile, percentile_value in self.percentiles.items():
+
+                self.aggregate_by_start_end_time(start_time, end_time, percentile_value)
+
+                agg_metrics[f'{period_name}-segment-{agg_percentile}'] = self.segments_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-corridor-{agg_percentile}'] = self.corridors_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-route-{agg_percentile}'] = self.routes_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-segment-timepoints-{agg_percentile}'] = self.tpbp_segments_agg_metrics.to_json(orient='records')
+                agg_metrics[f'{period_name}-corridor-timepoints-{agg_percentile}'] = self.tpbp_corridors_agg_metrics.to_json(orient='records')
+
+        output_path = check_parent_dir(output_path)
+        pickle.dump(agg_metrics, open(output_path, "wb"))
+
 
     def __get_agg_metrics(self, metrics_df:pd.DataFrame, data_type:str):
 
@@ -121,34 +218,31 @@ class MetricAggregation():
             raise ValueError(f'Invalid percentile p={p}. Percentile must be a positive integer in [0, 100].')
         
 
-    def __prepare_metrics(self, metrics:pd.DataFrame, start_time:int, end_time:int, data_type:str):
-
-        if data_type != 'route':
-            metrics = metrics.dropna(subset=['next_stop'])
+    def __get_time_filtered_metrics(self, metrics:pd.DataFrame, start_time:int, end_time:int, data_type:str):
 
         if data_type == 'route':
-            new_metrics = deepcopy(metrics.loc[(metrics['trip_start_time'] >= start_time) & (metrics['trip_start_time'] < end_time), :])
+            time_filtered_metrics = deepcopy(metrics.loc[(metrics['trip_start_time'] >= start_time) & (metrics['trip_start_time'] < end_time), :])
         else:
-            new_metrics = deepcopy(metrics.loc[(metrics['arrival_time'] >= start_time) & (metrics['arrival_time'] < end_time), :])
+            time_filtered_metrics = deepcopy(metrics.loc[(metrics['arrival_time'] >= start_time) & (metrics['arrival_time'] < end_time), :])
 
-        return metrics, new_metrics
+        return time_filtered_metrics
 
     def __generate_segments(self, records:pd.DataFrame):
         
         # Get data structure for segments. Multiindex: route_id, stop_pair, hour       
-        segments = records.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
+        segments = records.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'sample_size')
 
         return segments
     
     def __generate_corridors(self, records:pd.DataFrame):
 
-        corridors = records.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
+        corridors = records.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'sample_size')
 
         return corridors
 
     def __generate_routes(self, records:pd.DataFrame):
         
-        routes = records.groupby(self.ROUTE_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'trip_counts')
+        routes = records.groupby(self.ROUTE_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'sample_size')
         return routes
 
     def stop_spacing(self):
@@ -174,20 +268,22 @@ class MetricAggregation():
               at last stop (service end) of all trips
         """
 
-        self.segments['service_start'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
-        self.segments['service_end'] = self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')
+        sig_fig = 1
 
-        self.corridors['service_start'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')
-        self.corridors['service_end'] = self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')
+        self.segments['service_start'] = (self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')/3600).round(sig_fig)
+        self.segments['service_end'] = (self.stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')/3600).round(sig_fig)
 
-        self.routes['service_start'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_start_time'].agg('min')
-        self.routes['service_end'] = self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_end_time'].agg('max')
+        self.corridors['service_start'] = (self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')/3600).round(sig_fig)
+        self.corridors['service_end'] = (self.stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')/3600).round(sig_fig)
 
-        self.tpbp_segments['service_start'] = self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')
-        self.tpbp_segments['service_end'] = self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')
+        self.routes['service_start'] = (self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_start_time'].agg('min')/3600).round(sig_fig)
+        self.routes['service_end'] = (self.route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_end_time'].agg('max')/3600).round(sig_fig)
 
-        self.tpbp_corridors['service_start'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')
-        self.tpbp_corridors['service_end'] = self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')
+        self.tpbp_segments['service_start'] = (self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('min')/3600).round(sig_fig)
+        self.tpbp_segments['service_end'] = (self.tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['arrival_time'].agg('max')/3600).round(sig_fig)
+
+        self.tpbp_corridors['service_start'] = (self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('min')/3600).round(sig_fig)
+        self.tpbp_corridors['service_end'] = (self.tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['arrival_time'].agg('max')/3600).round(sig_fig)
 
     def revenue_hour(self):
         """Aggregated revenue hours in hr. 
@@ -197,11 +293,11 @@ class MetricAggregation():
 
         sig_fig = 1
 
-        self.segments['revenue_hour'] = ((self.segments['service_end'] - self.segments['service_start']) / 3660).round(sig_fig)
-        self.corridors['revenue_hour'] = ((self.corridors['service_end'] - self.corridors['service_start']) / 3660).round(sig_fig)
-        self.routes['revenue_hour'] = ((self.routes['service_end'] - self.routes['service_start']) / 3660).round(sig_fig)
-        self.tpbp_segments['revenue_hour'] = ((self.tpbp_segments['service_end'] - self.tpbp_segments['service_start']) / 3660).round(sig_fig)
-        self.tpbp_corridors['revenue_hour'] = ((self.tpbp_corridors['service_end'] - self.tpbp_corridors['service_start']) / 3660).round(sig_fig)
+        self.segments['revenue_hour'] = (self.segments['service_end'] - self.segments['service_start']).round(sig_fig)
+        self.corridors['revenue_hour'] = (self.corridors['service_end'] - self.corridors['service_start']).round(sig_fig)
+        self.routes['revenue_hour'] = (self.routes['service_end'] - self.routes['service_start']).round(sig_fig)
+        self.tpbp_segments['revenue_hour'] = (self.tpbp_segments['service_end'] - self.tpbp_segments['service_start']).round(sig_fig)
+        self.tpbp_corridors['revenue_hour'] = (self.tpbp_corridors['service_end'] - self.tpbp_corridors['service_start']).round(sig_fig)
 
     def scheduled_frequency(self):
         """Aggregated scheduled frequency in trips/hr. 
@@ -211,11 +307,11 @@ class MetricAggregation():
 
         sig_fig = 1
 
-        self.segments['scheduled_frequency'] = (self.segments['trip_counts'] / self.segments['revenue_hour']).round(sig_fig)
-        self.corridors['scheduled_frequency'] = (self.corridors['trip_counts'] / self.corridors['revenue_hour']).round(sig_fig)
-        self.routes['scheduled_frequency'] = (self.routes['trip_counts'] / self.routes['revenue_hour']).round(sig_fig)
-        self.tpbp_segments['scheduled_frequency'] = (self.tpbp_segments['trip_counts'] / self.tpbp_segments['revenue_hour']).round(sig_fig)
-        self.tpbp_corridors['scheduled_frequency'] = (self.tpbp_corridors['trip_counts'] / self.tpbp_corridors['revenue_hour']).round(sig_fig)
+        self.segments['scheduled_frequency'] = (self.segments['sample_size'] / self.segments['revenue_hour']).round(sig_fig)
+        self.corridors['scheduled_frequency'] = (self.corridors['sample_size'] / self.corridors['revenue_hour']).round(sig_fig)
+        self.routes['scheduled_frequency'] = (self.routes['sample_size'] / self.routes['revenue_hour']).round(sig_fig)
+        self.tpbp_segments['scheduled_frequency'] = (self.tpbp_segments['sample_size'] / self.tpbp_segments['revenue_hour']).round(sig_fig)
+        self.tpbp_corridors['scheduled_frequency'] = (self.tpbp_corridors['sample_size'] / self.tpbp_corridors['revenue_hour']).round(sig_fig)
 
 
     def headway(self, method:str, percentile:int, data_type:str):

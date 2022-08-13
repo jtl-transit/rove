@@ -5,6 +5,8 @@ import numpy as np
 from typing import Tuple, Dict, Set, List
 import scipy.stats
 
+from ..data_class.rove_parameters import ROVE_params
+
 logger = logging.getLogger("backendLogger")
 
 FEET_TO_METERS = 0.3048
@@ -19,7 +21,7 @@ MEAN_SPEED_MPH = 30
 
 class MetricCalculation():
     
-    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame):
+    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, data_option:str):
         
         logger.info(f'Calculating metrics...')
 
@@ -29,8 +31,8 @@ class MetricCalculation():
 
         self.ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
         self.route_metrics = self.__prepare_route_metrics(gtfs_records)
-
-        self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
+        if avl_records is not None:
+            self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
 
         # ---- GTFS metrics ----
         self.stop_spacing(shapes)
@@ -39,16 +41,17 @@ class MetricCalculation():
         self.scheduled_speed()
 
         # ---- AVL metrics ----
-        self.observed_headway()
-        self.observed_running_time()
-        self.observed_speed_without_dwell()
-        self.observed_running_time_with_dwell()
-        self.observed_speed_with_dwell()
-        self.boardings()
-        self.on_time_performance()
-        self.passenger_load()
-        self.crowding()
-        self.congestion_delay()
+        if 'AVL' in data_option:
+            self.observed_headway()
+            self.observed_running_time()
+            self.observed_speed_without_dwell()
+            self.observed_running_time_with_dwell()
+            self.observed_speed_with_dwell()
+            self.boardings()
+            self.on_time_performance()
+            self.passenger_load()
+            self.crowding()
+            self.congestion_delay()
         logger.info(f'Metrics calculation completed.')
 
     def __prepare_stop_event_records(self, records:pd.DataFrame, type:str) -> pd.DataFrame:
@@ -79,7 +82,7 @@ class MetricCalculation():
         records.loc[:, 'next_stop'] = records.groupby(by=groups)['stop_id'].shift(-1)
         records.loc[:, 'next_stop_arrival_time'] = records.groupby(by=groups)[arrival_time_col].shift(-1)
         records.loc[:, 'stop_pair'] = pd.Series(list(zip(records.stop_id, records.next_stop)))
-        records = records.set_index('index')
+        records = records.dropna(subset=['next_stop']).set_index('index')
 
         return records
 
@@ -102,7 +105,7 @@ class MetricCalculation():
         logger.info(f'calculating stop spacing')
 
         records = self.stop_metrics.reset_index()\
-                    .merge(shapes[['pattern', 'stop_pair', 'distance']], on=['pattern', 'stop_pair'], how='left')\
+                    .merge(shapes[['pattern', 'stop_pair', 'distance']].drop_duplicates(), on=['pattern', 'stop_pair'], how='left')\
                     .set_index('index')
 
         self.stop_metrics['stop_spacing'] = (records['distance'] * KILOMETER_TO_FT).round(2)

@@ -1,4 +1,5 @@
 # import logging
+from backend.data_class.wmata.wmata_avl import WMATA_AVL
 from data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
 from backend.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
@@ -18,10 +19,10 @@ AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "10" # MM in string format
 YEAR = "2021" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
-SHAPE_GENERATION = True # True/False: whether to generate shapes
-METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
+SHAPE_GENERATION = False # True/False: whether to generate shapes
+METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
 
@@ -49,9 +50,11 @@ def __main__():
     # AVL
     if 'AVL' in DATA_OPTION:
         if AGENCY == 'MBTA':
-            avl = MBTA_AVL(params)
+            avl = MBTA_AVL(params, bus_gtfs)
+        elif AGENCY == 'WMATA':
+            avl = WMATA_AVL(params, bus_gtfs)
         else:
-            avl = AVL(params) 
+            avl = AVL(params, bus_gtfs) 
         avl_records = avl.records
     else:
         avl_records = None
@@ -65,70 +68,8 @@ def __main__():
     # ------metric calculation and aggregation------
     if METRIC_CAL_AGG:
         # metric calculation
-        metrics = MetricCalculation(shapes, gtfs_records, avl_records)
-
-        # metric aggregation
-        aggregation_stats = {
-            'median': 50,
-            '90': 90
-        }
-        redValues = params.redValues
-
-        # metric aggregation by time periods
-        time_dict:dict = params.config['time_periods']
-        agg_metrics = {}
-        for period_name, period in time_dict.items():
-            start_time, end_time = period
-            for agg_method, percentile in aggregation_stats.items():
-
-                agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, start_time, end_time, percentile, redValues)
-
-                agg_metrics[f'{period_name}-segment-{agg_method}'] = agg.segments_agg_metrics.to_json(orient='records')
-                agg_metrics[f'{period_name}-corridor-{agg_method}'] = agg.corridors_agg_metrics.to_json(orient='records')
-                agg_metrics[f'{period_name}-route-{agg_method}'] = agg.routes_agg_metrics.to_json(orient='records')
-                agg_metrics[f'{period_name}-segment-timepoints-{agg_method}'] = agg.tpbp_segments_agg_metrics.to_json(orient='records')
-                agg_metrics[f'{period_name}-corridor-timepoints-{agg_method}'] = agg.tpbp_corridors_agg_metrics.to_json(orient='records')
-
-        pickle.dump(agg_metrics, open(params.output_paths['metric_calculation_aggre'], "wb"))
-
-        # metric aggregation by 10-minute interval
-        SECONDS_IN_MINUTE = 60
-        SECONDS_IN_HOUR = 3600
-        SECONDS_IN_TEN_MINUTES = SECONDS_IN_MINUTE * 10
-
-        interval_to_second = lambda x: x[0] * SECONDS_IN_HOUR + x[1] * SECONDS_IN_MINUTE
-        second_to_interval = lambda x: (x // SECONDS_IN_HOUR, (x % SECONDS_IN_HOUR) // SECONDS_IN_MINUTE)
-        
-        day_start, day_end = params.config['time_periods']['full']
-        day_start_sec = interval_to_second(day_start)
-        day_end_sec = interval_to_second(day_end)
-
-        all_10_min_intervals = []
-
-        for interval_start_second in np.arange(day_start_sec, day_end_sec, SECONDS_IN_TEN_MINUTES):
-            interval_end_second = min(day_end_sec, interval_start_second + SECONDS_IN_TEN_MINUTES)
-            all_10_min_intervals.append(((second_to_interval(interval_start_second)), (second_to_interval(interval_end_second))))
-
-        agg_metrics_10_min = {}
-        for interval in all_10_min_intervals:
-            interval_start, interval_end = interval
-
-            agg_metrics_10_min[interval] = {}
-
-            for agg_method, percentile in aggregation_stats.items():
-
-                agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, \
-                                        list(interval_start), list(interval_end), percentile, redValues)
-
-                agg_metrics_10_min[interval][agg_method] = (
-                    agg.segments_agg_metrics,
-                    agg.corridors_agg_metrics,
-                    agg.routes_agg_metrics,
-                    agg.tpbp_segments_agg_metrics,
-                    agg.tpbp_corridors_agg_metrics
-                )
-
-        pickle.dump(agg_metrics_10_min, open(params.output_paths['metric_calculation_aggre_10min'], "wb"))
+        metrics = MetricCalculation(shapes, gtfs_records, avl_records, params.data_option)
+        agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, params)
 
     logger.info(f'ROVE backend process completed')
 
