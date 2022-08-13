@@ -1,6 +1,7 @@
 from numpy import dtype
 from ..gtfs import GTFS
 import pandas as pd
+from backend.helper_functions import convert_stop_ids, load_csv_to_dataframe
 
 class WMATA_GTFS(GTFS):
 
@@ -8,19 +9,21 @@ class WMATA_GTFS(GTFS):
         super().__init__(rove_params, mode)
 
     def add_timepoints(self):
-        timepoint_df = pd.read_csv(f'data/{self.rove_params.agency}/agency-specific/timepoints{self.rove_params.suffix}.csv')
-        timepoint_df.columns = timepoint_df.columns.str.lower()
         tp_df_col_types = {
             'route': 'string',
+            'stopid': 'string',
             'reg_id': 'string'
         }
-        tp_df_cols = list(tp_df_col_types.keys())
-        timepoint_df[tp_df_cols] = timepoint_df[tp_df_cols].astype(dtype=tp_df_col_types)
-        timepoint_df = self.substitute_stop_id_with_stop_code(timepoint_df, self.validated_data['stops'], 'reg_id')[['route','reg_id','assoc_tpid']]\
-                        .drop_duplicates(subset=['route','reg_id']).dropna(how='any')
+        id_cols = list(tp_df_col_types.keys())
+        timepont_inpath = f'data/{self.rove_params.agency}/agency-specific/timepoints{self.rove_params.suffix}.csv'
+        timepoint_df = load_csv_to_dataframe(timepont_inpath, id_cols=id_cols)
+        timepoint_df[id_cols] = timepoint_df[id_cols].astype(tp_df_col_types)
         
-        self.records = self.records.merge(timepoint_df, left_on=['route_id', 'stop_id'], right_on=['route','reg_id'], how='left')
-        self.records['timepoint'] = ~self.records['reg_id'].isnull()
+        timepoint_df = convert_stop_ids('wmata timepoint data', timepoint_df, 'reg_id', self.validated_data['stops'])
+        
+        timepoint_stop_lookup = timepoint_df[['route', 'reg_id', 'assoc_tpid']].drop_duplicates(subset=['route', 'reg_id'])
+        self.records = self.records.merge(timepoint_stop_lookup, left_on=['route_id', 'stop_id'], right_on=['route','reg_id'], how='left')
+        self.records['timepoint'] = ~self.records['assoc_tpid'].isnull()
         self.records.drop(columns=['route','reg_id','assoc_tpid'], inplace=True)
 
     # If WMATA input data uses stop_ids that don't match GTFS stop_id, convert them

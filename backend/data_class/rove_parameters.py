@@ -91,7 +91,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         return {
             'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
             'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
-            'backend_config': f'data/{self.agency}/config/{self.agency}_param_config.json',
+            'backend_config': f'data/{self.agency}/config/{self.agency}_backend_config.json',
             'frontend_config': f'frontend/static/inputs/{self.agency}/config.json',
             'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
         }
@@ -105,7 +105,8 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         return {
             'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json',
-            'metric_calculation_timepoints': f'frontend/static/inputs/{self.agency}/timepoints/timepoints{self.suffix}.json',
+            'timepoints': f'frontend/static/inputs/{self.agency}/timepoints/timepoints{self.suffix}.json',
+            'stop_name_lookup': f'frontend/static/inputs/{self.agency}/lookup/lookup{self.suffix}.json',
             'metric_calculation_peak': f'frontend/static/inputs/{self.agency}/peak/peak{self.suffix}.json',
             'metric_calculation_aggre': f'data/{self.agency}/metrics/METRICS{self.suffix}.p',
             'metric_calculation_aggre_10min': f'data/{self.agency}/metrics/METRICS_10MIN{self.suffix}.p'

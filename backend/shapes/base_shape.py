@@ -32,13 +32,14 @@ class BaseShape():
     :type mode: str, optional
     """
 
-    #: parameters that are used to in the map matching process to balance the accuracy vs. coverage of shapes returned by Valhalla
+    #: parameters that are used in the map matching process to balance the accuracy vs. coverage of shapes returned by Valhalla
     MAP_MATCHING_PARAMETERS = {
         'stop_distance_meter': 100, # Stop-to-stop distance threshold for including intermediate coordinates (meters)
         'maximum_radius_increase': 100, # Self-defined parameter to limit the search area for matching coordinates (meters)
         'stop_radius': 35, # Radius used to search when matching stop coordinates (meters)
         'intermediate_radius': 100, # Radius used to search when matching intermediate coordinates (meters)
-        'radius_increase_step': 10} # Step size used to increase search area when Valhalla cannot find an initial match (meters)
+        'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
+        }
 
     def __init__(self, patterns, outpath, parameters=MAP_MATCHING_PARAMETERS, mode='bus'):
 
@@ -48,7 +49,7 @@ class BaseShape():
         self.patterns = self.__check_patterns(patterns)
         self.outpath = check_parent_dir(outpath)
 
-        self.shapes = self.generate_shapes()
+        self.shapes = self.generate_segment_shapes()
 
     def __check_patterns(self, patterns:Dict) -> Dict:
         
@@ -63,7 +64,7 @@ class BaseShape():
         logger.debug(f'total number of patterns: {len(patterns.keys())}')
         return patterns
 
-    def generate_shapes(self) -> pd.DataFrame:
+    def generate_segment_shapes(self) -> pd.DataFrame:
         """For each segment, find its encoded polyline and distance, then save the data in a json file as well
         as a dataframe.
 
@@ -75,8 +76,9 @@ class BaseShape():
         all_matched = {}
         all_skipped = {}
 
-        pbar = tqdm(total=len(self.patterns.keys()), desc='Generating pattern shapes', position=0)
-        for p_name, segments in self.patterns.items():
+        # pbar = tqdm(total=len(self.patterns.keys()), desc='Generating pattern shapes', position=0)
+        # for p_name, segments in self.patterns.items():
+        for p_name, segments in tqdm(self.patterns.items(), desc='Generating pattern shapes', position=0):
             for s_name, coords in segments.items():
                 stop_distance = PARAMETERS['stop_distance_meter']
                 found_geometry = False
@@ -123,7 +125,7 @@ class BaseShape():
                         all_skipped[p_name] = {}
                     all_skipped[p_name][s_name] = skipped[s_name]
 
-            pbar.update()
+            # pbar.update()
 
         matched_output = [
                             {
@@ -132,6 +134,7 @@ class BaseShape():
                                     'direction': int(p_name.split('-')[-2]),
                                     'seg_index':f"{'-'.join(p_name.split('-')[0:-2])}-{s_name[0]}-{s_name[1]}",
                                     'stop_pair': s_name, 
+                                    'timepoint_index': f"{p_name}-0",
                                     'mode': self.mode},
                                 **s_info
                             }

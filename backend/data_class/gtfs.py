@@ -4,11 +4,11 @@ import partridge as ptg
 import pandas as pd
 import numpy as np
 import logging
-
+import json
 from .rove_parameters import ROVE_params
-from .base_data_class import BaseData
 from copy import deepcopy
-from backend.helper_functions import get_hash_of_stop_list, check_dataframe_column
+from backend.helper_functions import get_hash_of_stop_list, check_dataframe_column, check_parent_dir, \
+    check_is_file
 from scipy.spatial import distance
 
 
@@ -18,6 +18,7 @@ REQUIRED_DATA_SPEC = {
                     'stops':{
                         'stop_id':'string',
                         'stop_code':'string',
+                        'stop_name': 'string',
                         'stop_lat':'float64',
                         'stop_lon':'float64'
                         }, 
@@ -48,7 +49,7 @@ OPTIONAL_DATA_SPEC = {
                         }
                     }
 
-class GTFS(BaseData):
+class GTFS():
     """Store a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
     Also generate and store a dict of route patterns (patterns_dict).
 
@@ -67,7 +68,18 @@ class GTFS(BaseData):
             raise KeyError(f'Invalid mode: {mode}. Cannot find the corresponding route type value in the config file.')
         self.mode = mode
 
-        super().__init__('gtfs', rove_params)        
+        self.alias = 'gtfs'
+
+        self.rove_params = rove_params
+        
+        # Raw data (read-only) read from the given path.
+        logger.info(f'loading {self.alias} data')
+        path = check_is_file(rove_params.input_paths[self.alias])
+        self.raw_data = self.load_data(path)
+        
+        # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
+        logger.info(f'validating {self.alias} data')
+        self.validated_data = self.validate_data()
 
         # create the records table that contains all stop events info and trips info
         self.records:pd.DataFrame = self.get_gtfs_records()
@@ -88,6 +100,47 @@ class GTFS(BaseData):
 
         if 'shapes' in self.validated_data.keys():
             self.patterns_dict = self. improve_pattern_with_shapes(self.patterns_dict, self.records, self.validated_data)
+
+        self.generate_timepoints_output()
+        self.generate_stop_name_output()
+
+    def generate_timepoints_output(self):
+        """Save to a JSON file a lookup of timepoint pairs. Each key is the segment ID, i.e. string concatenation of "route_id - first stop - second stop" 
+        of the stop pair, and value is a tuple (first stop_id, second stop_id) of the timepoint pair that this stop pair belongs to. 
+        """
+        records = self.records.copy()
+
+        tpbp_records = records.loc[records['tp_bp']==1, :].copy().reset_index()
+        tpbp_records.loc[:, 'next_tpbp'] = tpbp_records.groupby('trip_id')['stop_id'].shift(-1)
+        tpbp_records.loc[:, 'tpbp_pair'] = pd.Series(list(zip(tpbp_records.stop_id, tpbp_records.next_tpbp)))
+        tpbp_records = tpbp_records.set_index('index')
+        
+        records.loc[:, 'next_stop'] = records.groupby(by=['trip_id'])['stop_id'].shift(-1)
+        records = records.dropna(subset=['next_stop'])
+        records['tpbp_pair'] = tpbp_records['tpbp_pair']
+        records['tpbp_pair'] = records['tpbp_pair'].fillna(method='ffill')
+
+        records['segment_index'] = records['route_id'].astype(str) + '-' \
+                                        + records['stop_id'].astype(str) + '-'  \
+                                            + records['next_stop'].astype(str)
+
+        tpbp_dict = records.set_index('segment_index')['tpbp_pair'].to_dict()
+
+        out_path = check_parent_dir(self.rove_params.output_paths['timepoints'])
+        
+        with open(out_path, "w") as outfile:
+            json.dump(tpbp_dict, outfile)
+    
+    def generate_stop_name_output(self):
+        """Save to a JSON file a lookup of stop names. Each key is the stop ID, and element is the dict {"stop_name" : <name of the stop>}.
+        """
+        stop_name_dict = self.validated_data['stops'][['stop_id', 'stop_name']].dropna().drop_duplicates()\
+                            .set_index('stop_id').to_dict('index')
+
+        out_path = check_parent_dir(self.rove_params.output_paths['stop_name_lookup'])
+        
+        with open(out_path, "w") as outfile:
+            json.dump(stop_name_dict, outfile)
 
 
     def load_data(self, path:str)->Dict[str, DataFrame]:
@@ -178,6 +231,8 @@ class GTFS(BaseData):
         for table_name, df in data.items():
             columns_dtype_dict = data_specs[table_name]
             cols = list(columns_dtype_dict.keys())
+            id_cols = [col for col, dtype in columns_dtype_dict.items() if dtype == 'string']
+            df = df.dropna(subset=id_cols)
             df[cols] = df[cols].astype(dtype=columns_dtype_dict)
 
         return data
@@ -198,7 +253,8 @@ class GTFS(BaseData):
         stop_times:pd.DataFrame = self.validated_data['stop_times']
 
         gtfs_df = stop_times.merge(trips, on='trip_id', how='left')\
-                        .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])
+                        .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])\
+                            .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first')
         
         gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
         gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
@@ -254,6 +310,7 @@ class GTFS(BaseData):
         records['tp_bp'] = ((records['timepoint']==1) | (records['branchpoint']==1)).astype(int)
         # mark the first stop of each trip as tp_bp
         records.loc[records.groupby('trip_id')['tp_bp'].head(1).index, 'tp_bp'] = 1
+        records.loc[records.groupby('trip_id')['tp_bp'].tail(1).index, 'tp_bp'] = 1
 
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern" column to the trips table.
