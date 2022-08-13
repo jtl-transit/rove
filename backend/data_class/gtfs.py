@@ -26,7 +26,7 @@ class GTFS():
     :type mode: str, optional
     """
 
-    #: required tables and columns in GTFS static data. Note that "direction_id" is not a required field in GTFS specification, but is required by ROVE.
+    #: Required tables and columns in GTFS static data. Note that "direction_id" is not a required field in GTFS specification, but is required by ROVE.
     REQUIRED_DATA_SPEC = {
                         'stops':{
                             'stop_id':'string',
@@ -54,7 +54,7 @@ class GTFS():
                             }
                         }
 
-    #: optional tables and columns that ideally are present in GTFS static data
+    #: Optional tables and columns that ideally are present in GTFS static data
     OPTIONAL_DATA_SPEC = {
                         'shapes':{
                             'shape_id':'string',

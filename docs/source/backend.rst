@@ -19,12 +19,21 @@ Modules
 
 Example
 -----------
-As the package has not been published yet, it CANNOT be installed as a standalone package. The suggested method for now is to download the code base and run the scipts in a conda environment.
+As the package has not been published yet, it CANNOT be installed as a standalone package. The suggested method 
+for now is to download the code base and run the scipts in a conda environment.
+
+All backend processes start in :doc:`backend_main <../../backend/backend_main.py>`. First, the user needs to specify a few parameters as shown below. ``AGENCY`` 
+is the name of the agency that the user is analyzing for. This is also the name of the directories that the input data should be stored in, and where output data will 
+be saved to. ``MONTH`` and ``YEAR`` are 2- and 4-digit strings of the month and year to be analyzed, e.g. to analyze metrics for Feb 2021, then "02" and "2021" should 
+be used. ``DATE_TYPE`` is the type of day that the user want to analyze, namely Weekday (which excludes weekends and holidays), Saturday or Sunday. ``DATA_OPTION`` is 
+the concatenated string of the input data that will be used to generate metrics. Currently, only GTFS and AVL data are supported, so the options are either 'GTFS' or 'GTFS-AVL'.
+
+Then, the use will specify which backend module will be used.
 
 .. code-block:: python
 
-   AGENCY = "WMATA" # CTA, MBTA, WMATA
-   MONTH = "10" # MM in string format
+   AGENCY = "WMATA" # CTA, MBTA, WMATA, etc...
+   MONTH = "02" # MM in string format
    YEAR = "2021" # YYYY in string format
    DATE_TYPE = "Workday" # Workday, Saturday, Sunday
    DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL

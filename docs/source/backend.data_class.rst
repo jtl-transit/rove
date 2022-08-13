@@ -9,14 +9,6 @@ rove\_parameters module
    :undoc-members:
    :show-inheritance:
 
-base\_data\_class module
------------------------------------------
-
-.. automodule:: backend.data_class.base_data_class
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 gtfs module
 ----------------------------
 
