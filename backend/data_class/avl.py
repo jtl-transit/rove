@@ -24,6 +24,7 @@ class AVL():
     :type rove_params: ROVE_params
     """
     
+    #: required columns and the data types that each column will be converted to in AVL data
     REQUIRED_COL_SPEC = {
         'route':'string',
         'stop_id':'string',
@@ -36,6 +37,8 @@ class AVL():
         'seat_capacity': 'int64',
         'trip_id':'string'
     }
+
+    #: optional columns in AVL data
     OPTIONAL_COL_SPEC = {
 
     }

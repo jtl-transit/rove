@@ -155,7 +155,7 @@ class MetricAggregation():
         """Generate aggregation output by pre-defined time periods and write to a pickled file the results in a dict. Each 
         key is a string concatenation of "time period name" - "aggregation level" - "percentile", e.g. (am_peak-segment-50), where 
         "segment" means stop level aggregation, corridor means stop-aggregated, segment-timepoints means timepoint, and corridor-timepoints 
-        means timepoint-aggregated. Each key is the corresponding aggregated metrics table normalized to the JSON format.
+        means timepoint-aggregated. Each element is the corresponding aggregated metrics table normalized to the JSON format.
         """
         agg_metrics = {}
         for period_name, period in tqdm(self.time_dict.items(), desc='aggregating metrics for pre-defined time periods'):

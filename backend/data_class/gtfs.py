@@ -14,40 +14,6 @@ from scipy.spatial import distance
 
 logger = logging.getLogger("backendLogger")
 
-REQUIRED_DATA_SPEC = {
-                    'stops':{
-                        'stop_id':'string',
-                        'stop_code':'string',
-                        'stop_name': 'string',
-                        'stop_lat':'float64',
-                        'stop_lon':'float64'
-                        }, 
-                    'routes':{
-                        'route_id':'string',
-                        'route_type': 'int64'
-                        }, 
-                    'trips':{
-                        'route_id':'string',
-                        'service_id':'string',
-                        'trip_id':'string',
-                        'direction_id':'int64', # not required by GTFS but required by ROVE
-                        }, 
-                    'stop_times':{
-                        'trip_id':'string',
-                        'arrival_time':'int64',
-                        'departure_time':'int64',
-                        'stop_id':'string',
-                        'stop_sequence':'int64',
-                        }
-                    }
-OPTIONAL_DATA_SPEC = {
-                    'shapes':{
-                        'shape_id':'string',
-                        'shape_pt_lat':'float64',
-                        'shape_pt_lon':'float64',
-                        'shape_pt_sequence':'int64'
-                        }
-                    }
 
 class GTFS():
     """Store a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
@@ -59,6 +25,44 @@ class GTFS():
         Support for other transit modes may be added in the future.
     :type mode: str, optional
     """
+
+    #: required tables and columns in GTFS static data. Note that "direction_id" is not a required field in GTFS specification, but is required by ROVE.
+    REQUIRED_DATA_SPEC = {
+                        'stops':{
+                            'stop_id':'string',
+                            'stop_code':'string',
+                            'stop_name': 'string',
+                            'stop_lat':'float64',
+                            'stop_lon':'float64'
+                            }, 
+                        'routes':{
+                            'route_id':'string',
+                            'route_type': 'int64'
+                            }, 
+                        'trips':{
+                            'route_id':'string',
+                            'service_id':'string',
+                            'trip_id':'string',
+                            'direction_id':'int64',
+                            }, 
+                        'stop_times':{
+                            'trip_id':'string',
+                            'arrival_time':'int64',
+                            'departure_time':'int64',
+                            'stop_id':'string',
+                            'stop_sequence':'int64',
+                            }
+                        }
+
+    #: optional tables and columns that ideally are present in GTFS static data
+    OPTIONAL_DATA_SPEC = {
+                        'shapes':{
+                            'shape_id':'string',
+                            'shape_pt_lat':'float64',
+                            'shape_pt_lon':'float64',
+                            'shape_pt_sequence':'int64'
+                            }
+                        }
 
     def __init__(self, rove_params:ROVE_params, mode:str='bus'):
         """Instantiate a GTFS data class.
@@ -169,10 +173,10 @@ class GTFS():
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
-        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_SPEC, required=True)
+        required_data = self.__get_non_empty_gtfs_table(feed, self.REQUIRED_DATA_SPEC, required=True)
 
         # Add whichever optional table listed in the spec exists and is not empty
-        optional_data = self.__get_non_empty_gtfs_table(feed, OPTIONAL_DATA_SPEC)
+        optional_data = self.__get_non_empty_gtfs_table(feed, self.OPTIONAL_DATA_SPEC)
 
         return {**required_data, **optional_data}
 
@@ -225,7 +229,7 @@ class GTFS():
 
         # avoid changing the raw data object
         data:Dict = deepcopy(self.raw_data)
-        data_specs = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
+        data_specs = {**self.REQUIRED_DATA_SPEC, **self.OPTIONAL_DATA_SPEC}
 
         # convert column types according to the spec
         for table_name, df in data.items():
