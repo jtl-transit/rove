@@ -20,8 +20,13 @@ Contents
 --------
 
 .. toctree::
-:maxdepth: 2
-:caption: Contents:
 
-install
-backend
+   install
+   backend
+   frontend
+
+Indices and tables
+==================
+
+* :ref:`install`
+* :ref:`backend`

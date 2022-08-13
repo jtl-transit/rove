@@ -1,6 +1,3 @@
-"""Data class for AVL data.
-"""
-
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Set, Tuple
 from xmlrpc.client import Boolean
@@ -9,36 +6,60 @@ import numpy as np
 import logging
 import time
 from tqdm import tqdm
-from ..base_data_class import BaseData
+
+from backend.data_class.gtfs import GTFS
+from backend.data_class.rove_parameters import ROVE_params
 from copy import deepcopy
 import json
-from ..helper_functions import load_csv_to_dataframe
+from backend.helper_functions import load_csv_to_dataframe, series_to_datetime, check_is_file, convert_trip_ids, convert_stop_ids
 
 
 logger = logging.getLogger("backendLogger")
 
-REQUIRED_COL_SPEC = {
-    'route':'string',
-    'stop_id':'string',
-    'stop_time':'int64',
-    'stop_sequence': 'int64',
-    'dwell_time': 'float64',
-    'passenger_load': 'int64',
-    'passenger_on': 'int64',
-    'passenger_off': 'int64',
-    'seat_capacity': 'int64',
-    'trip_id':'string'
-}
-OPTIONAL_COL_SPEC = {
 
-}
+class AVL():
+    """Stores a validated AVL data records table with passenger on, off and load values corrected.
 
-class AVL(BaseData):
+    :param rove_params: a rove_params object that stores information needed throughout the backend
+    :type rove_params: ROVE_params
+    """
+    
+    REQUIRED_COL_SPEC = {
+        'route':'string',
+        'stop_id':'string',
+        'stop_time':'int',
+        'stop_sequence': 'int64',
+        'dwell_time': 'float64',
+        'passenger_load': 'int64',
+        'passenger_on': 'int64',
+        'passenger_off': 'int64',
+        'seat_capacity': 'int64',
+        'trip_id':'string'
+    }
+    OPTIONAL_COL_SPEC = {
 
-    def __init__(self, alias, rove_params):
-        super().__init__(alias, rove_params)
+    }
 
-        self.records = self.get_avl_records()
+    def __init__(self, rove_params:ROVE_params, bus_gtfs:GTFS):
+        """Instantiate an AVL data class.
+        """
+
+        alias = 'avl'
+
+        self.rove_params = rove_params
+
+        self.gtfs = bus_gtfs
+        
+        # Raw data (read-only) read from the given path.
+        logger.info(f'loading {alias} data')
+        path = check_is_file(rove_params.input_paths[alias])
+        self.raw_data = self.load_data(path)
+        
+        # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
+        logger.info(f'validating {alias} data')
+        self.validated_data = self.validate_data(bus_gtfs)
+
+        self.records:pd.DataFrame = self.get_avl_records()
 
         self.correct_passenger_load()
 
@@ -51,57 +72,91 @@ class AVL(BaseData):
         :return: dataframe of AVL data with all required columns
         :rtype: pd.DataFrame
         """
-        raw_avl = load_csv_to_dataframe(path)
+
+        id_cols = [col for col, dtype in self.REQUIRED_COL_SPEC.items() if dtype == 'string']
+        raw_avl = load_csv_to_dataframe(path, id_cols=id_cols)
 
         if raw_avl.empty:
             raise ValueError(f'AVL data is empty.')
 
-        if not set(REQUIRED_COL_SPEC.keys()).issubset(raw_avl.columns):
+        if not set(self.REQUIRED_COL_SPEC.keys()).issubset(raw_avl.columns):
             # not all required columns are found in raw table
-            missing_columns = set(REQUIRED_COL_SPEC.keys()) - set(raw_avl.columns)
+            missing_columns = set(self.REQUIRED_COL_SPEC.keys()) - set(raw_avl.columns)
             logger.fatal(f'AVL data is missing required columns: {missing_columns}.', exc_info=True)
             quit()
         
-        if not set(OPTIONAL_COL_SPEC.keys()).issubset(raw_avl.columns):
+        if not set(self.OPTIONAL_COL_SPEC.keys()).issubset(raw_avl.columns):
             # not all optional columns are found in raw table
-            missing_columns = set(OPTIONAL_COL_SPEC.keys()) - set(raw_avl.columns)
+            missing_columns = set(self.OPTIONAL_COL_SPEC.keys()) - set(raw_avl.columns)
             logger.warning(f'AVL data is missing optional columns: {missing_columns}.')
 
         return raw_avl
 
  
-    def validate_data(self):
+    def validate_data(self, gtfs:GTFS) -> pd.DataFrame:
+        """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
+        to integer seconds if necessary.
+
+        :return: a dataframe of validated AVL data
+        :rtype: pd.DataFrame
+        """
 
         data:pd.DataFrame = deepcopy(self.raw_data)
-        
+
         data['dwell_time'] = self.convert_dwell_time(data['dwell_time'])
         
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
 
-        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}")
-
-        data_specs = {**REQUIRED_COL_SPEC, **OPTIONAL_COL_SPEC}
+        data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
         data[cols] = data[cols].astype(dtype=data_specs)
+
+        gtfs_stop_ids_set = set(gtfs.validated_data['stops']['stop_id'])
+        gtfs_trip_ids_set = set(gtfs.validated_data['trips']['trip_id'])
+
+        avl_stop_ids_set = set(data['stop_id'])
+        avl_trip_ids_set = set(data['trip_id'])
+
+        matching_stop_ids = gtfs_stop_ids_set & avl_stop_ids_set
+        matching_trip_ids = gtfs_trip_ids_set & avl_trip_ids_set
+        logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
+        logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
+
+        data = convert_trip_ids('avl', data, 'trip_id', self.gtfs.validated_data['trips'])
+        data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
+                
+        
+
+        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}")
+
+        
                
         return data
     
-    def convert_dwell_time(self, data:pd.Series):
-        
-        pass
+    def convert_dwell_time(self, data:pd.Series) -> pd.Series:
+        """Convert dwell times to integer seconds.
 
-    def convert_stop_time(self, data:pd.Series):
-        """Convert stop times to integer seconds since the beginning of service (defined in config). Also return a
-            column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
-            span is from 5 am to 3 am the next day.)
-
-        Args:
-            data (pd.Series): the column of stop_times data
-
-        Returns:
-            pd.Series, pd.Seires: column of stop times in integer seconds, and column of operation dates
+        :param data: the column of dwell_time data
+        :type data: pd.Series
+        :return: column of dwell times in integer seconds
+        :rtype: pd.Series
         """
-        stop_time_dt = pd.to_datetime(data)
+
+        return data
+
+    def convert_stop_time(self, data:pd.Series) -> Tuple[pd.Series, pd.Series]:
+        """Convert stop times to integer seconds since the beginning of service (defined in config). Also return a
+        column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
+        span is from 5 am to 3 am the next day).
+
+        :param data: the column of stop_time (time of arrival at a stop) data
+        :type data: pd.Series
+        :return: column of stop times in integer seconds, and column of operation dates
+        :rtype: Tuple[pd.Series, pd.Seires]
+        """
+        
+        # stop_time_dt = series_to_datetime(data)
+        stop_time_dt = pd.to_datetime(data, infer_datetime_format=True, cache=True)
         stop_time_hour = stop_time_dt.dt.hour
         stop_time_min = stop_time_dt.dt.minute
         stop_time_sec = stop_time_dt.dt.second
@@ -124,7 +179,13 @@ class AVL(BaseData):
 
 
     def get_avl_records(self) -> pd.DataFrame:
-        
+        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route', 'trip_id', 'stop_sequence'], 
+        and only unique rows of each combination of ['svc_date', 'route', 'trip_id', 'stop_sequence'] columns are kept.
+
+        :return: dataframe containing validated and sorted AVL data
+        :rtype: pd.DataFrame
+        """
+
         avl_df:pd.DataFrame = deepcopy(self.validated_data)
 
         avl_df = avl_df.sort_values(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
@@ -134,6 +195,9 @@ class AVL(BaseData):
         return avl_df
     
     def correct_passenger_load(self):
+        """Enforce that no one alights at the first stop or boards at the last stop, and make sure the passenger_on, passenger_off and
+        passenger_load values of each trip add up.
+        """
 
         records = self.records
 
@@ -176,4 +240,3 @@ class AVL(BaseData):
 
         logger.info(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
         records[['passenger_off', 'passenger_load']] = p[['passenger_off', 'passenger_load']]
-        print(1)

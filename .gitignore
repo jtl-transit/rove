@@ -14,6 +14,8 @@ dist/
 build/
 *.egg-info/
 
+backend_main_test.py
+
 *.xml
 *.csv
 *.txt
