@@ -67,7 +67,6 @@ def __main__():
 
     # ------metric calculation and aggregation------
     if METRIC_CAL_AGG:
-        # metric calculation
         metrics = MetricCalculation(shapes, gtfs_records, avl_records, params.data_option)
         agg = MetricAggregation(metrics.stop_metrics, metrics.tpbp_metrics, metrics.route_metrics, params)
 
