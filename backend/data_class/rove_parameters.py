@@ -33,46 +33,49 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
 
         logger.info(f'Generating parameters...')
-        #: analyzed transit agency, see parameter definition
+        #: Analyzed transit agency, see parameter definition
         self.agency:str = agency
 
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
             raise ValueError(f"month must be a 2-character stringified numeric value between 1 and 12, e.g. '02', '12'.")
-        #: analyzed month, see parameter definition
+        #: Analyzed month, see parameter definition
         self.month:str = month
 
         if not year.isnumeric() or len(year) != 4:
             raise ValueError(f"year must be a 4-character stringified numeric value, e.g. '2022'.")
-        #: analyzed year, see parameter definition
+        #: Analyzed year, see parameter definition
         self.year:str = year
 
         SUPPORTED_DATE_TYPES = ['Workday', 'Saturday', 'Sunday']
         if date_type not in SUPPORTED_DATE_TYPES:
             raise ValueError(f"Invalid date_type: {date_type}, must be one of: {SUPPORTED_DATE_TYPES}.")
-        #: analyzed date option, see parameter definition
+        #: Analyzed date option, see parameter definition
         self.date_type:str = date_type
 
         SUPPORTED_DATA_OPTIONS = ['GTFS', 'GTFS-AVL']
         if data_option not in SUPPORTED_DATA_OPTIONS:
             raise ValueError(f"Invalid data_option: {data_option}, must be one of: {SUPPORTED_DATA_OPTIONS}.")
-        #: analyzed data option, see parameter definition
+        #: Analyzed data option, see parameter definition
         self.data_option:str = data_option
 
-        #: suffix used in input and output file names, string concatenation in the form of "<agency>_<month>_<year>", e.g. "MBTA_02_2021"
+        #: Suffix used in input and output file names, string concatenation in the form of "<agency>_<month>_<year>", e.g. "MBTA_02_2021"
         self.suffix:str = f'_{self.agency}_{self.month}_{self.year}'
 
-        #: dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously).
+        #: Dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously)
         self.input_paths:Dict[str, str] = self.__get_input_paths()
 
-        #: dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
-        # aggregated metrics by 10-min intervals.
+        #: Dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
+        # aggregated metrics by 10-min intervals
         self.output_paths:Dict[str, str] = self.__get_output_paths()
         
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
         with open(self.input_paths['frontend_config']) as json_file:
             config = json.load(json_file)
-            self.redValues = config['redValues']
+            #: a dict serving as the lookup of "redValues", i.e. whether a metric is visualized in red when the value is high or low. 
+            # This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consists of name-value pairs
+            # of each metric to be calculated, e.g. "scheduled_frequency" : "Low".
+            self.redValues:Dict[str, str] = config['redValues']
         
         with open(self.input_paths['backend_config']) as json_file:
             self.config = json.load(json_file)
