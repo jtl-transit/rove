@@ -33,17 +33,18 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
 
         logger.info(f'Generating parameters...')
-        #: str : analyzed transit agency
-        self.agency = agency
+        #: analyzed transit agency
+        self.agency:str = agency
 
-        #: str : analysis month, year, date type and data option
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
             raise ValueError(f"month must be a 2-character stringified numeric value between 1 and 12, e.g. '02', '12'.")
-        self.month = month
+        #: analyzed month
+        self.month:str = month
 
         if not year.isnumeric() or len(year) != 4:
             raise ValueError(f"year must be a 4-character stringified numeric value, e.g. '2022'.")
-        self.year = year
+        #: analyzed year
+        self.year:str = year
 
         SUPPORTED_DATE_TYPES = ['Workday', 'Saturday', 'Sunday']
         if date_type not in SUPPORTED_DATE_TYPES:
