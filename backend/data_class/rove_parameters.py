@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from calendar import WEDNESDAY
 import datetime
-from typing import List
+from typing import Dict, List
 from backend.helper_functions import day_list_generation
 import logging
 import json
@@ -33,37 +33,40 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
 
         logger.info(f'Generating parameters...')
-        #: analyzed transit agency
+        #: analyzed transit agency, see parameter definition
         self.agency:str = agency
 
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
             raise ValueError(f"month must be a 2-character stringified numeric value between 1 and 12, e.g. '02', '12'.")
-        #: analyzed month
+        #: analyzed month, see parameter definition
         self.month:str = month
 
         if not year.isnumeric() or len(year) != 4:
             raise ValueError(f"year must be a 4-character stringified numeric value, e.g. '2022'.")
-        #: analyzed year
+        #: analyzed year, see parameter definition
         self.year:str = year
 
         SUPPORTED_DATE_TYPES = ['Workday', 'Saturday', 'Sunday']
         if date_type not in SUPPORTED_DATE_TYPES:
             raise ValueError(f"Invalid date_type: {date_type}, must be one of: {SUPPORTED_DATE_TYPES}.")
-        self.date_type = date_type
+        #: analyzed date option, see parameter definition
+        self.date_type:str = date_type
 
         SUPPORTED_DATA_OPTIONS = ['GTFS', 'GTFS-AVL']
         if data_option not in SUPPORTED_DATA_OPTIONS:
             raise ValueError(f"Invalid data_option: {data_option}, must be one of: {SUPPORTED_DATA_OPTIONS}.")
-        self.data_option = data_option
+        #: analyzed data option, see parameter definition
+        self.data_option:str = data_option
 
-        self.suffix = f'_{self.agency}_{self.month}_{self.year}'
+        #: suffix used in input and output file names, string concatenation in the form of "<agency>_<month>_<year>", e.g. "MBTA_02_2021"
+        self.suffix:str = f'_{self.agency}_{self.month}_{self.year}'
 
-        # list (str) : list of input data used for backend calculations
-        self.data_option = data_option
+        #: dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously).
+        self.input_paths:Dict[str, str] = self.__get_input_paths()
 
-        # dict <str, str> : dict of paths to input and output data
-        self.input_paths = self.__get_input_paths()
-        self.output_paths = self.__get_output_paths()
+        #: dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
+        # aggregated metrics by 10-min intervals.
+        self.output_paths:Dict[str, str] = self.__get_output_paths()
         
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
@@ -108,7 +111,6 @@ class ROVE_params(object, metaclass=ABCMeta):
             'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json',
             'timepoints': f'frontend/static/inputs/{self.agency}/timepoints/timepoints{self.suffix}.json',
             'stop_name_lookup': f'frontend/static/inputs/{self.agency}/lookup/lookup{self.suffix}.json',
-            'metric_calculation_peak': f'frontend/static/inputs/{self.agency}/peak/peak{self.suffix}.json',
             'metric_calculation_aggre': f'data/{self.agency}/metrics/METRICS{self.suffix}.p',
             'metric_calculation_aggre_10min': f'data/{self.agency}/metrics/METRICS_10MIN{self.suffix}.p'
         }
