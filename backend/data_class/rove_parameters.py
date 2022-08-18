@@ -33,7 +33,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
 
         logger.info(f'Generating parameters...')
-        # str : analyzed transit agency
+        #: str : analyzed transit agency
         self.agency = agency
 
         # str : analysis month, year, date type and data option

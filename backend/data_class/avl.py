@@ -22,6 +22,11 @@ class AVL():
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
     :type rove_params: ROVE_params
+    :cvar REQUIRED_COL_SPEC: required columns and the data types that each column will be converted to in AVL data
+    :cvar OPTIONAL_COL_SPEC: optional columns in AVL data
+    :ivar rove_params: rove params
+    :ivar gtfs: gtfs
+    :ivar raw_data: raw AVL table
     """
     
     #: Required columns and the data types that each column will be converted to in AVL data
