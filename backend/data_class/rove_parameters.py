@@ -33,55 +33,56 @@ class ROVE_params(object, metaclass=ABCMeta):
         """
 
         logger.info(f'Generating parameters...')
-        #: Analyzed transit agency, see parameter definition
+        #: Analyzed transit agency, see parameter definition.
         self.agency:str = agency
 
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
             raise ValueError(f"month must be a 2-character stringified numeric value between 1 and 12, e.g. '02', '12'.")
-        #: Analyzed month, see parameter definition
+        #: Analyzed month, see parameter definition.
         self.month:str = month
 
         if not year.isnumeric() or len(year) != 4:
             raise ValueError(f"year must be a 4-character stringified numeric value, e.g. '2022'.")
-        #: Analyzed year, see parameter definition
+        #: Analyzed year, see parameter definition.
         self.year:str = year
 
         SUPPORTED_DATE_TYPES = ['Workday', 'Saturday', 'Sunday']
         if date_type not in SUPPORTED_DATE_TYPES:
             raise ValueError(f"Invalid date_type: {date_type}, must be one of: {SUPPORTED_DATE_TYPES}.")
-        #: Analyzed date option, see parameter definition
+        #: Analyzed date option, see parameter definition.
         self.date_type:str = date_type
 
         SUPPORTED_DATA_OPTIONS = ['GTFS', 'GTFS-AVL']
         if data_option not in SUPPORTED_DATA_OPTIONS:
             raise ValueError(f"Invalid data_option: {data_option}, must be one of: {SUPPORTED_DATA_OPTIONS}.")
-        #: Analyzed data option, see parameter definition
+        #: Analyzed data option, see parameter definition.
         self.data_option:str = data_option
 
-        #: Suffix used in input and output file names, string concatenation in the form of "<agency>_<month>_<year>", e.g. "MBTA_02_2021"
+        #: Suffix used in input and output file names, string concatenation in the form of "<agency>_<month>_<year>", e.g. "MBTA_02_2021".
         self.suffix:str = f'_{self.agency}_{self.month}_{self.year}'
 
-        #: Dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously)
+        #: Dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously).
         self.input_paths:Dict[str, str] = self.__get_input_paths()
 
         #: Dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
-        #: aggregated metrics by 10-min intervals
+        #: aggregated metrics by 10-min intervals.
         self.output_paths:Dict[str, str] = self.__get_output_paths()
         
         # dict <str, any> : 
         with open(self.input_paths['frontend_config']) as json_file:
             config = json.load(json_file)
             #: A dict serving as the lookup of "redValues", i.e. whether a metric is visualized in red when the value is high or low. 
-            #: This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consists of name-value pairs
-            #: of each metric to be calculated, e.g. "scheduled_frequency" : "Low".
+            #: This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consist of name-value pairs
+            #: of each metric to be calculated, where the value must be "High" or "Low". e.g. "scheduled_frequency" : "Low" means that the scheduled frequency 
+            #: of stop pairs/routes will be colored red if the value is low, and blue otherwise.
             self.redValues:Dict[str, str] = config['redValues']
         
         with open(self.input_paths['backend_config']) as json_file:
-            #: agency-specific configuration parameters, e.g., time periods, speed range, percentile list, additional files, etc.
-            self.config = json.load(json_file)
+            #: agency-specific configuration parameters for the backend, e.g., time periods, speed range, percentile list, additional files, etc.
+            self.config:Dict[str, object] = json.load(json_file)
             
-        # list (datetime) : list of dates of given month, year, agency
-        self.date_list = self.__generate_date_list()
+        #: List of dates of the given date_type in the given month and year of the agency.
+        self.date_list:List[datetime.datetime] = self.generate_date_list()
 
         # date : sample date for analysis
         self.sample_date = self.__generate_sample_date()
@@ -118,8 +119,13 @@ class ROVE_params(object, metaclass=ABCMeta):
             'metric_calculation_aggre_10min': f'data/{self.agency}/metrics/METRICS_10MIN{self.suffix}.p'
         }
 
-    def __generate_date_list(self)->List[datetime.datetime]:
-        """Generate list of dates of date_type in the given month and year.
+    def generate_date_list(self)->List[datetime.datetime]:
+        """Generate a list of dates of date_type in the given month and year. For example, if the user specified to analyze "MBTA", "02", "2021", "Workday" as the 
+        agency, month, year and date_type, then this method will return a list of datetime objects that are the workdays (no weekend or holiday) in Feb 2021 in Massachusetts. 
+        A "workalendarPath" object must exist in the backend_config JSON file for the method to know which state/region to lookup the holiday calendar for, and its value must
+        be the workalendar class for the region that the agency operates in. E.g. for the MBTA, this name-value pair is specified in the backend_config file: 
+        "workalendarPath": "workalendar.usa.massachusetts.Massachusetts". For details on how to find the correct workalendar class for your region, refer to 
+        https://workalendar.github.io/workalendar/iso-registry.html.
 
         :raises KeyError: No workalendarPath is found in config.
         :return: List of dates.
