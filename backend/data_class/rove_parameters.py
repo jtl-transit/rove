@@ -65,19 +65,19 @@ class ROVE_params(object, metaclass=ABCMeta):
         self.input_paths:Dict[str, str] = self.__get_input_paths()
 
         #: Dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
-        # aggregated metrics by 10-min intervals
+        #: aggregated metrics by 10-min intervals
         self.output_paths:Dict[str, str] = self.__get_output_paths()
         
-        # dict <str, any> : agency-specific configuration parameters 
-        #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
+        # dict <str, any> : 
         with open(self.input_paths['frontend_config']) as json_file:
             config = json.load(json_file)
-            #: a dict serving as the lookup of "redValues", i.e. whether a metric is visualized in red when the value is high or low. 
-            # This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consists of name-value pairs
-            # of each metric to be calculated, e.g. "scheduled_frequency" : "Low".
+            #: A dict serving as the lookup of "redValues", i.e. whether a metric is visualized in red when the value is high or low. 
+            #: This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consists of name-value pairs
+            #: of each metric to be calculated, e.g. "scheduled_frequency" : "Low".
             self.redValues:Dict[str, str] = config['redValues']
         
         with open(self.input_paths['backend_config']) as json_file:
+            #: agency-specific configuration parameters, e.g., time periods, speed range, percentile list, additional files, etc.
             self.config = json.load(json_file)
             
         # list (datetime) : list of dates of given month, year, agency
