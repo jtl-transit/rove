@@ -36,7 +36,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         #: str : analyzed transit agency
         self.agency = agency
 
-        # str : analysis month, year, date type and data option
+        #: str : analysis month, year, date type and data option
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
             raise ValueError(f"month must be a 2-character stringified numeric value between 1 and 12, e.g. '02', '12'.")
         self.month = month
