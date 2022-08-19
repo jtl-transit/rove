@@ -3,7 +3,6 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
-import scipy.stats
 
 from ..data_class.rove_parameters import ROVE_params
 

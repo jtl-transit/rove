@@ -113,7 +113,7 @@ class GTFS():
 
 
     def load_data(self, path:str)->Dict[str, pd.DataFrame]:
-        """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
+        """Load in GTFS data from a zip file, and retrieve data of the dates in date_list (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
         if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
         the required and optional specs. Store the retrieved raw data tables in a dict.
