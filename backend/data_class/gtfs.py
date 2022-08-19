@@ -81,14 +81,14 @@ class GTFS():
         
         logger.info(f'loading {self.alias} data')
         path = check_is_file(rove_params.input_paths[self.alias])
-        #: Raw data read from the given path, see `load_data()` for details.
+        #: Raw data read from the given path, see :py:meth:`data_class.GTFS.load_data()` for details.
         self.raw_data:Dict[str, DataFrame] = self.load_data(path)
         
         logger.info(f'validating {self.alias} data')
         #: Validated data, see `validate_data()` for details.
         self.validated_data:Dict[str, DataFrame] = self.validate_data()
 
-        #: GTFS records table that contains all stop events info and trips info, see `get_gtfs_records()` for details.
+        #: GTFS records table that contains all stop events info and trips info, see :py:meth:`data_class.GTFS.get_gtfs_records()` for details.
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
