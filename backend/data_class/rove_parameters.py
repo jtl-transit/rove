@@ -68,25 +68,27 @@ class ROVE_params(object, metaclass=ABCMeta):
         #: aggregated metrics by 10-min intervals.
         self.output_paths:Dict[str, str] = self.__get_output_paths()
         
-        # dict <str, any> : 
         with open(self.input_paths['frontend_config']) as json_file:
             config = json.load(json_file)
-            #: A dict serving as the lookup of "redValues", i.e. whether a metric is visualized in red when the value is high or low. 
+            #: A dict serving as the lookup for "redValues", i.e. whether the visualization of a metric value is red when the value is high or low. 
             #: This information is required in the frontend_config JSON file, where an object named "redValues" must exist and consist of name-value pairs
             #: of each metric to be calculated, where the value must be "High" or "Low". e.g. "scheduled_frequency" : "Low" means that the scheduled frequency 
-            #: of stop pairs/routes will be colored red if the value is low, and blue otherwise.
+            #: of stop pairs/routes will be colored red if the value is low and blue if high; whereas "High" means high values are colored red and low values blue.
             self.redValues:Dict[str, str] = config['redValues']
         
         with open(self.input_paths['backend_config']) as json_file:
-            #: agency-specific configuration parameters for the backend, e.g., time periods, speed range, percentile list, additional files, etc.
+            #: agency-specific configuration parameters for the backend (backend_config), e.g., time periods, speed range, percentile list, additional files, etc. 
+            #: (Although there are two config files (frontend_config and backend_config), this attribute storing backend_config data is called "config" for simplicity, 
+            #: because frontend_config is only used in the backend to retrieve redValues as described above, and all other reference to "config" in the backend 
+            #: is using backend_config.)
             self.config:Dict[str, object] = json.load(json_file)
             
         #: List of dates of the given date_type in the given month and year of the agency.
         self.date_list:List[datetime.datetime] = self.generate_date_list()
 
-        # date : sample date for analysis
-        self.sample_date = self.__generate_sample_date()
-        logger.info(f'Sample date: {self.sample_date}')
+        #: sample date for analysis
+        # self.sample_date:datetime.datetime = self.__generate_sample_date()
+        # logger.info(f'Sample date: {self.sample_date}')
         logger.info(f'parameters generated')
 
     def __get_input_paths(self):

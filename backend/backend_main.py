@@ -19,7 +19,7 @@ AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "10" # MM in string format
 YEAR = "2021" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
