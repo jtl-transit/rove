@@ -40,14 +40,14 @@ class MetricCalculation():
         
         logger.info(f'Calculating metrics...')
 
-        #: Initial stop-level metrics table generated from the GTFS records table
+        #: Initial stop-level metrics table generated from the GTFS records table.
         self.stop_metrics:pd.DataFrame = self.__prepare_stop_event_records(gtfs_records, 'GTFS')
 
-        #: Initial timepoint-level metrics table generated from the GTFS records table
+        #: Initial timepoint-level metrics table generated from the GTFS records table.
         self.tpbp_metrics = self.__prepare_stop_event_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :], 'GTFS')
 
         self.ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
-        #: Initial route-level metrics table generated from the GTFS records table
+        #: Initial route-level metrics table generated from the GTFS records table.
         self.route_metrics = self.__prepare_route_metrics(gtfs_records)
         if 'AVL' in data_option:
             if avl_records is not None:
