@@ -295,11 +295,13 @@ def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_co
             if raw_data_trip_col != 'trip_id':
                 raw_data_merge_gtfs_trip_id = raw_data_merge_gtfs_trip_id.drop(columns=['trip_id'])
             return_data = raw_data_merge_gtfs_trip_id
+            logger.debug(f'{raw_data_trip_col} matches with trip_id, replaced with GTFS trip_id')
         else: 
             raw_data_merge_gtfs_sch_trip_id[raw_data_trip_col] = raw_data_merge_gtfs_sch_trip_id['xtrip_id_gtfs']
             if raw_data_trip_col != 'scheduled_trip_id':
                 raw_data_merge_gtfs_sch_trip_id = raw_data_merge_gtfs_sch_trip_id.drop(columns=['scheduled_trip_id', 'xtrip_id_gtfs'])
             return_data = raw_data_merge_gtfs_sch_trip_id
+            logger.debug(f'{raw_data_trip_col} matches with scheduled_trip_id, replaced with GTFS trip_id')
 
     return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)
 
@@ -325,10 +327,12 @@ def convert_stop_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_stop_co
         if raw_data_stop_col != 'stop_id':
             raw_data_merge_gtfs_stop_id = raw_data_merge_gtfs_stop_id.drop(columns=['stop_id'])
         return_data = raw_data_merge_gtfs_stop_id
+        logger.debug(f'{raw_data_stop_col} matches with stop_id, replaced with GTFS stop_id')
     else: 
         raw_data_merge_gtfs_stop_code[raw_data_stop_col] = raw_data_merge_gtfs_stop_code['xstop_id_gtfs']
         if raw_data_stop_col != 'stop_code':
             raw_data_merge_gtfs_stop_code = raw_data_merge_gtfs_stop_code.drop(columns=['stop_code', 'xstop_id_gtfs'])
         return_data = raw_data_merge_gtfs_stop_code
+        logger.debug(f'{raw_data_stop_col} matches with stop_code, replaced with GTFS stop_id')
 
     return return_data.dropna(subset=[raw_data_stop_col]).reset_index(drop=True)

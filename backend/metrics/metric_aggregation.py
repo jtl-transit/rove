@@ -18,8 +18,19 @@ SECONDS_IN_HOUR = 3600
 SECONDS_IN_TEN_MINUTES = SECONDS_IN_MINUTE * 10
 
 class MetricAggregation():
-    
+    """Aggregated stop, stop-aggregated, route, timepoint, and timepoint-aggregated level metrics.
+
+    :param stop_metrics: stop-level metrics from MetricCalculation
+    :type stop_metrics: pd.DataFrame
+    :param tpbp_metrics: timepoint-level metrics from MetricCalculation
+    :type tpbp_metrics: pd.DataFrame
+    :param route_metrics: route-level metrics from MetricCalculation
+    :type route_metrics: pd.DataFrame
+    :param params: a rove_params object that stores information needed throughout the backend
+    :type params: ROVE_params
+    """
     def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, params:ROVE_params):
+        
         logger.info(f'Aggregating metrics...')
         self.stop_metrics = deepcopy(stop_metrics)
         self.route_metrics = deepcopy(route_metrics) 
@@ -29,16 +40,23 @@ class MetricAggregation():
         self.CORRIDOR_MULTIINDEX = ['stop_pair']
         self.ROUTE_MULTIINDEX = ['route_id', 'direction_id']
 
+        #: Initial stop-level aggregated metrics table generated from stop_metrics, contains unique records of route_id + stop_pair
         self.segments:pd.DataFrame = self.__generate_segments(self.stop_metrics)
+        #: Initial stop-aggregated-level aggregated metrics table generated from stop_metrics, contains unique records of stop_pair
         self.corridors:pd.DataFrame = self.__generate_corridors(self.stop_metrics)
+        #: Initial route-level aggregated metrics table generated from stop_metrics, contains unique records of route_id + direction_id
         self.routes:pd.DataFrame = self.__generate_routes(self.route_metrics)
+        #: Initial timepoint-level aggregated metrics table generated from tpbp_metrics, contains unique records of route_id + timepoint stop_pair
         self.tpbp_segments:pd.DataFrame = self.__generate_segments(self.tpbp_metrics)
+        #: Initial timepoint-aggregated-level aggregated metrics table generated from tpbp_metrics, contains unique records of timepoint stop_pair
         self.tpbp_corridors:pd.DataFrame = self.__generate_corridors(self.tpbp_metrics)
 
         self.data_option = params.data_option
         self.redValues = params.redValues
-        self.percentiles:dict = params.config['percentiles']
-        self.time_dict:dict = params.config['time_periods']
+        #: A dict of percentile values used for data aggregation, retrieved from the "percentiles" object in backend_config
+        self.percentiles:Dict[str, int] = params.config['percentiles']
+        #: A dict of time periods for data aggregation, retrieved from the "time_periods" object in backend_config
+        self.time_dict:Dict[str, Dict] = params.config['time_periods']
 
         self.aggregate_by_time_periods(params.output_paths['metric_calculation_aggre'])
         self.aggregate_by_10min_intervals(params.output_paths['metric_calculation_aggre_10min'])

@@ -82,11 +82,11 @@ class GTFS():
         logger.info(f'loading {self.alias} data')
         path = check_is_file(rove_params.input_paths[self.alias])
         #: Raw data read from the given path, see :py:meth:`data_class.GTFS.load_data()` for details.
-        self.raw_data:Dict[str, DataFrame] = self.load_data(path)
+        self.raw_data:Dict[str, pd.DataFrame] = self.load_data(path)
         
         logger.info(f'validating {self.alias} data')
-        #: Validated data, see `validate_data()` for details.
-        self.validated_data:Dict[str, DataFrame] = self.validate_data()
+        #: Validated data, see :py:meth:`data_class.GTFS.validate_data()` for details.
+        self.validated_data:Dict[str, pd.DataFrame] = self.validate_data()
 
         #: GTFS records table that contains all stop events info and trips info, see :py:meth:`data_class.GTFS.get_gtfs_records()` for details.
         self.records:pd.DataFrame = self.get_gtfs_records()
@@ -101,18 +101,18 @@ class GTFS():
         self.add_branchpoints()
         check_dataframe_column(self.records, 'branchpoint', '0or1')
 
-        #: A dict of patterns (different from the GTFS patterns table), see `generate_patterns()` for details.
+        #: A dict of patterns (different from the GTFS patterns table), see :py:meth:`data_class.GTFS.generate_patterns()` for details.
         self.patterns_dict = self.generate_patterns()
 
         if 'shapes' in self.validated_data.keys():
-            #: A dict of improved patterns, see `improve_pattern_with_shapes()` for details.
+            #: A dict of improved patterns, see :py:meth:`data_class.GTFS.improve_pattern_with_shapes()` for details.
             self.patterns_dict = self. improve_pattern_with_shapes(self.patterns_dict, self.records, self.validated_data)
 
         self.generate_timepoints_output()
         self.generate_stop_name_output()
 
 
-    def load_data(self, path:str)->Dict[str, DataFrame]:
+    def load_data(self, path:str)->Dict[str, pd.DataFrame]:
         """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
         if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
@@ -121,7 +121,7 @@ class GTFS():
         :param path: path to the raw data
         :type path: str
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         rove_params = self.rove_params
@@ -147,7 +147,7 @@ class GTFS():
         return {**required_data, **optional_data}
 
     def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:bool=False)\
-                                    ->Dict[str, DataFrame]:
+                                    ->Dict[str, pd.DataFrame]:
         """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
         For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
         For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
@@ -156,7 +156,7 @@ class GTFS():
         :raises ValueError: table is found in the feed, but is empty.
         :raises KeyError: table is missing at least one of the required columns
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         data = {}
@@ -190,7 +190,7 @@ class GTFS():
         """Clean up raw data by converting column types to those listed in the spec.
 
         :return: a dict containing cleaned-up GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         # avoid changing the raw data object

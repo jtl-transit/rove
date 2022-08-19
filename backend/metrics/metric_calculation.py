@@ -20,19 +20,40 @@ MAX_SPEED_MPH = 65
 MEAN_SPEED_MPH = 30
 
 class MetricCalculation():
-    
+    """Calculate stop, stop-aggregated, route, timepoint, and timepoint-aggregated level metrics. If AVL data is provided 
+    and records for the same trip_id exist across multiple days, then calculate the trip metrics by averaging across all service dates. 
+    In other words, the metric calculation module averages metrics for the same trip, so that metrics tables after calculation 
+    only contains unique route_id, trip_id and stop_pair combinations. This is the upstream calculation of metric aggregation, which 
+    averages metrics of all trips on each aggregation level.
+
+    :param shapes: shapes table from Shape Generation
+    :type shapes: pd.DataFrame
+    :param gtfs_records: GTFS records table
+    :type gtfs_records: pd.DataFrame
+    :param avl_records: AVL records table
+    :type avl_records: pd.DataFrame
+    :param data_option: user-specified data option
+    :type data_option: str
+    :raises ValueError: 'AVL' is in data_option but the avl_records table is None
+    """
     def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, data_option:str):
         
         logger.info(f'Calculating metrics...')
 
-        self.stop_metrics = self.__prepare_stop_event_records(gtfs_records, 'GTFS')
+        #: Initial stop-level metrics table generated from the GTFS records table
+        self.stop_metrics:pd.DataFrame = self.__prepare_stop_event_records(gtfs_records, 'GTFS')
 
+        #: Initial timepoint-level metrics table generated from the GTFS records table
         self.tpbp_metrics = self.__prepare_stop_event_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :], 'GTFS')
 
         self.ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
+        #: Initial route-level metrics table generated from the GTFS records table
         self.route_metrics = self.__prepare_route_metrics(gtfs_records)
-        if avl_records is not None:
-            self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
+        if 'AVL' in data_option:
+            if avl_records is not None:
+                self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
+            else:
+                raise ValueError(f'data_option is {data_option} but the AVL records table is None.')
 
         # ---- GTFS metrics ----
         self.stop_spacing(shapes)

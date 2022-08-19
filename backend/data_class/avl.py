@@ -47,21 +47,25 @@ class AVL():
         """Instantiate an AVL data class.
         """
 
-        alias = 'avl'
+        #: Alias of the data class, defined as 'avl'.
+        alias:str = 'avl'
 
-        self.rove_params = rove_params
+        #: ROVE_params for the backend, see parameter definition.
+        self.rove_params:ROVE_params = rove_params
 
-        self.gtfs = bus_gtfs
+        #: GTFS records table
+        self.gtfs:GTFS = bus_gtfs
         
-        # Raw data (read-only) read from the given path.
         logger.info(f'loading {alias} data')
         path = check_is_file(rove_params.input_paths[alias])
-        self.raw_data = self.load_data(path)
+        # Raw data read from the given path, see :py:meth:`data_class.AVL.load_data()` for details.
+        self.raw_data:pd.DataFrame = self.load_data(path)
         
-        # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
         logger.info(f'validating {alias} data')
-        self.validated_data = self.validate_data(bus_gtfs)
+        #: Validated data, see :py:meth:`data_class.AVL.validate_data()` for details.
+        self.validated_data:pd.DataFrame = self.validate_data(bus_gtfs)
 
+        #: AVL records table, see :py:meth:`data_class.AVL.get_avl_records()` for details.
         self.records:pd.DataFrame = self.get_avl_records()
 
         self.correct_passenger_load()
@@ -98,7 +102,7 @@ class AVL():
  
     def validate_data(self, gtfs:GTFS) -> pd.DataFrame:
         """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
-        to integer seconds if necessary.
+        to integer seconds if necessary. Filter to keep only AVL records of dates in the date_list in ROVE_params.
 
         :return: a dataframe of validated AVL data
         :rtype: pd.DataFrame
@@ -109,6 +113,8 @@ class AVL():
         data['dwell_time'] = self.convert_dwell_time(data['dwell_time'])
         
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
+
+        data = deepcopy(data[data['svc_date'].isin(self.rove_params.date_list)])
 
         data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
@@ -127,12 +133,8 @@ class AVL():
 
         data = convert_trip_ids('avl', data, 'trip_id', self.gtfs.validated_data['trips'])
         data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
-                
-        
 
-        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}")
-
-        
+        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}, {data['svc_date'].nunique()} days in total")
                
         return data
     

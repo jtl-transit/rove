@@ -32,7 +32,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         """Instantiate rove parameters.
         """
 
-        logger.info(f'Generating parameters...')
+        logger.info(f'generating parameters')
         #: Analyzed transit agency, see parameter definition.
         self.agency:str = agency
 
@@ -89,7 +89,6 @@ class ROVE_params(object, metaclass=ABCMeta):
         #: sample date for analysis
         # self.sample_date:datetime.datetime = self.__generate_sample_date()
         # logger.info(f'Sample date: {self.sample_date}')
-        logger.info(f'parameters generated')
 
     def __get_input_paths(self):
         """Get predefined paths to input data.
