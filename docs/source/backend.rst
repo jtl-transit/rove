@@ -37,25 +37,55 @@ Workflow
 ============
 The following descriptions aim at providing the reader with details of the workflow of the backend.
 
+Store Parameters
+------------
 First, the parameters specified above are passed to and stored in a :py:class:`.ROVE_params` object. These parameters, 
 along with others generated within the class object (e.g. list of analysis dates, paths to input and output files, config parameters, etc.), are used 
 throughout the backend. Users can create a child class by inheriting :py:class:`.ROVE_params` and use customized attributes or class methods, such as customized 
 :py:attr:`.input_paths` for where the input files are stored (be careful with changing the :py:attr:`.output_paths` attribute, since that might impact file loading on 
 the frontend), or customized :py:meth:`.generate_date_list` method that defines how the date list is selected.
 
+Load and Validate Input Data
+------------
 Then, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`.GTFS` and 
-:py:class:`.AVL` objects. In the :py:class:`.GTFS` object, two of the most important attributes are :py:attr:`.GTFS.records` 
+:py:class:`.AVL` objects. Each data class contains methods that are responsible for loading the raw data from a file path, as well as validating the loaded raw data 
+to make sure the data table(s) and columns meet the specifications described in :ref:`Input Data Requirements <my-reference-label>`. 
+In the :py:class:`.GTFS` object, two of the most important attributes are :py:attr:`.GTFS.records` 
 (a joined GTFS stop_times and trips table with some extra columns) that is used for the calculation and aggregation of scheduled metrics, and 
 :py:attr:`.GTFS.patterns_dict` that is used for shape generation. Similarly, the most important attribute in :py:class:`.AVL` is 
 :py:attr:`.AVL.records` that is used for the calculation and aggregation of observed metrics.
 
+Shape Generation
+------------
 Next, the backend enters the Shape Generation module using the class :py:class:`.BaseShape`. A :py:attr:`.GTFS.patterns_dict` and an output path to the 
 shapes JSON file are used to initialize a :py:class:`.BaseShape` object, which contains an attribute :py:attr:`.shapes` that is a data table containing all stop-pair 
-shapes information. Note that the data table stored in :py:attr:`.shapes` stores exactly the same information as in the output shapes JSON file, but in a table format. 
-An example of an object stored in the shapes JSON file is shown below. The ``pattern`` of a stop-to-stop segment (the segment between a stop pair) is the string 
-concatenation of "<route_id>-<direction_id>-<pattern_count (ordered number of unique patterns of a route and direction)>". The ``segment_index`` is the concatenation of 
-"<route_id>-<stop ID of the first stop in the stop pair>-<stop ID of the second stop in the stop pair>". The ``geometry`` is the encoded polyline of the stop pair 
-(six digits, as specified by Valhalla here: https://valhalla.readthedocs.io/en/latest/decoding/). 
+shapes information. Note that the attribtue :py:attr:`.shapes` stores exactly the same information as in the output shapes JSON file, but in a DataFrame format. 
+
+Metric Calculation
+------------
+The :py:attr:`.shapes`, :py:attr:`.GTFS.records`, :py:attr:`.AVL.records` and :py:attr:`.ROVE_params.data_option` are 
+
+Metric Aggregation
+------------
+
+.. _intput_data_spec:
+Input Data Requirements
+============
+
+GTFS
+------------
+The current implementation of ROVE supports two 
+
+AVL
+------------
+avl data Requirements
+
+Output Data Requirements
+============
+
+Shapes JSON
+------------
+An example of an object stored in the shapes JSON file is shown below. 
 
 .. code-block:: JSON
 
@@ -74,23 +104,10 @@ concatenation of "<route_id>-<direction_id>-<pattern_count (ordered number of un
 		"distance": 0.099
 	}
 
-
-Input Data Requirements
-============
-
-GTFS
-------------
-The current implementation of ROVE supports two 
-
-AVL
-------------
-avl data Requirements
-
-Output Data Requirements
-============
-
-Shapes JSON
-------------
+The ``pattern`` of a stop-to-stop segment (the segment between a stop pair) is the string 
+concatenation of "<route_id>-<direction_id>-<pattern_count (ordered number of unique patterns of a route and direction)>". The ``segment_index`` is the concatenation of 
+"<route_id>-<stop ID of the first stop in the stop pair>-<stop ID of the second stop in the stop pair>". The ``geometry`` is the encoded polyline of the stop pair 
+(six digits, as specified by Valhalla here: https://valhalla.readthedocs.io/en/latest/decoding/). 
 
 Modules
 ============
