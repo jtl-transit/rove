@@ -40,14 +40,17 @@ Workflow
 ------------
 The following descriptions aim at providing the reader with details of the workflow of the backend.
 
-First, the parameters specified above are passed to and stored in a :py:class:`backend.data_class.ROVE_params` object. These parameters, 
+First, the parameters specified above are passed to and stored in a :py:class:`.ROVE_params` object. These parameters, 
 along with others generated within the class object (e.g. list of analysis dates, paths to input and output files, config parameters, etc.), are used 
-throughout the backend. Users can create a child class by inheriting ``ROVE_params`` and use customized attributes or class methods, such as customized 
-``input_paths`` for where the input files are stored (be careful with changing the ``output_paths`` attribute, since that might impact file loading on 
+throughout the backend. Users can create a child class by inheriting :py:class:`.ROVE_params` and use customized attributes or class methods, such as customized 
+:py:attr:`.input_paths` for where the input files are stored (be careful with changing the :py:attr:`.output_paths` attribute, since that might impact file loading on 
 the frontend), or customized :py:meth:`.ROVE_params.generate_date_list` method that defines how the date list is selected.
 
-Next, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`backend.data_class.GTFS` and 
-:py:class:`backend.data_class.AVL` objects. In the :py:class:`.GTFS` object, two of the most important attributes are 
+Next, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`.GTFS` and 
+:py:class:`.AVL` objects. In the :py:class:`.GTFS` object, two of the most important attributes are :py:attr:`.GTFS.records` is a data table 
+that stores all GTFS scheduled stop events for every trip (a joined GTFS stop_times and trips table with some extra columns), and 
+:py:attr:`.GTFS.patterns_dict` 
+()
 
 
 Modules
