@@ -58,14 +58,14 @@ class AVL():
         
         logger.info(f'loading {alias} data')
         path = check_is_file(rove_params.input_paths[alias])
-        # Raw data read from the given path, see :py:meth:`data_class.AVL.load_data()` for details.
+        # Raw data read from the given path, see :py:meth:`.AVL.load_data` for details.
         self.raw_data:pd.DataFrame = self.load_data(path)
         
         logger.info(f'validating {alias} data')
-        #: Validated data, see :py:meth:`data_class.AVL.validate_data()` for details.
+        #: Validated data, see :py:meth:`.AVL.validate_data` for details.
         self.validated_data:pd.DataFrame = self.validate_data(bus_gtfs)
 
-        #: AVL records table, see :py:meth:`data_class.AVL.get_avl_records()` for details.
+        #: AVL records table, see :py:meth:`.AVL.get_avl_records` for details.
         self.records:pd.DataFrame = self.get_avl_records()
 
         self.correct_passenger_load()

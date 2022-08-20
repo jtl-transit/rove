@@ -81,14 +81,14 @@ class GTFS():
         
         logger.info(f'loading {self.alias} data')
         path = check_is_file(rove_params.input_paths[self.alias])
-        #: Raw data read from the given path, see :py:meth:`data_class.GTFS.load_data()` for details.
+        #: Raw data read from the given path, see  :py:meth:`.GTFS.load_data` for details.
         self.raw_data:Dict[str, pd.DataFrame] = self.load_data(path)
         
         logger.info(f'validating {self.alias} data')
-        #: Validated data, see :py:meth:`data_class.GTFS.validate_data()` for details.
+        #: Validated data, see  :py:meth:`.GTFS.validate_data` for details.
         self.validated_data:Dict[str, pd.DataFrame] = self.validate_data()
 
-        #: GTFS records table that contains all stop events info and trips info, see :py:meth:`data_class.GTFS.get_gtfs_records()` for details.
+        #: GTFS records table that contains all stop events info and trips info, see  :py:meth:`.GTFS.get_gtfs_records` for details.
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
@@ -101,11 +101,11 @@ class GTFS():
         self.add_branchpoints()
         check_dataframe_column(self.records, 'branchpoint', '0or1')
 
-        #: A dict of patterns (different from the GTFS patterns table), see :py:meth:`data_class.GTFS.generate_patterns()` for details.
+        #: A dict of patterns (different from the GTFS patterns table), see  :py:meth:`.GTFS.generate_patterns` for details.
         self.patterns_dict = self.generate_patterns()
 
         if 'shapes' in self.validated_data.keys():
-            #: A dict of improved patterns, see :py:meth:`data_class.GTFS.improve_pattern_with_shapes()` for details.
+            #: A dict of improved patterns, see  :py:meth:`.GTFS.improve_pattern_with_shapes` for details.
             self.patterns_dict = self. improve_pattern_with_shapes(self.patterns_dict, self.records, self.validated_data)
 
         self.generate_timepoints_output()
