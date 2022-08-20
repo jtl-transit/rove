@@ -49,7 +49,7 @@ Load and Validate Input Data
 ------------
 Then, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`.GTFS` and 
 :py:class:`.AVL` objects. Each data class contains methods that are responsible for loading the raw data from a file path, as well as validating the loaded raw data 
-to make sure the data table(s) and columns meet the specifications described in :ref:`Input Data Requirements <my-reference-label>`. 
+to make sure the data table(s) and columns meet the specifications described in :ref:`Input Data Requirements <intput_data_spec>`. 
 In the :py:class:`.GTFS` object, two of the most important attributes are :py:attr:`.GTFS.records` 
 (a joined GTFS stop_times and trips table with some extra columns) that is used for the calculation and aggregation of scheduled metrics, and 
 :py:attr:`.GTFS.patterns_dict` that is used for shape generation. Similarly, the most important attribute in :py:class:`.AVL` is 
