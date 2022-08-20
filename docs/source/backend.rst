@@ -2,13 +2,13 @@ Backend
 ============
 
 Introduction
------------
+------------
 The main use of the ROVE backend is to generate shapes and metrics files from raw transit data. This documentation provides detailed explanations of 
 every module in the backend, its input, functions and output. The purpose of this documentation is to familiarize the reader with the design and workflow of ROVE, 
 so that one can adapt the tool for their own use.
 
 Instructions
------------
+------------
 As the package has not been published yet, it CANNOT be installed as a standalone package. The suggested method 
 for now is to download the code base and run the scipts in a conda environment.
 
@@ -32,18 +32,26 @@ when testing out the backend.
    SHAPE_GENERATION = True # True/False: whether to generate shapes
    METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
 
+Data Requirements
+------------
+The current implementation of ROVE supports two 
+
 Workflow
------------
+------------
 The following descriptions aim at providing the reader with details of the workflow of the backend.
 
-First, the parameters specified above are passed to and stored in a :py:class:`backend.data_class.rove_parameters.ROVE_params` object. These parameters, 
+First, the parameters specified above are passed to and stored in a :py:class:`backend.data_class.ROVE_params` object. These parameters, 
 along with others generated within the class object (e.g. list of analysis dates, paths to input and output files, config parameters, etc.), are used 
 throughout the backend. Users can create a child class by inheriting ``ROVE_params`` and use customized attributes or class methods, such as customized 
 ``input_paths`` for where the input files are stored (be careful with changing the ``output_paths`` attribute, since that might impact file loading on 
-the frontend), or customized :py:meth:`ROVE_params.generate_date_list()` method that defines how the date list is selected.
+the frontend), or customized :py:meth:`.ROVE_params.generate_date_list` method that defines how the date list is selected.
+
+Next, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`backend.data_class.GTFS` and 
+:py:class:`backend.data_class.AVL` objects. In the :py:class:`.GTFS` object, two of the most important attributes are 
+
 
 Modules
------------
+------------
 
 .. toctree::
    :maxdepth: 4
