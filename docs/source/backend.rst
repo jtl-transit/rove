@@ -80,13 +80,14 @@ Input Data Requirements
 The current implementation of ROVE supports two data sources, ``GTFS`` (GTFS static data) and ``AVL`` data. 
 
 .. warning::
-   Note that for ROVE be able to process either data source, they must follow the requirements outlined below. Data that does not comply 
-   with the requirements will likely not work in ROVE, and result in errors or wrong metrics calculations.
+   Note that for ROVE to process either data source, they must follow the requirements outlined below. Data that does not comply 
+   with the requirements will likely not work in ROVE, and may result in errors or wrong metric calculations.
 
 GTFS
 ------------
-GTFS data should follow the :ref:`Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference>`. As documented in :py:class:`.GTFS`, 
-by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns:
+The GTFS data should be a zipped file (.zip) containing GTFS tables in separate text files(.txt). The GTFS zipped file must locate in the ``backend\data\<agency>\gtfs\``
+folder, and named ``GTFS_AGENCY_MONTH_YEAR.zip``, e.g. ``GTFS_MBTA_02_2021.zip``. GTFS data should follow the `Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference/>`. As documented in :py:class:`.GTFS`, 
+by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns.
 
 +-----------------+--------------+
 | Table           |  Columns     |
