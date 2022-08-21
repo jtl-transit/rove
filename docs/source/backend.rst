@@ -86,7 +86,7 @@ The current implementation of ROVE supports two data sources, ``GTFS`` (GTFS sta
 GTFS
 ------------
 The GTFS data should be a zipped file (.zip) containing GTFS tables in separate text files(.txt). The GTFS zipped file must locate in the ``backend\data\<agency>\gtfs\``
-folder, and named ``GTFS_AGENCY_MONTH_YEAR.zip``, e.g. ``GTFS_MBTA_02_2021.zip``. GTFS data should follow the `Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference/>`. As documented in :py:class:`.GTFS`, 
+folder, and named ``GTFS_AGENCY_MONTH_YEAR.zip``, e.g. ``GTFS_MBTA_02_2021.zip``. GTFS data should follow the `Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference/>`_. As documented in :py:class:`.GTFS`, 
 by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns.
 
 +-----------------+--------------+
