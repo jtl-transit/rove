@@ -224,7 +224,7 @@ class GTFS():
 
         gtfs_df = stop_times.merge(trips, on='trip_id', how='left')\
                         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])\
-                            .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first')
+                            .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first').reset_index(drop=True)
         
         gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
         gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
@@ -325,6 +325,7 @@ class GTFS():
         records['stop_ids'] = records['hash'].map(hash_stops_lookup)
         # Get a dict of <pattern: list of stop ids>
         pattern_stops_lookup = records.set_index('pattern')['stop_ids'].to_dict()
+        records.drop(columns=['hash', 'hash_count', 'stop_ids'], inplace=True)
 
         # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
         stops = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
@@ -336,7 +337,6 @@ class GTFS():
         patterns = {pattern: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
                                     for i in range(len(stop_ids)-1)} for pattern, stop_ids in pattern_stops_lookup.items()}
 
-        
         return patterns
 
     def improve_pattern_with_shapes(self, patterns:Dict, records:pd.DataFrame, gtfs:Dict) -> Dict[str, Dict]:

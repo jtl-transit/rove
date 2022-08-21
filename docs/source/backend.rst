@@ -43,13 +43,14 @@ First, the parameters specified above are passed to and stored in a :py:class:`.
 along with others generated within the class object (e.g. list of analysis dates, paths to input and output files, config parameters, etc.), are used 
 throughout the backend. Users can create a child class by inheriting :py:class:`.ROVE_params` and use customized attributes or class methods, such as customized 
 :py:attr:`.input_paths` for where the input files are stored (be careful with changing the :py:attr:`.output_paths` attribute, since that might impact file loading on 
-the frontend), or customized :py:meth:`.generate_date_list` method that defines how the date list is selected.
+the frontend), or a customized :py:meth:`.generate_date_list` method that defines how the date list is selected.
 
 Load and Validate Input Data
 ------------
 Then, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`.GTFS` and 
 :py:class:`.AVL` objects. Each data class contains methods that are responsible for loading the raw data from a file path, as well as validating the loaded raw data 
 to make sure the data table(s) and columns meet the specifications described in :ref:`Input Data Requirements <intput_data_spec>`. 
+
 In the :py:class:`.GTFS` object, two of the most important attributes are :py:attr:`.GTFS.records` 
 (a joined GTFS stop_times and trips table with some extra columns) that is used for the calculation and aggregation of scheduled metrics, and 
 :py:attr:`.GTFS.patterns_dict` that is used for shape generation. Similarly, the most important attribute in :py:class:`.AVL` is 
@@ -59,23 +60,55 @@ Shape Generation
 ------------
 Next, the backend enters the Shape Generation module using the class :py:class:`.BaseShape`. A :py:attr:`.GTFS.patterns_dict` and an output path to the 
 shapes JSON file are used to initialize a :py:class:`.BaseShape` object, which contains an attribute :py:attr:`.shapes` that is a data table containing all stop-pair 
-shapes information. Note that the attribtue :py:attr:`.shapes` stores exactly the same information as in the output shapes JSON file, but in a DataFrame format. 
+shapes information. Note that the attribtue :py:attr:`.shapes` stores exactly the same information as the output shapes JSON file, but in a DataFrame format. 
 
-Metric Calculation
+Metric Calculation and Aggregation
 ------------
-The :py:attr:`.shapes`, :py:attr:`.GTFS.records`, :py:attr:`.AVL.records` and :py:attr:`.ROVE_params.data_option` are 
+The :py:attr:`.shapes`, :py:attr:`.GTFS.records`, :py:attr:`.AVL.records` and :py:attr:`.data_option` from above are used to generate calculated metrics stored in a 
+:py:class:`.MetricCalculation` object. Specifically, :py:attr:`.shapes` is used to provide information on stop spacing. :py:attr:`.GTFS.records` and :py:attr:`.AVL.records` are 
+used to generate scheduled and observed metrics, respectively. :py:attr:`.data_option` is used to decide which metrics to calculated, depending on the data option chosen. In 
+this module, metrics from each trip are calculated on the stop, timepoint and route levels, and are averaged over all service dates for the same trip if the 'GTFS-AVL' option 
+is selected and multiple days' AVL data is provided.
 
-Metric Aggregation
-------------
+These metrics are then processed in the Metric Aggregation module, where metrics of different trips for the same stop pair, timepoint pair, or route are averaged. Metrics are 
+aggregated on stop, stop-aggregated, timepoint, timepoint-aggregated and route levels (different level have a different set of metrics, see :py:class:`.MetricAggregation` for details.)
 
 .. _intput_data_spec:
 
 Input Data Requirements
 ============
+The current implementation of ROVE supports two data sources, ``GTFS`` (GTFS static data) and ``AVL`` data. 
+
+.. warning::
+   Note that for ROVE be able to process either data source, they must follow the requirements outlined below. Data that does not comply 
+   with the requirements will likely not work in ROVE, and result in errors or wrong metrics calculations.
 
 GTFS
 ------------
-The current implementation of ROVE supports two 
+GTFS data should follow the :ref:`Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference>`. As documented in :py:class:`.GTFS`, 
+by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns:
+
+=================    ============
+   Table             Columns
+=================    ============
+   stops.txt         stop_id
+                     stop_code
+                     stop_name
+                     stop_lat
+                     stop_lon
+   routes.txt        route_id
+                     route_type
+   trips.txt         route_id
+                     service_id
+                     trip_id
+                     direction_id
+   stop_tims.txt     trip_id
+                     arrival_time
+                     departure_time
+                     stop_id
+                     stop_sequence
+=================    ============
+
 
 AVL
 ------------
