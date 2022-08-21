@@ -88,26 +88,39 @@ GTFS
 GTFS data should follow the :ref:`Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference>`. As documented in :py:class:`.GTFS`, 
 by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns:
 
-=================    ============
-   Table             Columns
-=================    ============
-   stops.txt         stop_id
-                     stop_code
-                     stop_name
-                     stop_lat
-                     stop_lon
-   routes.txt        route_id
-                     route_type
-   trips.txt         route_id
-                     service_id
-                     trip_id
-                     direction_id
-   stop_tims.txt     trip_id
-                     arrival_time
-                     departure_time
-                     stop_id
-                     stop_sequence
-=================    ============
+=====  =====
+col 1  col 2
+=====  =====
+1      Second column of row 1.
+2      Second column of row 2.
+       Second line of paragraph.
+3      - Second column of row 3.
+
+       - Second item in bullet
+         list (row 3, column 2).
+\      Row 4; column 1 will be empty.
+=====  =====
+
+=====             =====
+Table             Columns
+=====             =====
+stops.txt         stop_id
+                  stop_code
+                  stop_name
+                  stop_lat
+                  stop_lon
+routes.txt        route_id
+                  route_type
+trips.txt         route_id
+                  service_id
+                  trip_id
+                  direction_id
+stop_tims.txt     trip_id
+                  arrival_time
+                  departure_time
+                  stop_id
+                  stop_sequence
+=====             =====
 
 
 AVL
