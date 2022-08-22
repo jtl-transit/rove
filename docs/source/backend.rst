@@ -85,8 +85,8 @@ The current implementation of ROVE supports two data sources, ``GTFS`` (GTFS sta
 
 GTFS
 ------------
-The GTFS data should be a zipped file (.zip) containing GTFS tables in separate text files(.txt). The GTFS zipped file must locate in the ``backend\data\<agency>\gtfs\``
-folder, and named ``GTFS_AGENCY_MONTH_YEAR.zip``, e.g. ``GTFS_MBTA_02_2021.zip``. GTFS data should follow the `Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference/>`_. As documented in :py:class:`.GTFS`, 
+The GTFS data must be a zipped file (.zip) containing GTFS tables in separate text files (.txt). The GTFS zipped file must locate in the ``backend\data\<agency>\gtfs\``
+folder, and named ``GTFS_<AGENCY>_<MONTH>_<YEAR>.zip``, e.g. ``GTFS_MBTA_02_2021.zip``. GTFS data should follow the `Reference for static GTFS data <https://developers.google.com/transit/gtfs/reference/>`_. As documented in :py:class:`.GTFS`, 
 by default, ROVE requires that the zipped GTFS data file contains the following data tables and columns.
 
 +-----------------+--------------+
@@ -129,7 +129,26 @@ by default, ROVE requires that the zipped GTFS data file contains the following 
 
 AVL
 ------------
-avl data Requirements
+If the user wishes to calcualte observed metrics, then an AVL data table must be supplied, and the ``DATA_OPTION`` must be specified as ``GTFS-AVL``. 
+The AVL data must be a comma-separated values file (.csv) containing a combinaiton of stop-level Automatic Passenger Counter (APC) and Automatic Vehicle Location (AVL) 
+records. The AVL file must locate in the ``backend\data\<agency>\avl\`` 
+folder, and named ``AVL_<AGENCY>_<MONTH>_<YEAR>.csv``, e.g. ``AVL_MBTA_02_2021.csv``. Since different transit agency uses different systems and devices to record 
+AVL data, ROVE requires that the input AVL data must follow a standard format that contains specific columns detailed as follows.
+
+==============  =====
+Column          Definition
+==============  =====
+route           route ID, must be consistent with GTFS route_id
+stop_id         stop ID, must be consistent with GTFS stop_id or stop_code
+stop_time       date and time of of the stop event
+stop_sequence   sequence of the stop in a trip
+dwell_time      dwell time at the stop in integer seconds
+passenger_load  number of passengers on the bus after leaving the stop
+passenger_on    number of passengers that boarded the bus at the stop
+passenger_off   number of passengers that alighted the bus at the stop
+seat_capacity   number of seats on the bus
+trip_id         trip ID, must be consistent with GTFS trip_id
+==============  =====
 
 Output Data Requirements
 ============

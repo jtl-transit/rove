@@ -11,7 +11,7 @@ from backend.data_class.gtfs import GTFS
 from backend.data_class.rove_parameters import ROVE_params
 from copy import deepcopy
 import json
-from backend.helper_functions import load_csv_to_dataframe, series_to_datetime, check_is_file, convert_trip_ids, convert_stop_ids
+from backend.helper_functions import load_csv_to_dataframe, series_to_datetime, check_is_file, convert_stop_ids
 
 
 logger = logging.getLogger("backendLogger")
@@ -115,6 +115,8 @@ class AVL():
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
 
         data = deepcopy(data[data['svc_date'].isin(self.rove_params.date_list)])
+        if data.empty:
+            raise ValueError(f'AVL table is empty after filtering for dates in the date_list.')
 
         data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
@@ -131,7 +133,6 @@ class AVL():
         logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
         logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
 
-        data = convert_trip_ids('avl', data, 'trip_id', self.gtfs.validated_data['trips'])
         data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
 
         logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}, {data['svc_date'].nunique()} days in total")
