@@ -210,7 +210,7 @@ the GTFS data. The JSON file is saved in the ``frontend/static/inputs/<agency>/s
 ``bus-shapes_<AGENCY>_<MONTH>_<YEAR>.json``. A sample snippet of the shapes JSON file is shown here.
 
 .. code-block:: JSON
-   
+
    {
       {
          "geometry": "onrvoAfurqfCvB_e@yQkC}KiAiKaBkH{A{I}CmI{J??SU",
@@ -312,13 +312,24 @@ where each key is the type of metric in the form of "<time period name>-<aggrega
 is a nested dict, the format of which is shown belw in the snippet containing metrics for two 10-min intervals (6:00 am to 6:10 am, and 
 6:10 am to 6:20 am).
 
-.. code-block:: JSON
+.. code-block:: python
 
    {
       ((6, 0), (6, 10)): {
-         "median": (stop-level metrics, stop-aggregated-level metrics, route-level metrics, timepoint-level metrics, timepoint-aggregated-level metrics),
-         "90": (stop-level metrics, stop-aggregated-level metrics, route-level metrics, timepoint-level metrics, timepoint-aggregated-level metrics)
-      },
+         "median": (
+            stop-level metrics, 
+            stop-aggregated-level metrics, 
+            route-level metrics, 
+            timepoint-level metrics, 
+            timepoint-aggregated-level metrics
+         ),
+         "90": (
+            stop-level metrics, 
+            stop-aggregated-level metrics, 
+            route-level metrics, 
+            timepoint-level metrics, 
+            timepoint-aggregated-level metrics
+         ),
       ((6, 10), (6, 20)): {
          "median": (..),
          "90": (..)
