@@ -433,9 +433,14 @@ class GTFS():
             json.dump(tpbp_dict, outfile)
     
     def generate_stop_name_output(self):
-        """Save to a JSON file a lookup of stop names. Each key is the stop ID, and element is the dict {"stop_name" : <name of the stop>}.
+        """Save to a JSON file a lookup of stop names. Each key is the stop ID, and element is the dict {"stop_name" : <name of the stop>} 
+        and optionally the name-value pair for "municipality" if the field exists in the table.
         """
-        stop_name_dict = self.validated_data['stops'][['stop_id', 'stop_name']].dropna().drop_duplicates()\
+        if 'municipality' in self.validated_data['stops'].columns:
+            fields = ['stop_id', 'stop_name', 'municipality']
+        else:
+            fields = ['stop_id', 'stop_name']
+        stop_name_dict = self.validated_data['stops'][fields].dropna().drop_duplicates()\
                             .set_index('stop_id').to_dict('index')
 
         out_path = check_parent_dir(self.rove_params.output_paths['stop_name_lookup'])
