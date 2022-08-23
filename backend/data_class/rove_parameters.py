@@ -100,7 +100,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         return {
             'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
             'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
-            'backend_config': f'data/{self.agency}/config/{self.agency}_backend_config.json',
+            'backend_config': f'data/{self.agency}/config.json',
             'frontend_config': f'frontend/static/inputs/{self.agency}/config.json',
             'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
         }

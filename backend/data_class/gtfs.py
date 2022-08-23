@@ -21,8 +21,9 @@ class GTFS():
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
     :type rove_params: ROVE_params
-    :param mode: the mode of transit that the GTFS data is for, defaults to 'bus'. The current implementation is developed for bus GTFS data only. 
-        Support for other transit modes may be added in the future.
+    :param mode: the mode of transit that the GTFS data is for, defaults to 'bus'. 
+        For example, if mode is 'bus', then the list of route type values for 'bus' as specified in backend_config will be used to query the corresponding GTFS trips. 
+        The current implementation (metrics, shapes, etc.) is developed around bus (or bus-like) mode only. Support for other transit modes may be added in the future.
     :type mode: str, optional
     """
 

@@ -139,7 +139,7 @@ AVL data, ROVE requires that the input AVL data must follow a standard format th
 Column          Definition
 ==============  =====
 route           route ID, must be consistent with GTFS route_id
-stop_id         stop ID, must be consistent with GTFS stop_id or stop_code
+stop_id         stop ID, must be consistent with GTFS stop_id (preferred) or stop_code
 stop_time       date and time of of the stop event
 stop_sequence   sequence of the stop in a trip
 dwell_time      dwell time at the stop in integer seconds
@@ -149,6 +149,55 @@ passenger_off   number of passengers that alighted the bus at the stop
 seat_capacity   number of seats on the bus
 trip_id         trip ID, must be consistent with GTFS trip_id
 ==============  =====
+
+Backend Config
+------------
+The backend config data must be a JSON file (.json) containing agency-specific parameters listed below. The backend config file must locate in the ``backend\data\<agency>\`` 
+folder, and named ``config.json`` (not to be confused with the frontend config file which is named the same but stored in the frontend directory). 
+
+==============  =====
+Name            Definition
+==============  =====
+time_periods    a lookup of time period and the corresponding beginning and end time of the period, used in :py.class:`.MetricAggregation`
+speed_range     minimum and maximum speeds that bound the calculated speeds, used in :py.class:`.MetricAggregation`
+workalendarPath a workalendar calendar class for the region that the transit agency operates in, see :py:meth:`.generate_date_list` for details
+route_type      a lookup of transit mode and list of GTFS route type values, see :py:attr:`.GTFS.mode` for details
+==============  =====
+
+An example of the backend config JSON file is given below (the format of the sample snippet is condensed to save space).
+
+.. code-block:: JSON
+
+   {
+      "time_periods": {
+         "full": [
+            [3, 0],
+            [27, 0]
+         ],
+         "am_peak": [
+            [5, 0],
+            [9, 0]
+         ],
+         "midday": [
+            [9, 0],
+            [15, 0]
+         ],
+         "pm_peak": [
+            [15, 0],
+            [19, 0]
+         ]
+      },
+      "speed_range": {
+         "min": 0,
+         "max": 65
+      },
+      "workalendarPath": "workalendar.usa.massachusetts.Massachusetts",
+      "route_type": {
+         "bus": [
+            "3"
+         ]
+      }
+   }
 
 Output Data Requirements
 ============

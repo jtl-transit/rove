@@ -53,8 +53,13 @@ class MetricAggregation():
 
         self.data_option = params.data_option
         self.redValues = params.redValues
-        #: A dict of percentile values used for data aggregation, retrieved from the "percentiles" object in backend_config.
-        self.percentiles:Dict[str, int] = params.config['percentiles']
+        #: A dict of two percentile values used for data aggregation, median (50th percentile) and 90th percentile.
+        self.percentiles:Dict[str, int] = {
+                                            "median": 50,
+                                            "90": 90
+                                            }
+        #: A dict of minimum and maximum speeds that bound the calculated speeds.
+        self.speed_range = params.config['speed_range']
         #: A dict of time periods for data aggregation, retrieved from the "time_periods" object in backend_config.
         self.time_dict:Dict[str, Dict] = params.config['time_periods']
 
@@ -423,15 +428,20 @@ class MetricAggregation():
 
 
         self.segments[metric_name] = self.stop_metrics_time_filtered\
-                                                    .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
+                                                    .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile)\
+                                                        .clip(lower=self.speed_range['min'], upper=self.speed_range['max']).round(sig_fig)
         self.corridors[metric_name] = self.stop_metrics_time_filtered\
-                                                    .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile)\
+                                                        .clip(lower=self.speed_range['min'], upper=self.speed_range['max']).round(sig_fig)
         self.routes[metric_name] = self.route_metrics_time_filtered\
-                                                    .groupby(self.ROUTE_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
+                                                    .groupby(self.ROUTE_MULTIINDEX)[metric_name].quantile(percentile)\
+                                                        .clip(lower=self.speed_range['min'], upper=self.speed_range['max']).round(sig_fig)
         self.tpbp_segments[metric_name] = self.tpbp_metrics_time_filtered\
-                                                    .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
+                                                    .groupby(self.SEGMENT_MULTIINDEX)[metric_name].quantile(percentile)\
+                                                        .clip(lower=self.speed_range['min'], upper=self.speed_range['max']).round(sig_fig)
         self.tpbp_corridors[metric_name] = self.tpbp_metrics_time_filtered\
-                                                    .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile).round(sig_fig)
+                                                    .groupby(self.CORRIDOR_MULTIINDEX)[metric_name].quantile(percentile)\
+                                                        .clip(lower=self.speed_range['min'], upper=self.speed_range['max']).round(sig_fig)
 
     def wait_time(self, data_type:str):
         """Aggregated Poisson wait time in minuntes. Wait time values are capped at 300 min (5 hr).

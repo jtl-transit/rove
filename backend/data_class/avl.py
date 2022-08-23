@@ -152,12 +152,12 @@ class AVL():
 
     def convert_stop_time(self, data:pd.Series) -> Tuple[pd.Series, pd.Series]:
         """Convert stop times to integer seconds since the beginning of service (defined in config). Also return a
-        column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
+        column of service date (e.g. 01:30 am on March 4 may correspond to the service date of March 3 if service
         span is from 5 am to 3 am the next day).
 
         :param data: the column of stop_time (time of arrival at a stop) data
         :type data: pd.Series
-        :return: column of stop times in integer seconds, and column of operation dates
+        :return: column of stop times in integer seconds, and column of service dates
         :rtype: Tuple[pd.Series, pd.Seires]
         """
         
