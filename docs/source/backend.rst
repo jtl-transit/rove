@@ -116,7 +116,7 @@ by default, ROVE requires that the zipped GTFS data file contains the following 
 |                 +--------------+
 |                 | direction_id |
 +-----------------+--------------+
-| stop_tims.txt   |  trip_id     |
+| stop_time.txt   |  trip_id     |
 |                 +--------------+
 |                 | arrival_time |
 |                 +--------------+
