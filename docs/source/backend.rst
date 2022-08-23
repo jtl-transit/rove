@@ -306,7 +306,7 @@ the :py:class:`MetricAggregation` module. The file that stores aggregated metric
 The file that stores aggregated metrics by 10-min time intervals is ``METRICS_10MIN_<AGENCY>_<MONTH>_<YEAR>.p``. 
 
 Details of how each file is generated can be found in the documentation of functions :py:meth:`aggregate_by_time_periods` 
-and :py:meth:`aggregate_by_10min_intervals`. In short, before pickling, the time-period metrics file is a dict of JSON files, 
+and :py:meth:`aggregate_by_10min_intervals`. In short, before pickling, the time-period metrics file is a dict of JSON, 
 where each key is the type of metric in the form of "<time period name>-<aggregation level>-<percentile>", e.g. "am_peak-segment-50" or 
 "full-corridor-90", and each value is the corresponding metrics DataFrame normalized to JSON format. On the other hand, the 10-min metrics file 
 is a nested dict, the format of which is shown belw in the snippet containing metrics for two 10-min intervals (6:00 am to 6:10 am, and 
