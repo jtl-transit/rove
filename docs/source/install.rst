@@ -53,4 +53,4 @@ Set APP and ENV variables and spin up the Flask web app.
    flask run
 
 Note that to run the Flask app on a specific host and port, one can use the handles 
-(-h and -p, e.g. `flask run -h 10.xxx.xxx.xxx -p 50xx` will run the app on host 10.xxx.xxx.xxx and port 50xx).
+(-h and -p, e.g. :code:`flask run -h 10.xxx.xxx.xxx -p 50xx` will run the app on host 10.xxx.xxx.xxx and port 50xx).
