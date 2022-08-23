@@ -28,6 +28,7 @@ import dependencies via ``requirements_front.txt``.
 Set APP and ENV variables and spin up the Flask web app. 
 
 (Linux and macOS)
+
 .. code-block:: console
 
    export FLASK_APP='frontend:create_app("AGENCY_NAME")'
@@ -36,6 +37,7 @@ Set APP and ENV variables and spin up the Flask web app.
 
 
 (Windows CMD)
+
 .. code-block:: console
    
    set FLASK_APP=frontend:create_app("AGENCY_NAME")
@@ -43,6 +45,7 @@ Set APP and ENV variables and spin up the Flask web app.
    flask run
 
 (Windows Powershell)
+
 .. code-block:: console
    
    $env:FLASK_APP="frontend:create_app(""AGENCY_NAME"")"
