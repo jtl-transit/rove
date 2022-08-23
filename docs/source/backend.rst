@@ -13,7 +13,7 @@ Instructions
 As the package has not been published yet, it CANNOT be installed as a standalone package. The suggested method 
 for now is to download the code base and run the scipts in a conda environment.
 
-All backend processes start in :doc:`../../backend/backend_main`. First, the user needs to specify a few parameters as shown below. ``AGENCY`` 
+All backend processes start in `backend_main.py`. First, the user needs to specify a few parameters as shown below. ``AGENCY`` 
 is the name of the agency that the user is analyzing for. This is also the name of the directories that the input data should be stored in, and where output data will 
 be saved to. ``MONTH`` and ``YEAR`` are 2- and 4-character strings of the month and year to be analyzed, e.g. to analyze metrics for Feb 2021, "02" and "2021" should 
 be used. ``DATE_TYPE`` is the type of day that the user wants to analyze, namely Weekday (which excludes weekends and holidays), Saturday or Sunday. ``DATA_OPTION`` is 
@@ -37,7 +37,7 @@ Workflow
 ============
 The following descriptions aim at providing the reader with details of the workflow of the backend.
 
-Store Parameters
+Parameter Storing
 ------------
 First, the parameters specified above are passed to and stored in a :py:class:`.ROVE_params` object. These parameters, 
 along with others generated within the class object (e.g. list of analysis dates, paths to input and output files, config parameters, etc.), are used 
@@ -45,7 +45,7 @@ throughout the backend. Users can create a child class by inheriting :py:class:`
 :py:attr:`.input_paths` for where the input files are stored (be careful with changing the :py:attr:`.output_paths` attribute, since that might impact file loading on 
 the frontend), or a customized :py:meth:`.generate_date_list` method that defines how the date list is selected.
 
-Load and Validate Input Data
+Loading and Validation of Input Data
 ------------
 Then, depending on the ``DATA_OPTION``, the backend processes the GTFS and optinally AVL data using the :py:class:`.GTFS` and 
 :py:class:`.AVL` objects. Each data class contains methods that are responsible for loading the raw data from a file path, as well as validating the loaded raw data 
@@ -59,7 +59,7 @@ In the :py:class:`.GTFS` object, two of the most important attributes are :py:at
 Shape Generation
 ------------
 Next, the backend enters the Shape Generation module using the class :py:class:`.BaseShape`. A :py:attr:`.GTFS.patterns_dict` and an output path to the 
-shapes JSON file are used to initialize a :py:class:`.BaseShape` object, which contains an attribute :py:attr:`.shapes` that is a data table containing all stop-pair 
+:ref:`shapes JSON file <shapes_json>` are used to initialize a :py:class:`.BaseShape` object, which contains an attribute :py:attr:`.shapes` that is a data table containing all stop-pair 
 shapes information. Note that the attribtue :py:attr:`.shapes` stores exactly the same information as the output shapes JSON file, but in a DataFrame format. 
 
 Metric Calculation and Aggregation
@@ -150,7 +150,7 @@ seat_capacity   number of seats on the bus
 trip_id         trip ID, must be consistent with GTFS trip_id
 ==============  =====
 
-Backend Config
+Backend Configuration File
 ------------
 The backend config data must be a JSON file (.json) containing agency-specific parameters listed below. The backend config file must locate in the ``backend\data\<agency>\`` 
 folder, and named ``config.json`` (not to be confused with the frontend config file which is named the same but stored in the frontend directory). 
@@ -199,34 +199,58 @@ An example of the backend config JSON file is given below (the format of the sam
       }
    }
 
-Output Data Requirements
+Output Data Formats
 ============
 
-Shapes JSON
+.. _shapes_json:
+Shapes JSON File
 ------------
-An example of an object stored in the shapes JSON file is shown below. 
+The Shape Generation module outputs a JSON file that contains geometry information of each stop pair of each route pattern found in 
+the GTFS data. The JSON file is saved in the ``frontend/static/inputs/<agency>/shapes/`` directory, and named 
+``bus-shapes_<AGENCY>_<MONTH>_<YEAR>.json``. A sample snippet of the shapes JSON file is shown here.
 
 .. code-block:: JSON
+   {
+      {
+         "pattern": "10A-1-1",
+         "route_id": "10A",
+         "direction": 1,
+         "seg_index": "10A-3625-3641",
+         "stop_pair": [
+            "3625",
+            "3641"
+         ],
+         "timepoint_index": "10A-1-1-0",
+         "mode": "bus",
+         "geometry": "kgcciApna~qCo@pK{Eny@",
+         "distance": 0.099
+      },
+      {
+         "pattern": "10A-1-1",
+         "route_id": "10A",
+         "direction": 1,
+         "seg_index": "10A-3641-3680",
+         "stop_pair": [
+            "3641",
+            "3680"
+         ],
+         "timepoint_index": "10A-1-1-0",
+         "mode": "bus",
+         "geometry": "wocciAruc~qCWjEQzCm@rHYlDaB~SgAfNi@tGaBxSMbByChb@{@dL_Dt`@}BtY{AxRM~A",
+         "distance": 0.321
+      }
+   }
 
-	{
-		"pattern": "10A-1-1",
-		"route_id": "10A",
-		"direction": 1,
-		"seg_index": "10A-3625-3641",
-		"stop_pair": [
-			"3625",
-			"3641"
-		],
-		"timepoint_index": "10A-1-1-0",
-		"mode": "bus",
-		"geometry": "kgcciApna~qCo@pK{Eny@",
-		"distance": 0.099
-	}
+A quick reference of some name fields in the shapes JSON file is given in the table below. See :py:class:`BaseShape` 
+for detailed definition of all name fields. 
 
-The ``pattern`` of a stop-to-stop segment (the segment between a stop pair) is the string 
-concatenation of "<route_id>-<direction_id>-<pattern_count (ordered number of unique patterns of a route and direction)>". The ``segment_index`` is the concatenation of 
-"<route_id>-<stop ID of the first stop in the stop pair>-<stop ID of the second stop in the stop pair>". The ``geometry`` is the encoded polyline of the stop pair 
-(six digits, as specified by Valhalla here: https://valhalla.readthedocs.io/en/latest/decoding/). 
+==============  =====
+Name            Definition
+==============  =====
+pattern         string concatenation of "<route_id>-<direction_id>-<pattern_count (ordered number of unique patterns of a route and direction)>"
+segment_index   concatenation of "<route_id>-<stop ID of the first stop in the stop pair>-<stop ID of the second stop in the stop pair>"
+geometry        encoded polyline of the stop pair (six digits, as specified by `Valhalla <https://valhalla.readthedocs.io/en/latest/decoding/>`_)
+==============  =====
 
 Modules
 ============
