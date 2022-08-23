@@ -210,6 +210,7 @@ the GTFS data. The JSON file is saved in the ``frontend/static/inputs/<agency>/s
 ``bus-shapes_<AGENCY>_<MONTH>_<YEAR>.json``. A sample snippet of the shapes JSON file is shown here.
 
 .. code-block:: JSON
+   
    {
       {
          "geometry": "onrvoAfurqfCvB_e@yQkC}KiAiKaBkH{A{I}CmI{J??SU",
@@ -264,6 +265,7 @@ The JSON file is saved in the ``frontend/static/inputs/<agency>/timepoints/`` di
 by the frontend to visualize timepoint-level metrics using stop-pair geometries.
 
 .. code-block:: JSON
+
    {
       "1-62-63": [
          62,
@@ -285,6 +287,7 @@ The JSON file is saved in the ``frontend/static/inputs/<agency>/lookup/`` direct
 ``lookup_<AGENCY>_<MONTH>_<YEAR>.json``. A sample snippet of the shapes JSON file is shown here.
 
 .. code-block:: JSON
+
    {
       "62": {
          "stop_name": "Washington St @ Williams St",
@@ -310,6 +313,7 @@ is a nested dict, the format of which is shown belw in the snippet containing me
 6:10 am to 6:20 am).
 
 .. code-block:: JSON
+
    {
       ((6, 0), (6, 10)): {
          "median": (stop-level metrics, stop-aggregated-level metrics, route-level metrics, timepoint-level metrics, timepoint-aggregated-level metrics),
