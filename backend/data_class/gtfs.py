@@ -1,5 +1,4 @@
 from typing import Dict
-from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
 import numpy as np
@@ -227,7 +226,7 @@ class GTFS():
                         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])\
                             .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first').reset_index(drop=True)
         
-        gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
+        # gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
         gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
         gtfs_df['trip_end_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('max')
 
@@ -282,6 +281,13 @@ class GTFS():
         # mark the first stop of each trip as tp_bp
         records.loc[records.groupby('trip_id')['tp_bp'].head(1).index, 'tp_bp'] = 1
         records.loc[records.groupby('trip_id')['tp_bp'].tail(1).index, 'tp_bp'] = 1
+
+        # make sure that stops of the same route have the same tp_bp value
+        records['route_stop'] = list(zip(records['route_id'], records['stop_id']))
+        tp_bp_lookup = records[['route_stop', 'tp_bp']].sort_values(by=['route_stop', 'tp_bp']).\
+                        drop_duplicates(subset=['route_stop'], keep='last').set_index('route_stop')['tp_bp'].to_dict()
+        records['tp_bp'] = records['route_stop'].map(tp_bp_lookup)
+        records = records.drop(columns=['route_stop'])
 
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern" column to the trips table.

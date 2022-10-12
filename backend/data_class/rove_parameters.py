@@ -102,7 +102,8 @@ class ROVE_params(object, metaclass=ABCMeta):
             'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
             'backend_config': f'data/{self.agency}/config.json',
             'frontend_config': f'frontend/static/inputs/{self.agency}/config.json',
-            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
+            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json',
+            'signals': f'frontend/static/inputs/{self.agency}/backgroundlayers/{self.agency.lower()}_traffic_signals.geojson'
         }
 
     def __get_output_paths(self):
