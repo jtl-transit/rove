@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Dict, List
 import pandas as pd
 import json
+import numpy as np
 
 logger = logging.getLogger("backendLogger")
 
@@ -209,7 +210,7 @@ def load_csv_to_dataframe(path:str, id_cols=[]):
                 data = data.dropna(subset=id_cols)
                 for col in id_cols:
                     numeric_rows=data[[col]].applymap(lambda x: isinstance(x, (int, float)))[col]
-                    data.loc[numeric_rows, col]=data.copy().loc[numeric_rows, col].astype(int)
+                    data.loc[numeric_rows, col]=data.copy().loc[numeric_rows, col].astype(np.int64)
         except pd.errors.EmptyDataError as err:
             logger.warning(f'{err}: Data read from {in_path} is empty!')
             data = pd.DataFrame()
@@ -256,84 +257,86 @@ def series_to_datetime(date_pd_series:pd.Series, format:str=None):
     dates = {date:pd.to_datetime(date, format=format) for date in date_pd_series.unique()}
     return date_pd_series.map(dates)
 
-def convert_stop_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_stop_col:str, gtfs_stops:pd.DataFrame):
+def convert_stop_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_stop_col:str, gtfs_stops:pd.DataFrame, use_column='stop_id'):
     
-    gtfs_stop_ids = gtfs_stops['stop_id'].drop_duplicates().reset_index(drop=True)
+    # table with two columns: xstop_id_gtfs, xstop_code_gtfs
+    gtfs_stop_ids_lookup = gtfs_stops[['stop_id', 'stop_code']].drop_duplicates().rename(columns={'stop_id': 'xstop_id_gtfs', 'stop_code': 'xstop_code_gtfs'}).reset_index(drop=True)
 
     raw_data = raw_data.copy()
     logger.debug(f'total number of {raw_data_alias} records: {raw_data.shape[0]}')
-    raw_data_merge_gtfs_stop_id = pd.merge(raw_data, gtfs_stop_ids, left_on=raw_data_stop_col, right_on='stop_id', how='inner')
+    raw_data_merge_gtfs_stop_id = pd.merge(raw_data, gtfs_stop_ids_lookup, left_on=raw_data_stop_col, right_on='xstop_id_gtfs', how='inner')
     raw_data_gtfs_stop_id_match_count = raw_data_merge_gtfs_stop_id.shape[0]
     logger.debug(f'count of {raw_data_alias} records with matched gtfs stop_id: {raw_data_gtfs_stop_id_match_count}')
 
-    gtfs_stop_ids_lookup = gtfs_stops[['stop_id', 'stop_code']].drop_duplicates().rename(columns={'stop_id': 'xstop_id_gtfs'}).reset_index(drop=True)
-    raw_data_merge_gtfs_stop_code = pd.merge(raw_data, gtfs_stop_ids_lookup, left_on=raw_data_stop_col, right_on='stop_code', how='inner')
+    raw_data_merge_gtfs_stop_code = pd.merge(raw_data, gtfs_stop_ids_lookup, left_on=raw_data_stop_col, right_on='xstop_code_gtfs', how='inner')
     raw_data_gtfs_stop_code_match_count = raw_data_merge_gtfs_stop_code.shape[0]
     logger.debug(f'count of {raw_data_alias} records with matched gtfs stop_code: {raw_data_gtfs_stop_code_match_count}')
 
     if raw_data_gtfs_stop_id_match_count == 0 and raw_data_gtfs_stop_code_match_count == 0:
         raise ValueError(f'no matched stop_id can be found')
-    if raw_data_gtfs_stop_id_match_count > raw_data_gtfs_stop_code_match_count:
-        raw_data_merge_gtfs_stop_id[raw_data_stop_col] = raw_data_merge_gtfs_stop_id['stop_id']
-        if raw_data_stop_col != 'stop_id':
-            raw_data_merge_gtfs_stop_id = raw_data_merge_gtfs_stop_id.drop(columns=['stop_id'])
-        return_data = raw_data_merge_gtfs_stop_id
-        logger.debug(f'{raw_data_stop_col} matches with stop_id, replaced with GTFS stop_id')
-    else: 
-        raw_data_merge_gtfs_stop_code[raw_data_stop_col] = raw_data_merge_gtfs_stop_code['xstop_id_gtfs']
-        if raw_data_stop_col != 'stop_code':
-            raw_data_merge_gtfs_stop_code = raw_data_merge_gtfs_stop_code.drop(columns=['stop_code', 'xstop_id_gtfs'])
-        return_data = raw_data_merge_gtfs_stop_code
-        logger.debug(f'{raw_data_stop_col} matches with stop_code, replaced with GTFS stop_id')
+    else:
+        if raw_data_gtfs_stop_id_match_count > raw_data_gtfs_stop_code_match_count:
+            raw_table = raw_data_merge_gtfs_stop_id
+            matched_col = 'GTFS stop_id'
+        else:
+            raw_table = raw_data_merge_gtfs_stop_code
+            matched_col = 'GTFS stop_code'
 
-    return return_data.dropna(subset=[raw_data_stop_col]).reset_index(drop=True)
+        if use_column == 'stop_id':
+            raw_table[raw_data_stop_col] = raw_table['xstop_id_gtfs']
+        elif use_column == 'stop_code':
+            raw_table[raw_data_stop_col] = raw_table['xstop_code_gtfs']
+        raw_table = raw_table.drop(columns=['xstop_id_gtfs', 'xstop_id_gtfs'])
+        logger.debug(f'{raw_data_stop_col} in {raw_data_alias} records matches with {matched_col}, replaced with matching GTFS {use_column}')
+
+    return raw_table.dropna(subset=[raw_data_stop_col]).reset_index(drop=True)
 
 
-# def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_col:str, gtfs_trips:pd.DataFrame):
-#     """Convert raw data trip_id to GTFS trip_id or scheduled_trip_id depending on which columns
-#         has more matched values.
-#     Args:
-#         raw_data (DataFrame): raw AVL data, assume having column: trip_id
-#         feed (GTFS Feed): contains trips table
-#     Raises:
-#         DataError: neither GTFS trip_id nor scheduled_trip_id has more than 90% matches with AVL trip_id
-#     Returns:
-#         DataFrame: AVL data with trip_id converted if needed
-#     """
-#     if 'scheduled_trip_id' not in gtfs_trips.columns:
-#         logger.debug(f'the gtfs trips table does not contain scheduled_trip_id, nothing to convert from')
-#         return raw_data
-#     else:
-#         trips = gtfs_trips.copy()
-#         gtfs_trip_ids = trips['trip_id'].dropna().drop_duplicates().reset_index(drop=True)
+def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_col:str, gtfs_trips:pd.DataFrame):
+    """Convert raw data trip_id to GTFS trip_id or scheduled_trip_id depending on which columns
+        has more matched values.
+    Args:
+        raw_data (DataFrame): raw AVL data, assume having column: trip_id
+        feed (GTFS Feed): contains trips table
+    Raises:
+        DataError: neither GTFS trip_id nor scheduled_trip_id has more than 90% matches with AVL trip_id
+    Returns:
+        DataFrame: AVL data with trip_id converted if needed
+    """
+    if 'scheduled_trip_id' not in gtfs_trips.columns:
+        logger.debug(f'the gtfs trips table does not contain scheduled_trip_id, nothing to convert from')
+        return raw_data
+    else:
+        trips = gtfs_trips.copy()
+        gtfs_trip_ids = trips['trip_id'].dropna().drop_duplicates().reset_index(drop=True)
         
-#         raw_data = raw_data.copy()
-#         logger.debug(f'total number of {raw_data_alias} records: {raw_data.shape[0]}')
+        raw_data = raw_data.copy()
+        logger.debug(f'total number of {raw_data_alias} records: {raw_data.shape[0]}')
 
-#         raw_data_merge_gtfs_trip_id = pd.merge(raw_data, gtfs_trip_ids, left_on=raw_data_trip_col, right_on='trip_id', how='inner')
-#         raw_data_gtfs_trip_match_count = raw_data_merge_gtfs_trip_id.shape[0]
-#         logger.debug(f'count of {raw_data_alias} records with matched gtfs trip_id: {raw_data_gtfs_trip_match_count}')
+        raw_data_merge_gtfs_trip_id = pd.merge(raw_data, gtfs_trip_ids, left_on=raw_data_trip_col, right_on='trip_id', how='inner')
+        raw_data_gtfs_trip_match_count = raw_data_merge_gtfs_trip_id.shape[0]
+        logger.debug(f'count of {raw_data_alias} records with matched gtfs trip_id: {raw_data_gtfs_trip_match_count}')
 
-#         gtfs_trip_ids_lookup = gtfs_trips[['trip_id', 'scheduled_trip_id']].dropna().drop_duplicates().rename(columns={'trip_id': 'xtrip_id_gtfs'}).reset_index(drop=True)
-#         gtfs_trip_ids_lookup['scheduled_trip_id'] = gtfs_trip_ids_lookup['scheduled_trip_id'].astype(int).astype('string')
+        gtfs_trip_ids_lookup = gtfs_trips[['trip_id', 'scheduled_trip_id']].dropna().drop_duplicates().rename(columns={'trip_id': 'xtrip_id_gtfs'}).reset_index(drop=True)
+        gtfs_trip_ids_lookup['scheduled_trip_id'] = gtfs_trip_ids_lookup['scheduled_trip_id'].astype(int).astype('string')
 
-#         raw_data_merge_gtfs_sch_trip_id = pd.merge(raw_data, gtfs_trip_ids_lookup, left_on=raw_data_trip_col, right_on='scheduled_trip_id', how='inner')
-#         raw_data_gtfs_sch_trip_match_count = raw_data_merge_gtfs_sch_trip_id.shape[0]
-#         logger.debug(f'count of {raw_data_alias} records with matched gtfs scheduled_trip_id: {raw_data_gtfs_sch_trip_match_count}')
+        raw_data_merge_gtfs_sch_trip_id = pd.merge(raw_data, gtfs_trip_ids_lookup, left_on=raw_data_trip_col, right_on='scheduled_trip_id', how='inner')
+        raw_data_gtfs_sch_trip_match_count = raw_data_merge_gtfs_sch_trip_id.shape[0]
+        logger.debug(f'count of {raw_data_alias} records with matched gtfs scheduled_trip_id: {raw_data_gtfs_sch_trip_match_count}')
 
-#         if raw_data_gtfs_trip_match_count == 0 and raw_data_gtfs_sch_trip_match_count == 0:
-#             raise ValueError(f'no matched trip_id can be found')
-#         if raw_data_gtfs_trip_match_count > raw_data_gtfs_sch_trip_match_count:
-#             raw_data_merge_gtfs_trip_id[raw_data_trip_col] = raw_data_merge_gtfs_trip_id['trip_id']
-#             if raw_data_trip_col != 'trip_id':
-#                 raw_data_merge_gtfs_trip_id = raw_data_merge_gtfs_trip_id.drop(columns=['trip_id'])
-#             return_data = raw_data_merge_gtfs_trip_id
-#             logger.debug(f'{raw_data_trip_col} matches with trip_id, replaced with GTFS trip_id')
-#         else: 
-#             raw_data_merge_gtfs_sch_trip_id[raw_data_trip_col] = raw_data_merge_gtfs_sch_trip_id['xtrip_id_gtfs']
-#             if raw_data_trip_col != 'scheduled_trip_id':
-#                 raw_data_merge_gtfs_sch_trip_id = raw_data_merge_gtfs_sch_trip_id.drop(columns=['scheduled_trip_id', 'xtrip_id_gtfs'])
-#             return_data = raw_data_merge_gtfs_sch_trip_id
-#             logger.debug(f'{raw_data_trip_col} matches with scheduled_trip_id, replaced with GTFS trip_id')
+        if raw_data_gtfs_trip_match_count == 0 and raw_data_gtfs_sch_trip_match_count == 0:
+            raise ValueError(f'no matched trip_id can be found')
+        if raw_data_gtfs_trip_match_count > raw_data_gtfs_sch_trip_match_count:
+            raw_data_merge_gtfs_trip_id[raw_data_trip_col] = raw_data_merge_gtfs_trip_id['trip_id']
+            if raw_data_trip_col != 'trip_id':
+                raw_data_merge_gtfs_trip_id = raw_data_merge_gtfs_trip_id.drop(columns=['trip_id'])
+            return_data = raw_data_merge_gtfs_trip_id
+            logger.debug(f'{raw_data_trip_col} matches with trip_id, replaced with matching GTFS trip_id')
+        else: 
+            raw_data_merge_gtfs_sch_trip_id[raw_data_trip_col] = raw_data_merge_gtfs_sch_trip_id['xtrip_id_gtfs']
+            if raw_data_trip_col != 'scheduled_trip_id':
+                raw_data_merge_gtfs_sch_trip_id = raw_data_merge_gtfs_sch_trip_id.drop(columns=['scheduled_trip_id', 'xtrip_id_gtfs'])
+            return_data = raw_data_merge_gtfs_sch_trip_id
+            logger.debug(f'{raw_data_trip_col} matches with scheduled_trip_id, replaced with matching GTFS trip_id')
 
-#     return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)
+    return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)

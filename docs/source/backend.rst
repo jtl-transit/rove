@@ -65,13 +65,13 @@ shapes information. Note that the attribtue :py:attr:`.shapes` stores exactly th
 Metric Calculation and Aggregation
 ------------
 The :py:attr:`.shapes`, :py:attr:`.GTFS.records`, :py:attr:`.AVL.records` and :py:attr:`.data_option` from above are used to generate calculated metrics stored in a 
-:py:class:`.MetricCalculation` object. Specifically, :py:attr:`.shapes` is used to provide information on stop spacing. :py:attr:`.GTFS.records` and :py:attr:`.AVL.records` are 
+:py:class:`.Metric_Calculation` object. Specifically, :py:attr:`.shapes` is used to provide information on stop spacing. :py:attr:`.GTFS.records` and :py:attr:`.AVL.records` are 
 used to generate scheduled and observed metrics, respectively. :py:attr:`.data_option` is used to decide which metrics to calculated, depending on the data option chosen. In 
 this module, metrics from each trip are calculated on the stop, timepoint and route levels, and are averaged over all service dates for the same trip if the 'GTFS-AVL' option 
 is selected and multiple days' AVL data is provided.
 
 These metrics are then processed in the Metric Aggregation module, where metrics of different trips for the same stop pair, timepoint pair, or route are averaged. Metrics are 
-aggregated on stop, stop-aggregated, timepoint, timepoint-aggregated and route levels (different level have a different set of metrics, see :py:class:`.MetricAggregation` for details.)
+aggregated on stop, stop-aggregated, timepoint, timepoint-aggregated and route levels (different level have a different set of metrics, see :py:class:`.Metric_Aggregation` for details.)
 
 .. _intput_data_spec:
 
@@ -158,8 +158,8 @@ folder, and named ``config.json`` (not to be confused with the frontend config f
 ==============  =====
 Name            Definition
 ==============  =====
-time_periods    a lookup of time period and the corresponding beginning and end time of the period, used in :py.class:`.MetricAggregation`
-speed_range     minimum and maximum speeds that bound the calculated speeds, used in :py.class:`.MetricAggregation`
+time_periods    a lookup of time period and the corresponding beginning and end time of the period, used in :py.class:`.Metric_Aggregation`
+speed_range     minimum and maximum speeds that bound the calculated speeds, used in :py.class:`.Metric_Aggregation`
 workalendarPath a workalendar calendar class for the region that the transit agency operates in, see :py:meth:`.generate_date_list` for details
 route_type      a lookup of transit mode and list of GTFS route type values, see :py:attr:`.GTFS.mode` for details
 ==============  =====
@@ -302,7 +302,7 @@ The JSON file is saved in the ``frontend/static/inputs/<agency>/lookup/`` direct
 Aggregated Metric Files
 ------------
 The aggregated metrics are saved in the ``data/<agency>/metrics/`` directory. Two separate pickle files are saved from 
-the :py:class:`MetricAggregation` module. The file that stores aggregated metrics by time periods is ``METRICS_<AGENCY>_<MONTH>_<YEAR>.p``. 
+the :py:class:`Metric_Aggregation` module. The file that stores aggregated metrics by time periods is ``METRICS_<AGENCY>_<MONTH>_<YEAR>.p``. 
 The file that stores aggregated metrics by 10-min time intervals is ``METRICS_10MIN_<AGENCY>_<MONTH>_<YEAR>.p``. 
 
 Details of how each file is generated can be found in the documentation of functions :py:meth:`aggregate_by_time_periods` 

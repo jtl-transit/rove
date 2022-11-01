@@ -2,12 +2,16 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
-from ..helper_functions import check_parent_dir
+from ..helper_functions import check_parent_dir, check_is_file, read_shapes
 import math
 from tqdm.auto import tqdm
 import json
 import requests
 from time import sleep
+import geopandas as gpd
+from backend.data_class import ROVE_params
+import polyline
+from shapely.geometry import LineString
 
 logger = logging.getLogger("backendLogger")
 
@@ -41,15 +45,28 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
         }
 
-    def __init__(self, patterns, outpath, parameters=MAP_MATCHING_PARAMETERS, mode='bus'):
+    def __init__(self, patterns, params:ROVE_params, mode='bus', check_signal=False):
 
         logger.info(f'Generating shapes...')
         self.mode = mode
-        self.PARAMETERS = parameters
+        self.PARAMETERS = self.MAP_MATCHING_PARAMETERS
         self.patterns = self.__check_patterns(patterns)
-        self.outpath = check_parent_dir(outpath)
+        self.params = params
+        
+        self.outpath = check_parent_dir(params.output_paths['shapes'])
 
         self.shapes = self.generate_segment_shapes()
+        self.shapes = read_shapes(self.params.output_paths['shapes'])
+        if check_signal:
+            self.shapes = self.check_signal_intersection()
+        
+        self.generate_shapes_json()
+
+    def generate_shapes_json(self):
+
+        outpath = check_parent_dir(self.params.output_paths['shapes'])
+        with open(outpath, 'w') as fp:
+            json.dump(self.shapes.to_json(orient='records'), fp)
 
     def __check_patterns(self, patterns:Dict) -> Dict:
         
@@ -141,9 +158,6 @@ class BaseShape():
                             for p_name, segments in all_matched.items() \
                                 for s_name, s_info in segments.items()]
 
-        with open(self.outpath, 'w') as fp:
-            json.dump(matched_output, fp)
-
         skipped_output = [
                             {
                                 **{'pattern': p_name,
@@ -153,13 +167,39 @@ class BaseShape():
                             }
                             for p_name, segments in all_skipped.items() \
                                 for s_name, s_info in segments.items()]
-        with open('skipped_shapes.json', 'w') as fp:
-            json.dump(skipped_output, fp)
-        
+
         logger.debug(f'Number of patterns matched: {len(all_matched.keys())}. '\
             f'Number of patterns skipped: {len(all_skipped.keys())}')
 
+        with open('skipped_shapes.json', 'w') as fp:
+            json.dump(skipped_output, fp)
+
         return pd.json_normalize(matched_output)
+        
+
+    def check_signal_intersection(self):
+
+        OSM_PLANE = 'EPSG:4326'
+        STATE_PLANE = self.params.config['crs']
+        
+        signal_inpath = check_is_file(self.params.input_paths['signals'])
+        signal_df = gpd.read_file(signal_inpath).set_crs(OSM_PLANE)['geometry'].to_crs(STATE_PLANE)
+        
+        buffer_radius = 10 # in ft
+        # Add buffer around each traffic signal to catch any segments that pass through the intersection
+        signal_df_buffer = signal_df.buffer(buffer_radius)
+        all_signals = signal_df_buffer.unary_union
+        
+        # Decode polylines and create geodataframe with same projection as signal df
+        shapes = self.shapes.copy()
+        bus_gdf = shapes['geometry'].apply(lambda x: LineString(polyline.decode(x, geojson = True, precision = 6)))
+
+        bus_gdf = gpd.GeoSeries(shapes['linestring']).set_crs(OSM_PLANE).to_crs(STATE_PLANE)
+        
+        # For each segment, check if intersects with full signal dataframe
+        shapes['intersect'] = bus_gdf.intersects(all_signals)
+        
+        return shapes
 
     def __get_distance(self, start:Tuple[float, float], end:Tuple[float, float]) -> float:
         """Get distance (in m) from a pair of lat, long coord tuples.

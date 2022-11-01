@@ -121,6 +121,7 @@ class AVL():
         data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
         data[cols] = data[cols].astype(dtype=data_specs)
+        data = data.rename(columns={'route': 'route_id'})
 
         gtfs_stop_ids_set = set(gtfs.validated_data['stops']['stop_id'])
         gtfs_trip_ids_set = set(gtfs.validated_data['trips']['trip_id'])
@@ -185,8 +186,8 @@ class AVL():
 
 
     def get_avl_records(self) -> pd.DataFrame:
-        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route', 'trip_id', 'stop_sequence'], 
-        and only unique rows of each combination of ['svc_date', 'route', 'trip_id', 'stop_sequence'] columns are kept.
+        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route_id', 'trip_id', 'stop_sequence'], 
+        and only unique rows of each combination of ['svc_date', 'route_id', 'trip_id', 'stop_sequence'] columns are kept.
 
         :return: dataframe containing validated and sorted AVL data
         :rtype: pd.DataFrame
@@ -194,9 +195,12 @@ class AVL():
 
         avl_df:pd.DataFrame = deepcopy(self.validated_data)
 
-        avl_df = avl_df.sort_values(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
-                        .drop_duplicates(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
+        avl_df = avl_df.sort_values(['svc_date', 'route_id', 'trip_id', 'stop_sequence'])\
+                        .drop_duplicates(['svc_date', 'route_id', 'trip_id', 'stop_sequence'])\
                         .reset_index(drop=True)
+
+        avl_df['trip_start_time'] = avl_df.groupby(by=['svc_date', 'trip_id'])['stop_time'].transform('min')
+        avl_df['trip_end_time'] = avl_df.groupby(by=['svc_date', 'trip_id'])['stop_time'].transform('max')
 
         return avl_df
     
@@ -213,36 +217,36 @@ class AVL():
         start_time = time.time()
         
         # enforce that no one alights at the first stop or boards at the last stop
-        head_indices = p.groupby(['svc_date', 'route', 'trip_id']).head(1).index
-        tail_indices = p.groupby(['svc_date', 'route', 'trip_id']).tail(1).index
+        head_indices = p.groupby(['svc_date', 'route_id', 'trip_id']).head(1).index
+        tail_indices = p.groupby(['svc_date', 'route_id', 'trip_id']).tail(1).index
 
         p.loc[head_indices, 'passenger_off'] = 0
         p.loc[tail_indices, 'passenger_on'] = 0
-        p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
+        # p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
 
-        p['passenger_load'] = p.groupby(['svc_date', 'route', 'trip_id'])['passenger_delta'].cumsum()
-        p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
-        p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
+        # p['passenger_load'] = p.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_delta'].cumsum()
+        # p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
+        # p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
 
-        p['reset'] = (p['passenger_load']<0).astype(int)
+        # p['reset'] = (p['passenger_load']<0).astype(int)
         
-        logger.info(f'correcting passenger load')
-        while 1 in p['reset'].unique():
+        # logger.info(f'correcting passenger load')
+        # while 1 in p['reset'].unique():
             
-            reset_row_index = p[p['reset']==1].first_valid_index()
-            if reset_row_index in tail_indices:
-                p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index, 'passenger_load']
-                p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index, 'passenger_off']
-            else:
-                p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index-1, 'passenger_load'] \
-                                                            + p.loc[reset_row_index, 'passenger_on']
-                p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index-1, 'passenger_load']
-            p['passenger_load'] = p.groupby(['svc_date', 'route', 'trip_id'])['passenger_delta'].cumsum()
+        #     reset_row_index = p[p['reset']==1].first_valid_index()
+        #     if reset_row_index in tail_indices:
+        #         p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index, 'passenger_load']
+        #         p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index, 'passenger_off']
+        #     else:
+        #         p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index-1, 'passenger_load'] \
+        #                                                     + p.loc[reset_row_index, 'passenger_on']
+        #         p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index-1, 'passenger_load']
+        #     p['passenger_load'] = p.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_delta'].cumsum()
 
-            p['reset'] = (p['passenger_load']<0).astype(int)
+        #     p['reset'] = (p['passenger_load']<0).astype(int)
 
-        p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
-        p.loc[tail_indices, 'passenger_delta'] = -p.loc[tail_indices, 'passenger_off']
+        # p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
+        # p.loc[tail_indices, 'passenger_delta'] = -p.loc[tail_indices, 'passenger_off']
 
         logger.info(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
         records[['passenger_off', 'passenger_load']] = p[['passenger_off', 'passenger_load']]
