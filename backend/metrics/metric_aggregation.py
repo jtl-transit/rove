@@ -300,10 +300,11 @@ class Metric_Aggregation():
         self.tpbp_corridors['stop_spacing'] = self.gtfs_tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
 
     def span_of_service(self):
-        """Aggregated service start/end in sec since epoch. 
-        
-            - all aggregation levels: the first arrival at first stop (service start) and the last arrival 
-              at last stop (service end) of all trips
+        """Aggregated service start/end in hour. 
+
+            - stop/stop-aggregated/timepoint/timepoint-aggregated level: the first arrival at first stop of the pair and the last arrival 
+                at the first stop of the pair
+            - routes level: the first arrival at first stop (service start) and the last arrival at last stop (service end) of all trips
         """
 
         sig_fig = 2
@@ -581,10 +582,10 @@ class Metric_Aggregation():
         sig_fig = 0
 
         self.segments['passenger_flow'] = (self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['passenger_load'].sum() / \
-                                            (self.segments['observed_running_time'] * 60)).round(sig_fig)
+                                            (self.segments['revenue_hour'])).round(sig_fig)
 
         self.corridors['passenger_flow'] = (self.avl_stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['passenger_load'].sum() / \
-                                            (self.corridors['observed_running_time'] * 60)).round(sig_fig)
+                                            (self.corridors['revenue_hour'])).round(sig_fig)
 
     def congestion_delay(self):
         """Aggregated vehicle- and passenger-weighted congestion delay in min/mile or pax-min/mile.
