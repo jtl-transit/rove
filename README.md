@@ -70,3 +70,5 @@ So to calculate the metrics for the MBTA for weekdays in May 2022, the following
 from backend_main import run_backend
 run_backend(MBTA, 05, 2022, "Workday")
 ```
+
+This project is licensed under the terms of the GPLv2 license.
