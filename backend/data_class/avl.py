@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Set, Tuple
-from xmlrpc.client import Boolean
 import pandas as pd
 import numpy as np
 import logging
@@ -11,7 +10,7 @@ from backend.data_class.gtfs import GTFS
 from backend.data_class.rove_parameters import ROVE_params
 from copy import deepcopy
 import json
-from backend.helper_functions import load_csv_to_dataframe, series_to_datetime, check_is_file, convert_stop_ids
+from backend.helper_functions import load_csv_to_dataframe, check_is_file
 
 
 logger = logging.getLogger("backendLogger")
@@ -24,7 +23,6 @@ class AVL():
     :type rove_params: ROVE_params
     """
     
-    #: Required columns and the data types that each column will be converted to in AVL data
     REQUIRED_COL_SPEC = {
         'route':'string',
         'stop_id':'string',
@@ -37,8 +35,6 @@ class AVL():
         'seat_capacity': 'int64',
         'trip_id':'string'
     }
-
-    #: Optional columns in AVL data
     OPTIONAL_COL_SPEC = {
 
     }
@@ -46,26 +42,23 @@ class AVL():
     def __init__(self, rove_params:ROVE_params, bus_gtfs:GTFS):
         """Instantiate an AVL data class.
         """
-
+        logger.info(f'Processing AVL data...')
         #: Alias of the data class, defined as 'avl'.
         alias:str = 'avl'
 
-        #: ROVE_params for the backend, see parameter definition.
-        self.rove_params:ROVE_params = rove_params
+        self.rove_params = rove_params
 
-        #: GTFS records table
-        self.gtfs:GTFS = bus_gtfs
+        self.gtfs = bus_gtfs
         
+        # Raw data (read-only) read from the given path.
         logger.info(f'loading {alias} data')
         path = check_is_file(rove_params.input_paths[alias])
-        # Raw data read from the given path, see :py:meth:`.AVL.load_data` for details.
-        self.raw_data:pd.DataFrame = self.load_data(path)
+        self.raw_data = self.load_data(path)
         
+        # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
         logger.info(f'validating {alias} data')
-        #: Validated data, see :py:meth:`.AVL.validate_data` for details.
-        self.validated_data:pd.DataFrame = self.validate_data(bus_gtfs)
+        self.validated_data = self.validate_data(bus_gtfs)
 
-        #: AVL records table, see :py:meth:`.AVL.get_avl_records` for details.
         self.records:pd.DataFrame = self.get_avl_records()
 
         self.correct_passenger_load()
@@ -102,7 +95,7 @@ class AVL():
  
     def validate_data(self, gtfs:GTFS) -> pd.DataFrame:
         """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
-        to integer seconds if necessary. Filter to keep only AVL records of dates in the date_list in ROVE_params.
+        to integer seconds if necessary.
 
         :return: a dataframe of validated AVL data
         :rtype: pd.DataFrame
@@ -114,14 +107,9 @@ class AVL():
         
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
 
-        data = deepcopy(data[data['svc_date'].isin(self.rove_params.date_list)])
-        if data.empty:
-            raise ValueError(f'AVL table is empty after filtering for dates in the date_list.')
-
         data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
         data[cols] = data[cols].astype(dtype=data_specs)
-        data = data.rename(columns={'route': 'route_id'})
 
         gtfs_stop_ids_set = set(gtfs.validated_data['stops']['stop_id'])
         gtfs_trip_ids_set = set(gtfs.validated_data['trips']['trip_id'])
@@ -134,10 +122,8 @@ class AVL():
         logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
         logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
 
-        data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
-
         logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}, {data['svc_date'].nunique()} days in total")
-               
+                       
         return data
     
     def convert_dwell_time(self, data:pd.Series) -> pd.Series:
@@ -153,12 +139,12 @@ class AVL():
 
     def convert_stop_time(self, data:pd.Series) -> Tuple[pd.Series, pd.Series]:
         """Convert stop times to integer seconds since the beginning of service (defined in config). Also return a
-        column of service date (e.g. 01:30 am on March 4 may correspond to the service date of March 3 if service
+        column of operation date (e.g. 01:30 am on March 4 may correspond to the operation date of March 3 if service
         span is from 5 am to 3 am the next day).
 
         :param data: the column of stop_time (time of arrival at a stop) data
         :type data: pd.Series
-        :return: column of stop times in integer seconds, and column of service dates
+        :return: column of stop times in integer seconds, and column of operation dates
         :rtype: Tuple[pd.Series, pd.Seires]
         """
         
@@ -186,8 +172,8 @@ class AVL():
 
 
     def get_avl_records(self) -> pd.DataFrame:
-        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route_id', 'trip_id', 'stop_sequence'], 
-        and only unique rows of each combination of ['svc_date', 'route_id', 'trip_id', 'stop_sequence'] columns are kept.
+        """Return a dataframe that is the validated AVL table. Values are sorted by ['svc_date', 'route', 'trip_id', 'stop_sequence'], 
+        and only unique rows of each combination of ['svc_date', 'route', 'trip_id', 'stop_sequence'] columns are kept.
 
         :return: dataframe containing validated and sorted AVL data
         :rtype: pd.DataFrame
@@ -195,12 +181,9 @@ class AVL():
 
         avl_df:pd.DataFrame = deepcopy(self.validated_data)
 
-        avl_df = avl_df.sort_values(['svc_date', 'route_id', 'trip_id', 'stop_sequence'])\
-                        .drop_duplicates(['svc_date', 'route_id', 'trip_id', 'stop_sequence'])\
+        avl_df = avl_df.sort_values(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
+                        .drop_duplicates(['svc_date', 'route', 'trip_id', 'stop_sequence'])\
                         .reset_index(drop=True)
-
-        avl_df['trip_start_time'] = avl_df.groupby(by=['svc_date', 'trip_id'])['stop_time'].transform('min')
-        avl_df['trip_end_time'] = avl_df.groupby(by=['svc_date', 'trip_id'])['stop_time'].transform('max')
 
         return avl_df
     
@@ -217,36 +200,36 @@ class AVL():
         start_time = time.time()
         
         # enforce that no one alights at the first stop or boards at the last stop
-        head_indices = p.groupby(['svc_date', 'route_id', 'trip_id']).head(1).index
-        tail_indices = p.groupby(['svc_date', 'route_id', 'trip_id']).tail(1).index
+        head_indices = p.groupby(['svc_date', 'route', 'trip_id']).head(1).index
+        tail_indices = p.groupby(['svc_date', 'route', 'trip_id']).tail(1).index
 
         p.loc[head_indices, 'passenger_off'] = 0
         p.loc[tail_indices, 'passenger_on'] = 0
-        # p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
+        p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
 
-        # p['passenger_load'] = p.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_delta'].cumsum()
-        # p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
-        # p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
+        p['passenger_load'] = p.groupby(['svc_date', 'route', 'trip_id'])['passenger_delta'].cumsum()
+        p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
+        p['passenger_delta'] = p['passenger_on'] - p['passenger_off']
 
-        # p['reset'] = (p['passenger_load']<0).astype(int)
+        p['reset'] = (p['passenger_load']<0).astype(int)
         
-        # logger.info(f'correcting passenger load')
-        # while 1 in p['reset'].unique():
+        logger.info(f'correcting passenger load')
+        while 1 in p['reset'].unique():
             
-        #     reset_row_index = p[p['reset']==1].first_valid_index()
-        #     if reset_row_index in tail_indices:
-        #         p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index, 'passenger_load']
-        #         p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index, 'passenger_off']
-        #     else:
-        #         p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index-1, 'passenger_load'] \
-        #                                                     + p.loc[reset_row_index, 'passenger_on']
-        #         p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index-1, 'passenger_load']
-        #     p['passenger_load'] = p.groupby(['svc_date', 'route_id', 'trip_id'])['passenger_delta'].cumsum()
+            reset_row_index = p[p['reset']==1].first_valid_index()
+            if reset_row_index in tail_indices:
+                p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index, 'passenger_load']
+                p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index, 'passenger_off']
+            else:
+                p.loc[reset_row_index, 'passenger_off'] = p.loc[reset_row_index-1, 'passenger_load'] \
+                                                            + p.loc[reset_row_index, 'passenger_on']
+                p.loc[reset_row_index, 'passenger_delta'] = -p.loc[reset_row_index-1, 'passenger_load']
+            p['passenger_load'] = p.groupby(['svc_date', 'route', 'trip_id'])['passenger_delta'].cumsum()
 
-        #     p['reset'] = (p['passenger_load']<0).astype(int)
+            p['reset'] = (p['passenger_load']<0).astype(int)
 
-        # p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
-        # p.loc[tail_indices, 'passenger_delta'] = -p.loc[tail_indices, 'passenger_off']
+        p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
+        p.loc[tail_indices, 'passenger_delta'] = -p.loc[tail_indices, 'passenger_off']
 
         logger.info(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
         records[['passenger_off', 'passenger_load']] = p[['passenger_off', 'passenger_load']]

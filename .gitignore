@@ -26,6 +26,7 @@ test.py
 
 data/
 logs/
+frontend/
 *.p
 .DS_Store
 .DS_Store

@@ -3,7 +3,16 @@ Data Class
 
 rove\_parameters module
 ----------------------------------------
+
 .. automodule:: backend.data_class.rove_parameters
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+base\_data\_class module
+-----------------------------------------
+
+.. automodule:: backend.data_class.base_data_class
    :members:
    :undoc-members:
    :show-inheritance:
