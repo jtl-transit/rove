@@ -2,15 +2,16 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
-from ..helper_functions import check_parent_dir, check_is_file
+from ..helper_functions import check_parent_dir, check_is_file, read_shapes
 import math
 from tqdm.auto import tqdm
 import json
 import requests
 from time import sleep
 import geopandas as gpd
-from shapely.geometry import LineString
+from backend.data_class import ROVE_params
 import polyline
+from shapely.geometry import LineString
 
 logger = logging.getLogger("backendLogger")
 
@@ -44,15 +45,18 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
         }
 
-    def __init__(self, patterns, params, check_signal, mode='bus'):
+    def __init__(self, patterns, params:ROVE_params, mode='bus', check_signal=False):
 
         logger.info(f'Generating shapes...')
-        self.params = params
-        self.outpath = self.params.output_paths['shapes']
-        self.patterns = self.__check_patterns(patterns)
         self.mode = mode
+        self.PARAMETERS = self.MAP_MATCHING_PARAMETERS
+        self.patterns = self.__check_patterns(patterns)
+        self.params = params
+        
+        self.outpath = check_parent_dir(params.output_paths['shapes'])
+
         self.shapes = self.generate_segment_shapes()
-        # self.shapes = read_shapes(self.params.output_paths['shapes'])
+        self.shapes = read_shapes(self.params.output_paths['shapes'])
         if check_signal:
             self.shapes = self.check_signal_intersection()
         
@@ -60,10 +64,9 @@ class BaseShape():
 
     def generate_shapes_json(self):
 
-        outpath = check_parent_dir(self.outpath)
+        outpath = check_parent_dir(self.params.output_paths['shapes'])
         with open(outpath, 'w') as fp:
-            shapes_json = json.loads(self.shapes.to_json(orient='records'))
-            json.dump(shapes_json, fp)
+            json.dump(self.shapes.to_json(orient='records'), fp)
 
     def __check_patterns(self, patterns:Dict) -> Dict:
         
@@ -86,7 +89,7 @@ class BaseShape():
         :rtype: pd.DataFrame
         """
 
-        PARAMETERS = self.MAP_MATCHING_PARAMETERS
+        PARAMETERS = self.PARAMETERS
         all_matched = {}
         all_skipped = {}
 
@@ -155,9 +158,6 @@ class BaseShape():
                             for p_name, segments in all_matched.items() \
                                 for s_name, s_info in segments.items()]
 
-        with open(self.outpath, 'w') as fp:
-            json.dump(matched_output, fp)
-
         skipped_output = [
                             {
                                 **{'pattern': p_name,
@@ -167,11 +167,12 @@ class BaseShape():
                             }
                             for p_name, segments in all_skipped.items() \
                                 for s_name, s_info in segments.items()]
-        with open('skipped_shapes.json', 'w') as fp:
-            json.dump(skipped_output, fp)
-        
+
         logger.debug(f'Number of patterns matched: {len(all_matched.keys())}. '\
             f'Number of patterns skipped: {len(all_skipped.keys())}')
+
+        with open('skipped_shapes.json', 'w') as fp:
+            json.dump(skipped_output, fp)
 
         return pd.json_normalize(matched_output)
         
@@ -180,40 +181,23 @@ class BaseShape():
 
         OSM_PLANE = 'EPSG:4326'
         STATE_PLANE = self.params.config['crs']
-        logger.info(f'checking intersecting signals')
+        
         signal_inpath = check_is_file(self.params.input_paths['signals'])
-        signal_df = gpd.read_file(signal_inpath)
-        signal_df['state_point'] = gpd.GeoSeries(signal_df['geometry']).set_crs(OSM_PLANE).to_crs(STATE_PLANE)
-
-        # Add buffer around each traffic signal to catch any segments that pass through the intersection
+        signal_df = gpd.read_file(signal_inpath).set_crs(OSM_PLANE)['geometry'].to_crs(STATE_PLANE)
+        
         buffer_radius = 10 # in ft
-        signal_df['buffer_state_point'] = signal_df['state_point'].buffer(buffer_radius)
-
-        sig_gdf = gpd.GeoDataFrame(signal_df[['id', 'buffer_state_point']], geometry='buffer_state_point')
-        # signal_df_buffer = signal_df.buffer(buffer_radius)
-        # all_signals = signal_df_buffer.unary_union
+        # Add buffer around each traffic signal to catch any segments that pass through the intersection
+        signal_df_buffer = signal_df.buffer(buffer_radius)
+        all_signals = signal_df_buffer.unary_union
         
         # Decode polylines and create geodataframe with same projection as signal df
         shapes = self.shapes.copy()
-        shapes['linestring'] = shapes['geometry'].apply(lambda x: LineString(polyline.decode(x, geojson = True, precision = 6)))
-        shapes['state_linestring'] = gpd.GeoSeries(shapes['linestring']).set_crs(OSM_PLANE).to_crs(STATE_PLANE)
+        bus_gdf = shapes['geometry'].apply(lambda x: LineString(polyline.decode(x, geojson = True, precision = 6)))
+
+        bus_gdf = gpd.GeoSeries(shapes['linestring']).set_crs(OSM_PLANE).to_crs(STATE_PLANE)
         
-        bus_gdf = gpd.GeoDataFrame(shapes[['seg_index', 'state_linestring']], geometry='state_linestring')
-
-        intersect = gpd.sjoin(sig_gdf, bus_gdf, how='left')
-        intersect['intersect'] = ~intersect['seg_index'].isnull()
-        ig = intersect.groupby('index_right')['intersect'].max().reset_index()
-        ig['index'] = ig['index_right'].astype('int')
-        ig = ig.set_index('index').drop(columns=['index_right'])
-
-        shapes = shapes.merge(ig, left_index=True, right_index=True, how='left')
-        shapes['intersect'] = shapes['intersect'].fillna(False)
-
-        # bus_gdf = gpd.GeoSeries(shapes['linestring']).set_crs(OSM_PLANE).to_crs(STATE_PLANE)
-        shapes = shapes.drop(columns=['linestring', 'state_linestring'])
-
         # For each segment, check if intersects with full signal dataframe
-        # shapes['intersect'] = bus_gdf.intersects(all_signals)
+        shapes['intersect'] = bus_gdf.intersects(all_signals)
         
         return shapes
 

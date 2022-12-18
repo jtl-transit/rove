@@ -1,5 +1,4 @@
 from typing import Dict
-from pandas.core.frame import DataFrame
 import partridge as ptg
 import pandas as pd
 import numpy as np
@@ -31,7 +30,7 @@ class GTFS():
     REQUIRED_DATA_SPEC = {
                         'stops':{
                             'stop_id':'string',
-                            # 'stop_code':'string',
+                            'stop_code':'string',
                             'stop_name': 'string',
                             'stop_lat':'float64',
                             'stop_lon':'float64'
@@ -68,31 +67,33 @@ class GTFS():
     def __init__(self, rove_params:ROVE_params, mode:str='bus'):
         """Instantiate a GTFS data class.
         """
-        logger.info(f'Processing GTFS data...')
+
         if mode not in rove_params.config['route_type'].keys():
             raise KeyError(f'Invalid mode: {mode}. Cannot find the corresponding route type value in the config file.')
-        self.mode = mode
+        #: Analyzed transit mode, see parameter definition.
+        self.mode:str = mode
 
-        self.alias = 'gtfs'
+        #: Alias of the data class, defined as 'gtfs'.
+        self.alias:str = 'gtfs'
 
-        self.rove_params = rove_params
+        #: ROVE_params for the backend, see parameter definition.
+        self.rove_params:ROVE_params = rove_params
         
-        # Raw data (read-only) read from the given path.
         logger.info(f'loading {self.alias} data')
         path = check_is_file(rove_params.input_paths[self.alias])
-        self.raw_data = self.load_data(path)
+        #: Raw data read from the given path, see  :py:meth:`.GTFS.load_data` for details.
+        self.raw_data:Dict[str, pd.DataFrame] = self.load_data(path)
         
-        # Validate data (read-only). Set as read-only to prevent user from setting the field manually.
         logger.info(f'validating {self.alias} data')
-        self.validated_data = self.validate_data()
+        #: Validated data, see  :py:meth:`.GTFS.validate_data` for details.
+        self.validated_data:Dict[str, pd.DataFrame] = self.validate_data()
 
-        #: GTFS records table that contains all stop events info and trips info, see :py:meth:`.GTFS.get_gtfs_records` for details.
+        #: GTFS records table that contains all stop events info and trips info, see  :py:meth:`.GTFS.get_gtfs_records` for details.
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
-        if 'timepoints' not in self.records.columns:
-            logger.warning(f"GTFS stop_times table does not contain column 'timepoints'.")
-            self.add_timepoints()
+        logger.debug(f'adding timepoints to GTFS data')
+        self.add_timepoints()
         check_dataframe_column(self.records, 'timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
@@ -100,57 +101,19 @@ class GTFS():
         self.add_branchpoints()
         check_dataframe_column(self.records, 'branchpoint', '0or1')
 
-        # create the patterns dict. Key: pattern, value: segment dict 
-        #   segment dict key: tuple of stops defining the segment, value: coordinates of the segment)
+        #: A dict of patterns (different from the GTFS patterns table), see  :py:meth:`.GTFS.generate_patterns` for details.
         self.patterns_dict = self.generate_patterns()
 
         if 'shapes' in self.validated_data.keys():
+            #: A dict of improved patterns, see  :py:meth:`.GTFS.improve_pattern_with_shapes` for details.
             self.patterns_dict = self. improve_pattern_with_shapes(self.patterns_dict, self.records, self.validated_data)
 
         self.generate_timepoints_output()
         self.generate_stop_name_output()
 
-    def generate_timepoints_output(self):
-        """Save to a JSON file a lookup of timepoint pairs. Each key is the segment ID, i.e. string concatenation of "route_id - first stop - second stop" 
-        of the stop pair, and value is a tuple (first stop_id, second stop_id) of the timepoint pair that this stop pair belongs to. 
-        """
-        records = self.records.copy()
 
-        tpbp_records = records.loc[records['tp_bp']==1, :].copy().reset_index()
-        tpbp_records.loc[:, 'next_tpbp'] = tpbp_records.groupby('trip_id')['stop_id'].shift(-1)
-        tpbp_records.loc[:, 'tpbp_pair'] = pd.Series(list(zip(tpbp_records.stop_id, tpbp_records.next_tpbp)))
-        tpbp_records = tpbp_records.set_index('index')
-        
-        records.loc[:, 'next_stop'] = records.groupby(by=['trip_id'])['stop_id'].shift(-1)
-        records = records.dropna(subset=['next_stop'])
-        records['tpbp_pair'] = tpbp_records['tpbp_pair']
-        records['tpbp_pair'] = records['tpbp_pair'].fillna(method='ffill')
-
-        records['segment_index'] = records['route_id'].astype(str) + '-' \
-                                        + records['stop_id'].astype(str) + '-'  \
-                                            + records['next_stop'].astype(str)
-
-        tpbp_dict = records.set_index('segment_index')['tpbp_pair'].to_dict()
-
-        out_path = check_parent_dir(self.rove_params.output_paths['timepoints'])
-        
-        with open(out_path, "w") as outfile:
-            json.dump(tpbp_dict, outfile)
-    
-    def generate_stop_name_output(self):
-        """Save to a JSON file a lookup of stop names. Each key is the stop ID, and element is the dict {"stop_name" : <name of the stop>}.
-        """
-        stop_name_dict = self.validated_data['stops'][['stop_id', 'stop_name']].dropna().drop_duplicates()\
-                            .set_index('stop_id').to_dict('index')
-
-        out_path = check_parent_dir(self.rove_params.output_paths['stop_name_lookup'])
-        
-        with open(out_path, "w") as outfile:
-            json.dump(stop_name_dict, outfile)
-
-
-    def load_data(self, path:str)->Dict[str, DataFrame]:
-        """Load in GTFS data from a zip file, and retrieve data of the sample date (as stored in rove_params) and 
+    def load_data(self, path:str)->Dict[str, pd.DataFrame]:
+        """Load in GTFS data from a zip file, and retrieve data of the dates in date_list (as stored in rove_params) and 
         route_type (as stored in config). Enforce that required tables are present and not empty, and log (w/o enforcing)
         if optional tables are not present in the feed or empty. Enforce that all spec columns exist for tables in both 
         the required and optional specs. Store the retrieved raw data tables in a dict.
@@ -158,21 +121,17 @@ class GTFS():
         :param path: path to the raw data
         :type path: str
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: DataFrames of required and optional GTFS tables.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         rove_params = self.rove_params
 
         # Retrieve GTFS data for the sample date
         try:
-            service_ids_by_date = ptg.read_service_ids_by_date(path)
-            not_available_dates = set(rove_params.date_list) - set(service_ids_by_date)
-            available_dates = set(rove_params.date_list) - not_available_dates
-            service_id_list = list(set([service_ids_by_date[day] for day in available_dates]))
-            logger.debug(f'service IDs retrieved for {len(available_dates)} days. ' + \
-                f'The following dates have no matching service_ids: {not_available_dates}')
+            service_id_list = list(set([ptg.read_service_ids_by_date(path)[day] for day in rove_params.date_list]))
+            logger.debug(f'service IDs retrieved: {set(frozenset().union(*service_id_list))}')
         except KeyError as err:
-            logger.fatal(f'{err}: Services for sample date {rove_params.sample_date} cannot be found in GTFS.', exc_info=True)
+            logger.fatal(f'{err}: Service IDs for days {rove_params.date_list} cannot be found in GTFS.', exc_info=True)
             quit()
 
         # Load GTFS feed
@@ -188,7 +147,7 @@ class GTFS():
         return {**required_data, **optional_data}
 
     def __get_non_empty_gtfs_table(self, feed:ptg.readers.Feed, table_col_spec:Dict[str,Dict[str,str]], required:bool=False)\
-                                    ->Dict[str, DataFrame]:
+                                    ->Dict[str, pd.DataFrame]:
         """Store in a dict all non-empty GTFS tables from the feed that are listed in the spec. 
         For required tables, each table must exist in the feed and must not be empty, otherwise the program will be halted.
         For optional tables, any table in the spec not in the feed or empty table in the feed is skipped and not stored.
@@ -197,7 +156,7 @@ class GTFS():
         :raises ValueError: table is found in the feed, but is empty.
         :raises KeyError: table is missing at least one of the required columns
         :return: a dict containing raw GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         data = {}
@@ -231,7 +190,7 @@ class GTFS():
         """Clean up raw data by converting column types to those listed in the spec.
 
         :return: a dict containing cleaned-up GTFS data. Key: name of GTFS table; value: GTFS table stored as DataFrame.
-        :rtype: Dict[str, DataFrame]
+        :rtype: Dict[str, pd.DataFrame]
         """
 
         # avoid changing the raw data object
@@ -265,9 +224,9 @@ class GTFS():
 
         gtfs_df = stop_times.merge(trips, on='trip_id', how='left')\
                         .sort_values(by=['route_id', 'trip_id', 'stop_sequence'])\
-                            .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first')
+                            .drop_duplicates(subset=['route_id', 'trip_id', 'direction_id', 'stop_sequence'], keep='first').reset_index(drop=True)
         
-        gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
+        # gtfs_df['hour'] = (gtfs_df.groupby('trip_id')['arrival_time'].transform('min'))//3600
         gtfs_df['trip_start_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('min')
         gtfs_df['trip_end_time'] = gtfs_df.groupby('trip_id')['arrival_time'].transform('max')
 
@@ -277,12 +236,10 @@ class GTFS():
         """Add, or repopulate, the 'timepoint' column in the GTFS records table (created from get_gtfs_records()). 'timepoint' is an optional column in GTFS standards, but
         we require the identification of timepoints in each trip for timepoint-level metric calculations. Therefore, each agency must either supply
         the 'timepoint' info in the 'timepoint' column of the 'stop_times' table in GTFS data, or provide additional data source and extend the standard
-        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. Otherwise, every stop in the stop_times will be 
-        labeled as a timepoint.
+        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. 
         """
-        logger.warning(f'Every stop in the GTFS records is labeled as a timepoint. ' + \
-            f'To avoid this, please extend the GTFS class and define a custom add_timepoints() function in the child class.')
-        self.records['timepoint'] = 1
+
+        pass
 
     def add_branchpoints(self):
         """Add the 'branchpoint' and 'tp_bp' columns in the GTFS records table. 'branchpoint' is defined as stops where routes converge or diverge between two timepoints.
@@ -324,6 +281,13 @@ class GTFS():
         # mark the first stop of each trip as tp_bp
         records.loc[records.groupby('trip_id')['tp_bp'].head(1).index, 'tp_bp'] = 1
         records.loc[records.groupby('trip_id')['tp_bp'].tail(1).index, 'tp_bp'] = 1
+
+        # make sure that stops of the same route have the same tp_bp value
+        records['route_stop'] = list(zip(records['route_id'], records['stop_id']))
+        tp_bp_lookup = records[['route_stop', 'tp_bp']].sort_values(by=['route_stop', 'tp_bp']).\
+                        drop_duplicates(subset=['route_stop'], keep='last').set_index('route_stop')['tp_bp'].to_dict()
+        records['tp_bp'] = records['route_stop'].map(tp_bp_lookup)
+        records = records.drop(columns=['route_stop'])
 
     def generate_patterns(self) -> Dict[str, Dict]:
         """Generate a dict of patterns from validated GTFS data. Add a "pattern" column to the trips table.
@@ -368,6 +332,7 @@ class GTFS():
         records['stop_ids'] = records['hash'].map(hash_stops_lookup)
         # Get a dict of <pattern: list of stop ids>
         pattern_stops_lookup = records.set_index('pattern')['stop_ids'].to_dict()
+        records.drop(columns=['hash', 'hash_count', 'stop_ids'], inplace=True)
 
         # Get a dict of <stop id: tuple of stop coordinates (lat, lon)>
         stops = stops[['stop_id','stop_lat','stop_lon']].drop_duplicates()
@@ -379,7 +344,6 @@ class GTFS():
         patterns = {pattern: {(stop_ids[i], stop_ids[i+1]): [stop_coords_lookup[stop_ids[i]], stop_coords_lookup[stop_ids[i+1]]] \
                                     for i in range(len(stop_ids)-1)} for pattern, stop_ids in pattern_stops_lookup.items()}
 
-        
         return patterns
 
     def improve_pattern_with_shapes(self, patterns:Dict, records:pd.DataFrame, gtfs:Dict) -> Dict[str, Dict]:
@@ -447,4 +411,45 @@ class GTFS():
         dist = distance.cdist(np.array(coord_list), np.array([coord]), 'euclidean')
         return dist.argmin()
 
+    def generate_timepoints_output(self):
+        """Save to a JSON file a lookup of timepoint pairs. Each key is the segment ID, i.e. string concatenation of "route_id - first stop - second stop" 
+        of the stop pair, and value is a tuple (first stop_id, second stop_id) of the timepoint pair that this stop pair belongs to. 
+        """
+        records = self.records.copy()
+
+        tpbp_records = records.loc[records['tp_bp']==1, :].copy().reset_index()
+        tpbp_records.loc[:, 'next_tpbp'] = tpbp_records.groupby('trip_id')['stop_id'].shift(-1)
+        tpbp_records.loc[:, 'tpbp_pair'] = pd.Series(list(zip(tpbp_records.stop_id, tpbp_records.next_tpbp)))
+        tpbp_records = tpbp_records.set_index('index')
+        
+        records.loc[:, 'next_stop'] = records.groupby(by=['trip_id'])['stop_id'].shift(-1)
+        records = records.dropna(subset=['next_stop'])
+        records['tpbp_pair'] = tpbp_records['tpbp_pair']
+        records['tpbp_pair'] = records['tpbp_pair'].fillna(method='ffill')
+
+        records['segment_index'] = records['route_id'].astype(str) + '-' \
+                                        + records['stop_id'].astype(str) + '-'  \
+                                            + records['next_stop'].astype(str)
+
+        tpbp_dict = records.set_index('segment_index')['tpbp_pair'].to_dict()
+
+        out_path = check_parent_dir(self.rove_params.output_paths['timepoints'])
+        
+        with open(out_path, "w") as outfile:
+            json.dump(tpbp_dict, outfile)
     
+    def generate_stop_name_output(self):
+        """Save to a JSON file a lookup of stop names. Each key is the stop ID, and element is the dict {"stop_name" : <name of the stop>} 
+        and optionally the name-value pair for "municipality" if the field exists in the table.
+        """
+        if 'municipality' in self.validated_data['stops'].columns:
+            fields = ['stop_id', 'stop_name', 'municipality']
+        else:
+            fields = ['stop_id', 'stop_name']
+        stop_name_dict = self.validated_data['stops'][fields].dropna().drop_duplicates()\
+                            .set_index('stop_id').to_dict('index')
+
+        out_path = check_parent_dir(self.rove_params.output_paths['stop_name_lookup'])
+        
+        with open(out_path, "w") as outfile:
+            json.dump(stop_name_dict, outfile)

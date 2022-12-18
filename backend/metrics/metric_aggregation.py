@@ -7,7 +7,7 @@ from typing import Tuple, Dict, Set, List, Callable
 import scipy.stats
 import pickle
 from backend.metrics.metric_calculation import Metric_Calculation
-from backend.data_class.rove_parameters import ROVE_params
+from ..data_class.rove_parameters import ROVE_params
 from backend.helper_functions import check_parent_dir
 from tqdm.auto import tqdm
 
@@ -33,11 +33,9 @@ class Metric_Aggregation():
         self.gtfs_route_metrics = deepcopy(metrics.gtfs_route_metrics) 
         self.gtfs_tpbp_metrics = deepcopy(metrics.gtfs_tpbp_metrics)
 
-        self.data_option = params.data_option
-        if 'AVL' in self.data_option:
-            self.avl_stop_metrics = deepcopy(metrics.avl_stop_metrics)
-            self.avl_route_metrics = deepcopy(metrics.avl_route_metrics) 
-            self.avl_tpbp_metrics = deepcopy(metrics.avl_tpbp_metrics)
+        self.avl_stop_metrics = deepcopy(metrics.avl_stop_metrics)
+        self.avl_route_metrics = deepcopy(metrics.avl_route_metrics) 
+        self.avl_tpbp_metrics = deepcopy(metrics.avl_tpbp_metrics)
 
         self.SEGMENT_MULTIINDEX = ['route_id', 'stop_pair']
         self.CORRIDOR_MULTIINDEX = ['stop_pair']
@@ -54,6 +52,7 @@ class Metric_Aggregation():
         #: Initial timepoint-aggregated-level aggregated metrics table generated from gtfs_tpbp_metrics, contains unique records of timepoint stop_pair.
         self.tpbp_corridors:pd.DataFrame = self.__generate_corridors(self.gtfs_tpbp_metrics)
 
+        self.data_option = params.data_option
         self.redValues = params.redValues
         #: A dict of two percentile values used for data aggregation, median (50th percentile) and 90th percentile.
         self.percentiles:Dict[str, int] = {
@@ -136,10 +135,9 @@ class Metric_Aggregation():
         self.gtfs_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_route_metrics, start_time, end_time, 'route')
         self.gtfs_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_tpbp_metrics, start_time, end_time, 'tpbp')
 
-        if 'AVL' in self.data_option:
-            self.avl_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_stop_metrics, start_time, end_time, 'stop', 'stop_time')
-            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route', 'stop_time')
-            self.avl_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_tpbp_metrics, start_time, end_time, 'tpbp', 'stop_time')
+        self.avl_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_stop_metrics, start_time, end_time, 'stop', 'stop_time')
+        self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route', 'stop_time')
+        self.avl_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_tpbp_metrics, start_time, end_time, 'tpbp', 'stop_time')
         
         self.aggregate_metrics(percentile)
         
@@ -610,3 +608,4 @@ class Metric_Aggregation():
 
         self.routes['productivity'] = (self.avl_route_metrics.groupby(self.ROUTE_MULTIINDEX)['boardings'].sum() \
                                         / self.routes['revenue_hour']).round(sig_fig)
+

@@ -2,7 +2,6 @@ from copy import deepcopy
 import logging
 import pandas as pd
 import numpy as np
-from backend.data_class.rove_parameters import ROVE_params
 
 logger = logging.getLogger("backendLogger")
 
@@ -32,7 +31,7 @@ class Metric_Calculation():
     :type data_option: str
     :raises ValueError: 'AVL' is in data_option but the avl_records table is None
     """
-    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, params:ROVE_params):
+    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, data_option:str):
         
         logger.info(f'Calculating metrics...')
 
@@ -49,8 +48,6 @@ class Metric_Calculation():
         self.gtfs_route_metrics = self.gtfs_route_metrics.merge(self.gtfs_stop_metrics[['trip_id', 'service_id']].drop_duplicates(), \
                                         on=['trip_id'], how='left')    
 
-        data_option = params.data_option
-        
         if 'AVL' in data_option:
             if avl_records is not None:
                 self.avl_stop_metrics = self.__prepare_stop_event_records(avl_records, 'AVL')
