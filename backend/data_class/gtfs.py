@@ -14,40 +14,6 @@ from scipy.spatial import distance
 
 logger = logging.getLogger("backendLogger")
 
-REQUIRED_DATA_SPEC = {
-                    'stops':{
-                        'stop_id':'string',
-                        'stop_code':'string',
-                        'stop_name': 'string',
-                        'stop_lat':'float64',
-                        'stop_lon':'float64'
-                        }, 
-                    'routes':{
-                        'route_id':'string',
-                        'route_type': 'int64'
-                        }, 
-                    'trips':{
-                        'route_id':'string',
-                        'service_id':'string',
-                        'trip_id':'string',
-                        'direction_id':'int64', # not required by GTFS but required by ROVE
-                        }, 
-                    'stop_times':{
-                        'trip_id':'string',
-                        'arrival_time':'int64',
-                        'departure_time':'int64',
-                        'stop_id':'string',
-                        'stop_sequence':'int64',
-                        }
-                    }
-OPTIONAL_DATA_SPEC = {
-                    'shapes':{
-                        'shape_id':'string',
-                        'shape_pt_lat':'float64',
-                        'shape_pt_lon':'float64',
-                        'shape_pt_sequence':'int64'
-                        }
-                    }
 
 class GTFS():
     """Store a validated GTFS stop records table. Add timepoint and branchpoint data to the records table. 
@@ -55,15 +21,54 @@ class GTFS():
 
     :param rove_params: a rove_params object that stores information needed throughout the backend
     :type rove_params: ROVE_params
-    :param mode: the mode of transit that the GTFS data is for, defaults to 'bus'. The current implementation is developed for bus GTFS data only. 
-        Support for other transit modes may be added in the future.
+    :param mode: the mode of transit that the GTFS data is for, defaults to 'bus'. 
+        For example, if mode is 'bus', then the list of route type values for 'bus' as specified in backend_config will be used to query the corresponding GTFS trips. 
+        The current implementation (metrics, shapes, etc.) is developed around bus (or bus-like) mode only. Support for other transit modes may be added in the future.
     :type mode: str, optional
     """
+
+    #: Required tables and columns in GTFS static data. Note that "direction_id" is not a required field in GTFS specification, but is required by ROVE.
+    REQUIRED_DATA_SPEC = {
+                        'stops':{
+                            'stop_id':'string',
+                            # 'stop_code':'string',
+                            'stop_name': 'string',
+                            'stop_lat':'float64',
+                            'stop_lon':'float64'
+                            }, 
+                        'routes':{
+                            'route_id':'string',
+                            'route_type': 'int64'
+                            }, 
+                        'trips':{
+                            'route_id':'string',
+                            'service_id':'string',
+                            'trip_id':'string',
+                            'direction_id':'int64',
+                            }, 
+                        'stop_times':{
+                            'trip_id':'string',
+                            'arrival_time':'int64',
+                            'departure_time':'int64',
+                            'stop_id':'string',
+                            'stop_sequence':'int64',
+                            }
+                        }
+
+    #: Optional tables and columns that ideally are present in GTFS static data
+    OPTIONAL_DATA_SPEC = {
+                        'shapes':{
+                            'shape_id':'string',
+                            'shape_pt_lat':'float64',
+                            'shape_pt_lon':'float64',
+                            'shape_pt_sequence':'int64'
+                            }
+                        }
 
     def __init__(self, rove_params:ROVE_params, mode:str='bus'):
         """Instantiate a GTFS data class.
         """
-
+        logger.info(f'Processing GTFS data...')
         if mode not in rove_params.config['route_type'].keys():
             raise KeyError(f'Invalid mode: {mode}. Cannot find the corresponding route type value in the config file.')
         self.mode = mode
@@ -81,12 +86,13 @@ class GTFS():
         logger.info(f'validating {self.alias} data')
         self.validated_data = self.validate_data()
 
-        # create the records table that contains all stop events info and trips info
+        #: GTFS records table that contains all stop events info and trips info, see :py:meth:`.GTFS.get_gtfs_records` for details.
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
-        logger.debug(f'adding timepoints to GTFS data')
-        self.add_timepoints()
+        if 'timepoints' not in self.records.columns:
+            logger.warning(f"GTFS stop_times table does not contain column 'timepoints'.")
+            self.add_timepoints()
         check_dataframe_column(self.records, 'timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
@@ -159,7 +165,12 @@ class GTFS():
 
         # Retrieve GTFS data for the sample date
         try:
-            service_id_list = ptg.read_service_ids_by_date(path)[rove_params.sample_date]
+            service_ids_by_date = ptg.read_service_ids_by_date(path)
+            not_available_dates = set(rove_params.date_list) - set(service_ids_by_date)
+            available_dates = set(rove_params.date_list) - not_available_dates
+            service_id_list = list(set([service_ids_by_date[day] for day in available_dates]))
+            logger.debug(f'service IDs retrieved for {len(available_dates)} days. ' + \
+                f'The following dates have no matching service_ids: {not_available_dates}')
         except KeyError as err:
             logger.fatal(f'{err}: Services for sample date {rove_params.sample_date} cannot be found in GTFS.', exc_info=True)
             quit()
@@ -169,10 +180,10 @@ class GTFS():
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty
-        required_data = self.__get_non_empty_gtfs_table(feed, REQUIRED_DATA_SPEC, required=True)
+        required_data = self.__get_non_empty_gtfs_table(feed, self.REQUIRED_DATA_SPEC, required=True)
 
         # Add whichever optional table listed in the spec exists and is not empty
-        optional_data = self.__get_non_empty_gtfs_table(feed, OPTIONAL_DATA_SPEC)
+        optional_data = self.__get_non_empty_gtfs_table(feed, self.OPTIONAL_DATA_SPEC)
 
         return {**required_data, **optional_data}
 
@@ -266,10 +277,12 @@ class GTFS():
         """Add, or repopulate, the 'timepoint' column in the GTFS records table (created from get_gtfs_records()). 'timepoint' is an optional column in GTFS standards, but
         we require the identification of timepoints in each trip for timepoint-level metric calculations. Therefore, each agency must either supply
         the 'timepoint' info in the 'timepoint' column of the 'stop_times' table in GTFS data, or provide additional data source and extend the standard
-        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. 
+        GTFS class and overwrite this method to populate the 'timepoint' column in the GTFS records table. Otherwise, every stop in the stop_times will be 
+        labeled as a timepoint.
         """
-
-        pass
+        logger.warning(f'Every stop in the GTFS records is labeled as a timepoint. ' + \
+            f'To avoid this, please extend the GTFS class and define a custom add_timepoints() function in the child class.')
+        self.records['timepoint'] = 1
 
     def add_branchpoints(self):
         """Add the 'branchpoint' and 'tp_bp' columns in the GTFS records table. 'branchpoint' is defined as stops where routes converge or diverge between two timepoints.

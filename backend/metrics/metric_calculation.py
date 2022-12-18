@@ -2,10 +2,7 @@ from copy import deepcopy
 import logging
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Set, List
-import scipy.stats
-
-from ..data_class.rove_parameters import ROVE_params
+from backend.data_class.rove_parameters import ROVE_params
 
 logger = logging.getLogger("backendLogger")
 
@@ -19,9 +16,24 @@ MAX_HEADWAY = 90
 MAX_SPEED_MPH = 65
 MEAN_SPEED_MPH = 30
 
-class MetricCalculation():
-    
-    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, data_option:str):
+class Metric_Calculation():
+    """Calculate stop, stop-aggregated, route, timepoint, and timepoint-aggregated level metrics. If AVL data is provided 
+    and records for the same trip_id exist across multiple days, then calculate the trip metrics by averaging across all service dates. 
+    In other words, the metric calculation module averages metrics for the same trip, so that metrics tables after calculation 
+    only contains unique route_id, trip_id and stop_pair combinations. This is the upstream calculation of metric aggregation, which 
+    averages metrics of all trips on each aggregation level.
+
+    :param shapes: shapes table from Shape Generation
+    :type shapes: pd.DataFrame
+    :param gtfs_records: GTFS records table
+    :type gtfs_records: pd.DataFrame
+    :param avl_records: AVL records table
+    :type avl_records: pd.DataFrame
+    :param data_option: user-specified data option
+    :type data_option: str
+    :raises ValueError: 'AVL' is in data_option but the avl_records table is None
+    """
+    def __init__(self, shapes:pd.DataFrame, gtfs_records:pd.DataFrame, avl_records:pd.DataFrame, params:ROVE_params):
         
         logger.info(f'Calculating metrics...')
 
@@ -29,10 +41,30 @@ class MetricCalculation():
 
         self.tpbp_metrics = self.__prepare_stop_event_records(gtfs_records.loc[gtfs_records['tp_bp']==1, :], 'GTFS')
 
-        self.ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
-        self.route_metrics = self.__prepare_route_metrics(gtfs_records)
-        if avl_records is not None:
-            self.avl_records = self.__prepare_stop_event_records(avl_records, 'AVL')
+        self.GTFS_ROUTE_METRICS_KEY_COLUMNS = ['pattern', 'route_id', 'direction_id', 'trip_id']
+        #: Initial route-level metrics table generated from the GTFS records table.
+        self.gtfs_route_metrics = self.gtfs_stop_metrics[self.GTFS_ROUTE_METRICS_KEY_COLUMNS + ['trip_start_time', 'trip_end_time']].drop_duplicates()
+        # add service_id column
+        self.gtfs_route_metrics = self.gtfs_route_metrics.merge(self.gtfs_stop_metrics[['trip_id', 'service_id']].drop_duplicates(), \
+                                        on=['trip_id'], how='left')    
+
+        self.data_option = params.data_option
+        if 'AVL' in self.data_option:
+            if avl_records is not None:
+                self.avl_stop_metrics = self.__prepare_stop_event_records(avl_records, 'AVL')
+                # add tp_bp column
+                self.avl_stop_metrics = self.avl_stop_metrics.merge(self.gtfs_stop_metrics[['route_id', 'stop_id', 'tp_bp', 'timepoint']].drop_duplicates(), \
+                                        on=['route_id', 'stop_id'], how='left')
+
+                self.avl_tpbp_metrics = self.__prepare_stop_event_records(self.avl_stop_metrics[self.avl_stop_metrics['tp_bp']==1], 'AVL')
+
+                self.AVL_ROUTE_METRICS_KEY_COLUMNS = ['svc_date', 'trip_id', 'route_id']
+                self.avl_route_metrics = self.avl_stop_metrics[self.AVL_ROUTE_METRICS_KEY_COLUMNS + ['trip_start_time', 'trip_end_time']].drop_duplicates()
+                # add direction_id column
+                self.avl_route_metrics = self.avl_route_metrics.merge(self.gtfs_route_metrics[['route_id', 'trip_id', 'direction_id']].drop_duplicates(), \
+                                        on=['route_id', 'trip_id'], how='left')        
+            else:
+                raise ValueError(f'data_option is {self.data_option} but the AVL records table is None.')
 
         # ---- GTFS metrics ----
         self.stop_spacing(shapes)
@@ -41,7 +73,7 @@ class MetricCalculation():
         self.scheduled_speed()
 
         # ---- AVL metrics ----
-        if 'AVL' in data_option:
+        if 'AVL' in self.data_option:
             self.observed_headway()
             self.observed_running_time()
             self.observed_speed_without_dwell()

@@ -6,7 +6,8 @@ import numpy as np
 from typing import Tuple, Dict, Set, List, Callable
 import scipy.stats
 import pickle
-from ..data_class.rove_parameters import ROVE_params
+from backend.data_class.rove_parameters import ROVE_params
+from backend.metrics.metric_calculation import Metric_Calculation
 from backend.helper_functions import check_parent_dir
 from tqdm.auto import tqdm
 
@@ -17,25 +18,36 @@ SECONDS_IN_MINUTE = 60
 SECONDS_IN_HOUR = 3600
 SECONDS_IN_TEN_MINUTES = SECONDS_IN_MINUTE * 10
 
-class MetricAggregation():
+class Metric_Aggregation():
     
-    def __init__(self, stop_metrics:pd.DataFrame, tpbp_metrics:pd.DataFrame, route_metrics:pd.DataFrame, params:ROVE_params):
+    def __init__(self, metrics:Metric_Calculation, params:ROVE_params):
         logger.info(f'Aggregating metrics...')
-        self.stop_metrics = deepcopy(stop_metrics)
-        self.route_metrics = deepcopy(route_metrics) 
-        self.tpbp_metrics = deepcopy(tpbp_metrics)
+        self.gtfs_stop_metrics = deepcopy(metrics.gtfs_stop_metrics)
+        self.gtfs_route_metrics = deepcopy(metrics.gtfs_route_metrics) 
+        self.gtfs_tpbp_metrics = deepcopy(metrics.gtfs_tpbp_metrics)
+
+        self.data_option = params.data_option
+        if 'AVL' in self.data_option:
+            self.avl_stop_metrics = deepcopy(metrics.avl_stop_metrics)
+            self.avl_route_metrics = deepcopy(metrics.avl_route_metrics) 
+            self.avl_tpbp_metrics = deepcopy(metrics.avl_tpbp_metrics)
 
         self.SEGMENT_MULTIINDEX = ['route_id', 'stop_pair']
         self.CORRIDOR_MULTIINDEX = ['stop_pair']
         self.ROUTE_MULTIINDEX = ['route_id', 'direction_id']
 
-        self.segments:pd.DataFrame = self.__generate_segments(self.stop_metrics)
-        self.corridors:pd.DataFrame = self.__generate_corridors(self.stop_metrics)
-        self.routes:pd.DataFrame = self.__generate_routes(self.route_metrics)
-        self.tpbp_segments:pd.DataFrame = self.__generate_segments(self.tpbp_metrics)
-        self.tpbp_corridors:pd.DataFrame = self.__generate_corridors(self.tpbp_metrics)
+        #: Initial stop-level aggregated metrics table generated from gtfs_stop_metrics, contains unique records of route_id + stop_pair.
+        self.segments:pd.DataFrame = self.__generate_segments(self.gtfs_stop_metrics)
+        #: Initial stop-aggregated-level aggregated metrics table generated from gtfs_stop_metrics, contains unique records of stop_pair.
+        self.corridors:pd.DataFrame = self.__generate_corridors(self.gtfs_stop_metrics)
+        #: Initial route-level aggregated metrics table generated from gtfs_route_metrics, contains unique records of route_id + direction_id.
+        self.routes:pd.DataFrame = self.__generate_routes(self.gtfs_route_metrics)
+        #: Initial timepoint-level aggregated metrics table generated from gtfs_pbp_metrics, contains unique records of route_id + timepoint stop_pair.
+        self.tpbp_segments:pd.DataFrame = self.__generate_segments(self.gtfs_tpbp_metrics)
+        #: Initial timepoint-aggregated-level aggregated metrics table generated from gtfs_tpbp_metrics, contains unique records of timepoint stop_pair.
+        self.tpbp_corridors:pd.DataFrame = self.__generate_corridors(self.gtfs_tpbp_metrics)
 
-        self.data_option = params.data_option
+        
         self.redValues = params.redValues
         self.percentiles:dict = params.config['percentiles']
         self.time_dict:dict = params.config['time_periods']
@@ -77,32 +89,13 @@ class MetricAggregation():
         # not time-dependent (use non time-filtered data)
         self.stop_spacing()
 
-        # ---- GTFS metrics ----
-        # time-dependent (use time-filtered data)
-        ## metrics that can't be aggregated by percentile
-        self.span_of_service()
-        self.revenue_hour()
-        self.scheduled_frequency()
-        self.headway('percentile', percentile, 'scheduled')
-        self.wait_time('scheduled')
-        self.running_time(percentile, 'scheduled')
-        self.speed(percentile, 'scheduled')
-
-        # ---- AVL metrics ----
         if 'AVL' in self.data_option:
-            self.headway('percentile', percentile, 'observed')
-            self.running_time(percentile, 'observed')
-            self.speed(percentile, 'observed', 'without_dwell')
-            self.speed(percentile, 'observed', 'with_dwell')
-            self.boardings(percentile)
-            self.on_time_performance()
-            self.crowding()
-            self.passenger_load(percentile)
-            self.wait_time('observed')
-            self.excess_wait_time()
-            self.congestion_delay()
-            self.productivity()
-
+            self.avl_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_stop_metrics, start_time, end_time, 'stop', 'stop_time')
+            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route', 'stop_time')
+            self.avl_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_tpbp_metrics, start_time, end_time, 'tpbp', 'stop_time')
+        
+        self.aggregate_metrics(percentile)
+        
         self.segments_agg_metrics = self.__get_agg_metrics(self.segments.reset_index(), 'segments')
         self.corridors_agg_metrics = self.__get_agg_metrics(self.corridors.reset_index(), 'corridors')
         self.routes_agg_metrics = self.__get_agg_metrics(self.routes.reset_index(), 'routes')

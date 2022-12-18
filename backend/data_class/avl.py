@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Set, Tuple
-from xmlrpc.client import Boolean
 import pandas as pd
 import numpy as np
 import logging
@@ -11,7 +10,7 @@ from backend.data_class.gtfs import GTFS
 from backend.data_class.rove_parameters import ROVE_params
 from copy import deepcopy
 import json
-from backend.helper_functions import load_csv_to_dataframe, series_to_datetime, check_is_file, convert_trip_ids, convert_stop_ids
+from backend.helper_functions import load_csv_to_dataframe, check_is_file
 
 
 logger = logging.getLogger("backendLogger")
@@ -43,8 +42,9 @@ class AVL():
     def __init__(self, rove_params:ROVE_params, bus_gtfs:GTFS):
         """Instantiate an AVL data class.
         """
-
-        alias = 'avl'
+        logger.info(f'Processing AVL data...')
+        #: Alias of the data class, defined as 'avl'.
+        alias:str = 'avl'
 
         self.rove_params = rove_params
 
@@ -122,15 +122,8 @@ class AVL():
         logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
         logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
 
-        data = convert_trip_ids('avl', data, 'trip_id', self.gtfs.validated_data['trips'])
-        data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
-                
-        
-
-        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}")
-
-        
-               
+        logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}, {data['svc_date'].nunique()} days in total")
+                       
         return data
     
     def convert_dwell_time(self, data:pd.Series) -> pd.Series:

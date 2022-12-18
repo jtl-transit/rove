@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from calendar import WEDNESDAY
 import datetime
-from typing import List
+from typing import List, Dict
 from backend.helper_functions import day_list_generation
 import logging
 import json
@@ -28,13 +28,15 @@ class ROVE_params(object, metaclass=ABCMeta):
                 month:str,
                 year:str,
                 date_type:str,
-                data_option:str):
+                data_option:str,
+                input_paths:Dict,
+                output_paths:Dict):
         """Instantiate rove parameters.
         """
 
-        logger.info(f'Generating parameters...')
-        # str : analyzed transit agency
-        self.agency = agency
+        logger.info(f'Generating ROVE parameters...')
+        #: Analyzed transit agency, see parameter definition.
+        self.agency:str = agency
 
         # str : analysis month, year, date type and data option
         if not month.isnumeric() or len(month) != 2 or int(month) < 1 or int(month) > 12:
@@ -57,12 +59,12 @@ class ROVE_params(object, metaclass=ABCMeta):
 
         self.suffix = f'_{self.agency}_{self.month}_{self.year}'
 
-        # list (str) : list of input data used for backend calculations
-        self.data_option = data_option
+        #: Dict of paths to input data, i.e. gtfs, avl, backend_config, frontend_config, shapes file (if shape generation has been run previously).
+        self.input_paths:Dict[str, str] = input_paths
 
-        # dict <str, str> : dict of paths to input and output data
-        self.input_paths = self.__get_input_paths()
-        self.output_paths = self.__get_output_paths()
+        #: Dict of paths to output data, i.e., shapes file, timepoints lookup, stop name lookup, aggregated metrics by time periods, 
+        #: aggregated metrics by 10-min intervals.
+        self.output_paths:Dict[str, str] = output_paths
         
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
@@ -81,36 +83,6 @@ class ROVE_params(object, metaclass=ABCMeta):
         logger.info(f'Sample date: {self.sample_date}')
         logger.info(f'parameters generated')
 
-    def __get_input_paths(self):
-        """Get predefined paths to input data.
-
-        :return: dict of paths to input data. Key: alias of input data; value: path to the data file.
-        :rtype: dict
-        """
-
-        return {
-            'gtfs': f'data/{self.agency}/gtfs/GTFS{self.suffix}.zip',
-            'avl': f'data/{self.agency}/avl/AVL{self.suffix}.csv',
-            'backend_config': f'data/{self.agency}/config/{self.agency}_backend_config.json',
-            'frontend_config': f'frontend/static/inputs/{self.agency}/config.json',
-            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json'
-        }
-
-    def __get_output_paths(self):
-        """Get predefined paths to output data.
-
-        :return: dict of paths to output data. Key: alias of output data; value: path to the data file.
-        :rtype: dict
-        """
-
-        return {
-            'shapes': f'frontend/static/inputs/{self.agency}/shapes/bus-shapes{self.suffix}.json',
-            'timepoints': f'frontend/static/inputs/{self.agency}/timepoints/timepoints{self.suffix}.json',
-            'stop_name_lookup': f'frontend/static/inputs/{self.agency}/lookup/lookup{self.suffix}.json',
-            'metric_calculation_peak': f'frontend/static/inputs/{self.agency}/peak/peak{self.suffix}.json',
-            'metric_calculation_aggre': f'data/{self.agency}/metrics/METRICS{self.suffix}.p',
-            'metric_calculation_aggre_10min': f'data/{self.agency}/metrics/METRICS_10MIN{self.suffix}.p'
-        }
 
     def __generate_date_list(self)->List[datetime.datetime]:
         """Generate list of dates of date_type in the given month and year.
