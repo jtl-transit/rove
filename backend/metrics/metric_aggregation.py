@@ -55,6 +55,43 @@ class Metric_Aggregation():
         self.aggregate_by_time_periods(params.output_paths['metric_calculation_aggre'])
         self.aggregate_by_10min_intervals(params.output_paths['metric_calculation_aggre_10min'])
 
+    def aggregate_metrics(self, percentile:int):
+        """All metrics aggregation methods. Can be overriden by child class to add more methods.
+
+        :param percentile: percentile of metrics that is returned, e.g. 50 -> median, 90 -> worst decile
+        :type percentile: int
+        """
+        # not time-dependent (use non time-filtered data)
+        self.stop_spacing()
+        self.span_of_service()
+        self.revenue_hour()
+
+        # ---- GTFS metrics ----
+        # time-dependent (use time-filtered data)
+        self.headway(percentile, 'scheduled')
+        self.frequency('scheduled')
+        self.wait_time('scheduled')
+        self.running_time(percentile, 'scheduled')
+        self.speed(percentile, 'scheduled')
+
+        # ---- AVL metrics ----
+        if 'AVL' in self.data_option:
+            self.headway(percentile, 'observed')
+            self.frequency('observed')
+            self.running_time(percentile, 'observed')
+            self.speed(percentile, 'observed', 'without_dwell')
+            self.speed(percentile, 'observed', 'with_dwell')
+            self.boardings(percentile)
+            self.on_time_performance()
+            self.crowding()
+            self.passenger_load(percentile)
+            self.wait_time('observed')
+            self.excess_wait_time()
+            self.passenger_flow()
+            self.congestion_delay()
+            self.productivity()
+            
+
     def aggregate_by_start_end_time(self, start_time:List, end_time:List, percentile:int):
         """Given a start_time and end_time, filter each metrics table to keep only stop arrivals within the time window, or 
         trips that depart from the first stop within the time window, then calculate each time-dependent metric using the time-filtered metrics table. 
