@@ -44,13 +44,13 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
         }
 
-    def __init__(self, patterns, params, check_signal):
+    def __init__(self, patterns, params, check_signal, mode='bus'):
 
         logger.info(f'Generating shapes...')
         self.params = params
         self.outpath = self.params.output_paths['shapes']
         self.patterns = self.__check_patterns(patterns)
-
+        self.mode = mode
         self.shapes = self.generate_segment_shapes()
         # self.shapes = read_shapes(self.params.output_paths['shapes'])
         if check_signal:
@@ -86,7 +86,7 @@ class BaseShape():
         :rtype: pd.DataFrame
         """
 
-        PARAMETERS = self.PARAMETERS
+        PARAMETERS = self.MAP_MATCHING_PARAMETERS
         all_matched = {}
         all_skipped = {}
 

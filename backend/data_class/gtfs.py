@@ -236,7 +236,7 @@ class GTFS():
 
         # avoid changing the raw data object
         data:Dict = deepcopy(self.raw_data)
-        data_specs = {**REQUIRED_DATA_SPEC, **OPTIONAL_DATA_SPEC}
+        data_specs = {**self.REQUIRED_DATA_SPEC, **self.OPTIONAL_DATA_SPEC}
 
         # convert column types according to the spec
         for table_name, df in data.items():
