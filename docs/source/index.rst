@@ -25,8 +25,8 @@ Contents
    backend
    frontend
 
-Contact Us
---------
+Indices and tables
+==================
 
-Initially developed by Ru Mehendale. The current contributors are Xiaotong Guo (xtguo@mit.edu), 
-Nick Caros (caros@mit.edu), Yuzhu Huang (yuzhuh@mit.edu) and Anson Stewart (ansons@mit.edu).
+* :ref:`install`
+* :ref:`backend`
