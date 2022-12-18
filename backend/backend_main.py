@@ -19,7 +19,7 @@ DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = True # True/False: whether to generate shapes
-METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
+METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
 
