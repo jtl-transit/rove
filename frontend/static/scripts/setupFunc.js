@@ -245,7 +245,8 @@ function initializeDataPanel(){
 		backgroundLayer = [];
 		$('#range-toggle-bkgrd').hide();
 		$('#bkgrd-select').hide();
-		$("#legend-svg-bkgrd").hide();
+		$('#legends-2').hide()
+		// $("#legend-svg-bkgrd").hide();
 	});
 
 	// Add time range slider

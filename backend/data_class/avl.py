@@ -158,7 +158,7 @@ class AVL():
 
         stop_time_total_seconds = stop_time_hour * 3600 + stop_time_min * 60 + stop_time_sec
 
-        day_start, _ = self.rove_params.config['time_periods']['full']
+        day_start, _ = self.rove_params.backend_config['time_periods']['full']
         day_start_total_seconds = interval_to_second(day_start)
         midnight_total_seconds = interval_to_second([24, 0])
 

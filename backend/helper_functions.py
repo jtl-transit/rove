@@ -340,3 +340,21 @@ def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_co
             logger.debug(f'{raw_data_trip_col} matches with scheduled_trip_id, replaced with matching GTFS trip_id')
 
     return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)
+
+def write_metrics_to_frontend_config(metric_names:Dict, path):
+
+    fpath = check_is_file(path)
+    metrics_list = list(metric_names.keys())
+    metrics = {
+        k: {
+            'label': v,
+            'order': metrics_list.index(k)
+        }
+        for k, v in metric_names.items()
+    }
+    with open(fpath, 'r+') as f:
+        config = json.load(f)
+        config['units'] = metrics # <--- add `id` value.
+        f.seek(0)        # <--- should reset file position to the beginning.
+        json.dump(config, f)
+        f.truncate()     # remove remaining part

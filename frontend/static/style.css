@@ -155,7 +155,7 @@ Initially developed by Ru Mehendale of the MIT Transit Lab.
 		color: white;
 		position: relative;
 		overflow-y: auto;
-		height: 700px;
+		height: 100vh;
 	}
 
 	/* Used in toolFunc.js for dynamic legend */
@@ -224,7 +224,7 @@ Initially developed by Ru Mehendale of the MIT Transit Lab.
 
 	/* Used for all of the subpanels in the RH menus */
 	.metric-filter-container { 
-		height: 200px;
+		height: 50vh;
 		z-index: 2;
 		overflow-y: auto;	
 		overflow-x: hidden;

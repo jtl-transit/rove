@@ -24,9 +24,11 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
 
         sig_fig = 0
 
-        self.segments['on_time_performance'] = self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
-        self.routes['on_time_performance'] = self.avl_route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+        self.segments['on_time_performance_sec'] = self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+        self.routes['on_time_performance_perc'] = self.avl_route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
 
+        self.metrics_names['on_time_performance_sec'] = 'On Time Performance (sec)'
+        self.metrics_names['on_time_performance_perc'] = 'On Time Performance (% of timepoints)'
 
 
     def schedule_sufficiency_index(self):
@@ -55,3 +57,5 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
 
         route_by_trips = __ssi_calculation(self.avl_route_metrics_time_filtered, ['trip_id', 'route_id', 'direction_id'])         
         self.routes['ssi'] = route_by_trips.groupby(self.ROUTE_MULTIINDEX)['weighted_cov'].sum().round(sig_fig)
+
+        self.metrics_names['ssi'] = 'Schedule Sufficiency Index'

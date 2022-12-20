@@ -2,7 +2,8 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Set, List
-from ..helper_functions import check_parent_dir, check_is_file
+from backend.helper_functions import check_parent_dir, check_is_file
+from backend.data_class.rove_parameters import ROVE_params
 import math
 from tqdm.auto import tqdm
 import json
@@ -44,7 +45,7 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
         }
 
-    def __init__(self, patterns, params, check_signal, mode='bus'):
+    def __init__(self, patterns, params:ROVE_params, check_signal, mode='bus'):
 
         logger.info(f'Generating shapes...')
         self.params = params
@@ -179,7 +180,7 @@ class BaseShape():
     def check_signal_intersection(self):
 
         OSM_PLANE = 'EPSG:4326'
-        STATE_PLANE = self.params.config['crs']
+        STATE_PLANE = self.params.backend_config['crs']
         logger.info(f'checking intersecting signals')
         signal_inpath = check_is_file(self.params.input_paths['signals'])
         signal_df = gpd.read_file(signal_inpath)

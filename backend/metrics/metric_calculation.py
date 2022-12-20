@@ -72,7 +72,7 @@ class Metric_Calculation():
         self.stop_spacing(shapes)
         self.scheduled_headway()
         self.scheduled_running_time()
-        self.scheduled_speed()
+        self.scheduled_speed_without_dwell()
 
         # ---- AVL metrics ----
         if 'AVL' in data_option:
@@ -182,17 +182,17 @@ class Metric_Calculation():
         self.gtfs_tpbp_metrics['scheduled_running_time'] = tpbp_metrics_temp['tpbp_scheduled_running_time']
 
     
-    def scheduled_speed(self):
+    def scheduled_speed_without_dwell(self):
         """Scheduled running speed in mph. Defined as stop spacing divided by running time.
         """
 
         logger.info(f'calculating scheduled speed')
 
-        self.gtfs_stop_metrics['scheduled_speed'] = ((self.gtfs_stop_metrics['stop_spacing'] / self.gtfs_stop_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.gtfs_stop_metrics['scheduled_speed_without_dwell'] = ((self.gtfs_stop_metrics['stop_spacing'] / self.gtfs_stop_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.gtfs_route_metrics['scheduled_speed'] = ((self.gtfs_route_metrics['stop_spacing'] / self.gtfs_route_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.gtfs_route_metrics['scheduled_speed_without_dwell'] = ((self.gtfs_route_metrics['stop_spacing'] / self.gtfs_route_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.gtfs_tpbp_metrics['scheduled_speed'] = ((self.gtfs_tpbp_metrics['stop_spacing'] / self.gtfs_tpbp_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
+        self.gtfs_tpbp_metrics['scheduled_speed_without_dwell'] = ((self.gtfs_tpbp_metrics['stop_spacing'] / self.gtfs_tpbp_metrics['scheduled_running_time']) * FT_PER_MIN_TO_MPH).round(2)
 
     def observed_headway(self):
         """Observed headway in minutes. Defined as the difference between two consecutive observed arrivals of a route at the first stop of a stop pair on each day, 

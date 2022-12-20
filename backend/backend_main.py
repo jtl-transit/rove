@@ -5,20 +5,20 @@ from backend.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
 from backend.metrics import Metric_Calculation, Metric_Aggregation, WMATA_Metric_Calculation
 from data_class.rove_parameters import ROVE_params
-from helper_functions import read_shapes
+from helper_functions import read_shapes, write_metrics_to_frontend_config
 import argparse
 import sys
 
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "10" # MM in string format
-YEAR = "2021" # YYYY in string format
+AGENCY = "MTA_Manhattan" # CTA, MBTA, WMATA
+MONTH = "09" # MM in string format
+YEAR = "2022" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
-SHAPE_GENERATION = True # True/False: whether to generate shapes
+SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
@@ -140,6 +140,7 @@ def __main__(args):
             metrics = Metric_Calculation(shapes, gtfs_records, avl_records, params)
             agg = Metric_Aggregation(metrics, params)
 
+        write_metrics_to_frontend_config(agg.metrics_names, input_paths['frontend_config'])
     logger.info(f'ROVE backend process completed')
 
 if __name__ == "__main__":

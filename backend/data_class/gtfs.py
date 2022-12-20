@@ -69,7 +69,7 @@ class GTFS():
         """Instantiate a GTFS data class.
         """
         logger.info(f'Processing GTFS data...')
-        if mode not in rove_params.config['route_type'].keys():
+        if mode not in rove_params.backend_config['route_type'].keys():
             raise KeyError(f'Invalid mode: {mode}. Cannot find the corresponding route type value in the config file.')
         self.mode = mode
 
@@ -176,7 +176,7 @@ class GTFS():
             quit()
 
         # Load GTFS feed
-        view = {'routes.txt': {'route_type': rove_params.config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
+        view = {'routes.txt': {'route_type': rove_params.backend_config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty

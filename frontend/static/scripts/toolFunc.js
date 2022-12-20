@@ -277,8 +277,8 @@ function populateEquityBackgroundFilters(){
 
 			
 			if (selected < 3){
-				
-				$("#legend-svg-bkgrd").show()
+				$('#legends-2').show()
+				// $("#legend-svg-bkgrd").show()
 				legendDef.range(rangeBlue)
 				legendDef.domain([0, 1])
 

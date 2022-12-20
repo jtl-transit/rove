@@ -69,11 +69,12 @@ class ROVE_params(object, metaclass=ABCMeta):
         # dict <str, any> : agency-specific configuration parameters 
         #                   (e.g. time periods, speed range, percentile list, additional files, etc.)
         with open(self.input_paths['frontend_config']) as json_file:
-            config = json.load(json_file)
-            self.redValues = config['redValues']
+            frontend_config = json.load(json_file)
+            self.frontend_config = frontend_config
+            self.redValues = frontend_config['redValues']
         
         with open(self.input_paths['backend_config']) as json_file:
-            self.config = json.load(json_file)
+            self.backend_config = json.load(json_file)
             
         # list (datetime) : list of dates of given month, year, agency
         self.date_list = self.__generate_date_list()
@@ -92,11 +93,11 @@ class ROVE_params(object, metaclass=ABCMeta):
         :rtype: List[datetime.datetime]
         """
 
-        if 'workalendarPath' not in self.config:
+        if 'workalendarPath' not in self.backend_config:
             raise KeyError('can not find workalendarPath in the config file')
         else:
             try:
-                workalendar_path = self.config['workalendarPath']
+                workalendar_path = self.backend_config['workalendarPath']
                 date_list = day_list_generation(self.month, self.year, self.date_type, workalendar_path)
             # except ValueError as err:
             except ValueError:
