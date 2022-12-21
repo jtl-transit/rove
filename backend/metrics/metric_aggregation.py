@@ -136,12 +136,12 @@ class Metric_Aggregation():
             raise ValueError(f'Start time must be smaller than end time.')
         
         self.gtfs_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_stop_metrics, start_time, end_time, 'stop')
-        self.gtfs_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_route_metrics, start_time, end_time, 'route')
+        self.gtfs_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_route_metrics, start_time, end_time, 'route_id')
         self.gtfs_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_tpbp_metrics, start_time, end_time, 'tpbp')
 
         if 'AVL' in self.data_option:
             self.avl_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_stop_metrics, start_time, end_time, 'stop', 'stop_time')
-            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route', 'stop_time')
+            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route_id', 'stop_time')
             self.avl_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_tpbp_metrics, start_time, end_time, 'tpbp', 'stop_time')
         
         self.aggregate_metrics(percentile)
@@ -224,7 +224,7 @@ class Metric_Aggregation():
         
         if data_type == 'segments':
             table_rename = {
-                'route_id': 'route',
+                'route_id': 'route_id',
                 'stop_pair': 'segment'
             }
             index_cols = ['route_id', 'first_stop', 'second_stop']
@@ -235,7 +235,7 @@ class Metric_Aggregation():
             index_cols = ['first_stop', 'second_stop']
         elif data_type == 'routes':
             table_rename = {
-                'route_id': 'route',
+                'route_id': 'route_id',
                 'direction_id': 'direction'
             }
             index_cols = ['route_id', 'direction_id']
@@ -262,7 +262,7 @@ class Metric_Aggregation():
 
     def __get_time_filtered_metrics(self, metrics:pd.DataFrame, start_time:int, end_time:int, data_type:str, stop_time_col:str='arrival_time'):
 
-        if data_type == 'route':
+        if data_type == 'route_id':
             time_filtered_metrics = deepcopy(metrics.loc[(metrics['trip_start_time'] >= start_time) & (metrics['trip_start_time'] < end_time), :])
         else:
             time_filtered_metrics = deepcopy(metrics.loc[(metrics[stop_time_col] >= start_time) & (metrics[stop_time_col] < end_time), :])

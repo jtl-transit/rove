@@ -15,5 +15,6 @@ class WMATA_AVL(AVL):
 
     def validate_data(self, gtfs: GTFS) -> pd.DataFrame:
         data = super().validate_data(gtfs)
-        data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
-        return 
+        
+
+        return data

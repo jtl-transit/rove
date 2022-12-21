@@ -3,7 +3,7 @@ from backend.data_class.wmata.wmata_avl import WMATA_AVL
 from data_class import GTFS, MBTA_GTFS, WMATA_GTFS, AVL, MBTA_AVL
 from backend.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
-from backend.metrics import Metric_Calculation, Metric_Aggregation, WMATA_Metric_Calculation
+from backend.metrics import Metric_Calculation, Metric_Aggregation, WMATA_Metric_Calculation, WMATA_Metric_Aggregation
 from data_class.rove_parameters import ROVE_params
 from helper_functions import read_shapes, write_metrics_to_frontend_config
 import argparse
@@ -12,11 +12,11 @@ import sys
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MTA_Manhattan" # CTA, MBTA, WMATA
-MONTH = "09" # MM in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "06" # MM in string format
 YEAR = "2022" # YYYY in string format
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
@@ -93,19 +93,19 @@ def __main__(args):
 
     # ------GTFS data generation------
     if agency == 'MBTA':
-        bus_gtfs = MBTA_GTFS(params, mode='bus')
-    # elif agency == 'WMATA':
-    #     bus_gtfs = WMATA_GTFS(params, mode='bus')
+        bus_gtfs = MBTA_GTFS(params, mode='bus', shape_gen=shape_gen)
+    elif agency == 'WMATA':
+        bus_gtfs = WMATA_GTFS(params, mode='bus', shape_gen=shape_gen)
     else:
-        bus_gtfs = GTFS(params, mode='bus')
+        bus_gtfs = GTFS(params, mode='bus', shape_gen=shape_gen)
     gtfs_records = bus_gtfs.records
 
     # AVL
     if 'AVL' in DATA_OPTION:
         if AGENCY == 'MBTA':
             avl = MBTA_AVL(params, bus_gtfs)
-        elif AGENCY == 'WMATA':
-            avl = WMATA_AVL(params, bus_gtfs)
+        # elif AGENCY == 'WMATA':
+        #     avl = WMATA_AVL(params, bus_gtfs)
         else:
             avl = AVL(params, bus_gtfs) 
         avl_records = avl.records
@@ -135,7 +135,7 @@ def __main__(args):
 
         if agency == 'WMATA':
             metrics = WMATA_Metric_Calculation(shapes, gtfs_records, avl_records, params)
-            # agg = WMATA_Metric_Aggregation(metrics, params)
+            agg = WMATA_Metric_Aggregation(metrics, params)
         else:
             metrics = Metric_Calculation(shapes, gtfs_records, avl_records, params)
             agg = Metric_Aggregation(metrics, params)
@@ -144,4 +144,5 @@ def __main__(args):
     logger.info(f'ROVE backend process completed')
 
 if __name__ == "__main__":
+    
     __main__(sys.argv[1:])

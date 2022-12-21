@@ -286,7 +286,7 @@ def convert_stop_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_stop_co
             raw_table[raw_data_stop_col] = raw_table['xstop_id_gtfs']
         elif use_column == 'stop_code':
             raw_table[raw_data_stop_col] = raw_table['xstop_code_gtfs']
-        raw_table = raw_table.drop(columns=['xstop_id_gtfs', 'xstop_id_gtfs'])
+        raw_table = raw_table.drop(columns=['xstop_code_gtfs', 'xstop_id_gtfs'])
         logger.debug(f'{raw_data_stop_col} in {raw_data_alias} records matches with {matched_col}, replaced with matching GTFS {use_column}')
 
     return raw_table.dropna(subset=[raw_data_stop_col]).reset_index(drop=True)
