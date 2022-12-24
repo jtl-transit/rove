@@ -137,6 +137,7 @@ class ROVE_params(object, metaclass=ABCMeta):
         except KeyError:
             logger.fatal(f'Unable to infer ISO3166 code based on a sample stop coordinate from GTFS. Please check that '\
                 + f'GTFS stops.txt file contains valid stop_lat and stop_lon columns.')
+            quit()
 
     def get_backend_config(self, fpath:str):
         init_bconfig = {
@@ -274,7 +275,7 @@ class ROVE_params(object, metaclass=ABCMeta):
             date_list = []
             for i in range(delta.days + 1):
                 day = start_date + datetime.timedelta(days=i)
-                date_list.append(day)
+                date_list.append(day.date())
         else:
             month = int(self.month)
             year = int(self.year)

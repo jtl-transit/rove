@@ -12,13 +12,13 @@ import sys
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MTA_Manhattan" # CTA, MBTA, WMATA
-MONTH = "09" # MM in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "Q2" # MM in string format
 YEAR = "2022" # YYYY in string format
-START_DATE = '' # YYYY-MM-DD
-END_DATE = '' # YYYY-MM-DD
+START_DATE = '2022-09-11' # YYYY-MM-DD
+END_DATE = '2022-10-05' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
@@ -109,7 +109,7 @@ def __main__(args):
         }
 
     # -----store parameters-----
-    params = ROVE_params(agency, month, year, date_type, data_option, input_paths, output_paths, start_date='', end_date='')
+    params = ROVE_params(agency, month, year, date_type, data_option, input_paths, output_paths, start_date, end_date)
 
     # ------GTFS data generation------
     if agency == 'MBTA':
@@ -129,17 +129,6 @@ def __main__(args):
 
     # ------metric calculation and aggregation------
     if metric_calc_agg:
-        # AVL
-        if 'AVL' in data_option:
-            if AGENCY == 'MBTA':
-                avl = MBTA_AVL(params, bus_gtfs)
-            # elif AGENCY == 'WMATA':
-            #     avl = WMATA_AVL(params, bus_gtfs)
-            else:
-                avl = AVL(params, bus_gtfs) 
-            avl_records = avl.records
-        else:
-            avl_records = None
 
         # ------AVL data generation------
         if 'AVL' in data_option:

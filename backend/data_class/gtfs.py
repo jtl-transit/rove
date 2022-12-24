@@ -132,7 +132,8 @@ class GTFS():
             available_dates = set(rove_params.date_list) - not_available_dates
             service_id_list = list(set([service_ids_by_date[day] for day in available_dates]))
 
-            logger.debug(f'service IDs retrieved: {set(frozenset().union(*service_id_list))}')
+            logger.info(f'loaded GTFS data for {len(available_dates)} days')
+            # logger.debug(f'service IDs retrieved: {set(frozenset().union(*service_id_list))}')
         except KeyError as err:
             logger.fatal(f'{err}: Service IDs for days {rove_params.date_list} cannot be found in GTFS.', exc_info=True)
             quit()

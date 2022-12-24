@@ -58,10 +58,32 @@ class AVL():
         
                                                         
         logger.info(f'loading {alias} data')
-        path = check_is_file(rove_params.input_paths[alias])
-        # Raw data read from the given path, see :py:meth:`.AVL.load_data` for details.
-        self.raw_data:pd.DataFrame = self.load_data(path)
+        raw_avl = pd.DataFrame()
+        months = {d.month for d in rove_params.date_list}
+        load_by_month = True
+
+        if not self.rove_params.month_name.isnumeric():
+            try:
+                path = check_is_file(rove_params.input_paths[alias])
+                raw_avl = self.load_data(path)
+                load_by_month = False
+            except FileNotFoundError as e:
+                logger.error(e)
+                logger.debug(f'loading AVL by months instead.')
         
+        if load_by_month:
+            for m in months:
+                suffix:str = f'_{self.rove_params.agency}_{m:02}_{self.rove_params.year}'
+                path = f'data/{self.rove_params.agency}/avl/AVL{suffix}.csv'
+                try:
+                    fpath = check_is_file(path)
+                except FileNotFoundError as e:
+                    logger.error(e)
+                    continue
+                raw_avl = pd.concat([raw_avl, self.load_data(fpath)]) 
+
+        # Raw data read from the given path, see :py:meth:`.AVL.load_data` for details.
+        self.raw_data:pd.DataFrame = raw_avl
                                                                                                       
         logger.info(f'validating {alias} data')
         #: Validated data, see :py:meth:`.AVL.validate_data` for details.
@@ -86,7 +108,7 @@ class AVL():
         raw_avl = load_csv_to_dataframe(path, id_cols=id_cols)
 
         if raw_avl.empty:
-            raise ValueError(f'AVL data is empty.')
+            logger.error(f'AVL data from {path} is empty.')
 
         if not set(self.REQUIRED_COL_SPEC.keys()).issubset(raw_avl.columns):
             # not all required columns are found in raw table
@@ -117,8 +139,12 @@ class AVL():
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
 
         data = deepcopy(data[data['svc_date'].isin(self.rove_params.date_list)])
+
         if data.empty:
             raise ValueError(f'AVL table is empty after filtering for dates in the date_list.')
+        else:
+            num_dates = data['svc_date'].unique()
+            logger.info(f'loaded AVL data for {len(num_dates)} days')
 
         data_specs = {**self.REQUIRED_COL_SPEC, **self.OPTIONAL_COL_SPEC}
         cols = list(data_specs.keys())
@@ -126,22 +152,8 @@ class AVL():
 
         data = data.rename(columns={'route': 'route_id'})
 
-        gtfs_stop_ids_set = set(gtfs.validated_data['stops']['stop_id'])
-        gtfs_trip_ids_set = set(gtfs.validated_data['trips']['trip_id'])
-
-        avl_stop_ids_set = set(data['stop_id'])
-        avl_trip_ids_set = set(data['trip_id'])
-
-        matching_stop_ids = gtfs_stop_ids_set & avl_stop_ids_set
-        matching_trip_ids = gtfs_trip_ids_set & avl_trip_ids_set
-        logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
-        logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
-
-        data = convert_stop_ids('avl', data, 'stop_id', self.gtfs.validated_data['stops'])
-
         logger.info(f"AVL service date range: {data['svc_date'].min()} to {data['svc_date'].max()}, {data['svc_date'].nunique()} days in total")
                
-
         return data
     
     def convert_dwell_time(self, data:pd.Series) -> pd.Series:
@@ -172,11 +184,11 @@ class AVL():
         stop_time_min = stop_time_dt.dt.minute
         stop_time_sec = stop_time_dt.dt.second
 
-        interval_to_second = lambda x: x[0] * 3600 + x[1] * 60
+        interval_to_second = lambda x: x[0] * 3600 + x[1] * 60 if isinstance(x, List) else x * 3600
 
         stop_time_total_seconds = stop_time_hour * 3600 + stop_time_min * 60 + stop_time_sec
 
-        day_start, _ = self.rove_params.frontend_config['periodRange']['full']
+        day_start, _ = self.rove_params.frontend_config['periodRanges']['full']
         day_start_total_seconds = interval_to_second(day_start)
         midnight_total_seconds = interval_to_second([24, 0])
 
@@ -212,7 +224,7 @@ class AVL():
         """Enforce that no one alights at the first stop or boards at the last stop, and make sure the passenger_on, passenger_off and
         passenger_load values of each trip add up.
         """
-
+        logger.info(f'correcting passenger load')
         records = self.records
 
         p = deepcopy(records)
@@ -252,5 +264,5 @@ class AVL():
         # p.loc[tail_indices, 'passenger_off'] = p.loc[tail_indices, 'passenger_load']
         # p.loc[tail_indices, 'passenger_delta'] = -p.loc[tail_indices, 'passenger_off']
 
-        logger.info(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
+        logger.debug(f'finished correcting passenger load in {round((time.time() - start_time), 2)} seconds')
         records[['passenger_off', 'passenger_load']] = p[['passenger_off', 'passenger_load']]

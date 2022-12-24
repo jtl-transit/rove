@@ -157,7 +157,7 @@ class Metric_Aggregation():
 
     def aggregate_by_10min_intervals(self, output_path:str):
         """Generate aggregation output for every 10-min interval of the day and write to a pickled file the results in a dict. 
-        Each key is a 10-min interval of the full day (defined in the frontend config file under 'PeriodRange' -> 'full'), 
+        Each key is a 10-min interval of the full day (defined in the frontend config file under 'PeriodRanges' -> 'full'), 
         and each element is a dict, whose key is a percentile of aggregation (e.g. 50 or 90), and element is a 
         tuple of five dataframes, each one containing the aggregated metrics of stop, stop-aggregated, route, timepoint, and
         timepoint-aggregated metrics.
