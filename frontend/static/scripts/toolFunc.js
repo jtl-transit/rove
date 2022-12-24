@@ -79,7 +79,10 @@ function populateFilters(){
 		var currentMetrics = levelMetrics['seg'];
 		$('#metric').empty();
 		for(var i in currentMetrics){
-			$('#metric').append($("<option></option>").attr("value", currentMetrics[i]).text(units[currentMetrics[i]]["label"]));
+			if (currentMetrics[i] != 'route_id') {
+				console.log(currentMetrics[i])
+				$('#metric').append($("<option></option>").attr("value", currentMetrics[i]).text(units[currentMetrics[i]]["label"]));
+			}
 		}
 
 		// Add pre-defined options to statistic selector
@@ -1085,9 +1088,12 @@ function setPopup(layer){
 		if(comparisonIndicator === 0){
 			for(var m in levelMetrics[level]){
 				var metricValue = levelMetrics[level][m];
-				// console.log(metricValue)	
-				var metricName = units[metricValue]["label"];
-				var layerValue = layer.options[level + '-' + metricValue];
+				// console.log(metricValue)
+				if (metricValue != 'route_id') {
+					var metricName = units[metricValue]["label"];
+					var layerValue = layer.options[level + '-' + metricValue];
+				}
+				
 				try{
 					// If reasonably small number and not already an integer, include one decimal place
 					if ((Math.abs(layerValue) < 100) && (layerValue % 1 > 0)){

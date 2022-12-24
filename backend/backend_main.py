@@ -5,18 +5,20 @@ from backend.shapes.base_shape import BaseShape
 from logger.backend_logger import getLogger
 from backend.metrics import Metric_Calculation, Metric_Aggregation, WMATA_Metric_Calculation, WMATA_Metric_Aggregation
 from data_class.rove_parameters import ROVE_params
-from helper_functions import read_shapes, write_metrics_to_frontend_config
+from helper_functions import read_shapes, write_to_frontend_config, string_is_date, string_is_month
 import argparse
 import sys
 
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "06" # MM in string format
+AGENCY = "MTA_Manhattan" # CTA, MBTA, WMATA
+MONTH = "09" # MM in string format
 YEAR = "2022" # YYYY in string format
+START_DATE = '' # YYYY-MM-DD
+END_DATE = '' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
@@ -31,6 +33,8 @@ def __main__(args):
         parser.add_argument("-a", "--agency", type=str, required=True)
         parser.add_argument("-m", "--month", type=str, required=True)
         parser.add_argument("-y", "--year", type=str, required=True)
+        parser.add_argument("-sd", "--start_date", type=str, required=False)
+        parser.add_argument("-ed", "--end_date", type=str, required=False)
         parser.add_argument("-dt", "--date_type", type=str, default='Workday', required=False)
         parser.add_argument("-do", "--data_option", type=str, default='GTFS', required=False)
         parser.add_argument("-sg", "--shape_gen", action='store_true', required=False)
@@ -47,16 +51,25 @@ def __main__(args):
         agency = args.agency
         month = args.month
         year = args.year
+        start_date = args.start_date
+        end_date = args.end_date
         date_type = args.date_type
         data_option = args.data_option
 
         shape_gen = args.shape_gen
         metric_calc_agg = args.metric_agg
         check_signal = args.check_signal
+
+        if not string_is_month(month) and (not string_is_date(start_date) or not string_is_date(end_date)):
+            parser.error(f'-sd (--start_date) and -ed (--end_date) must be valid strig dates (YYYY--MM-DD) '\
+                            +f'when -m (--month) is not a valid numeric string between 1 and 12 (received {month}).')
+
     else:
         agency = AGENCY
         month = MONTH
         year = YEAR
+        start_date = START_DATE
+        end_date = END_DATE
         date_type = DATE_TYPE
         data_option = DATA_OPTION
 
@@ -64,9 +77,16 @@ def __main__(args):
         metric_calc_agg = METRIC_CAL_AGG
         check_signal = False
 
+        if not string_is_month(month) and (not string_is_date(start_date) or not string_is_date(end_date)):
+            logger.fatal(f'START_DATE and END_DATE must be valid strig dates (YYYY--MM-DD) '\
+                            +f'when MONTH is not a valid numeric string between 1 and 12 (received {month}).')
+            quit()
+
     logger.info(f'Starting ROVE backend processes for {agency}, {month}-{year}, {date_type}, {data_option} mode. ' + \
                 f'Shape Generation: {shape_gen}. Metric Calculation and Aggregation: {metric_calc_agg}.')
     
+    
+
     suffix:str = f'_{agency}_{month}_{year}'
 
     input_paths = {
@@ -89,7 +109,7 @@ def __main__(args):
         }
 
     # -----store parameters-----
-    params = ROVE_params(agency, month, year, date_type, data_option, input_paths, output_paths)
+    params = ROVE_params(agency, month, year, date_type, data_option, input_paths, output_paths, start_date='', end_date='')
 
     # ------GTFS data generation------
     if agency == 'MBTA':
@@ -100,17 +120,6 @@ def __main__(args):
         bus_gtfs = GTFS(params, mode='bus', shape_gen=shape_gen)
     gtfs_records = bus_gtfs.records
 
-    # AVL
-    if 'AVL' in DATA_OPTION:
-        if AGENCY == 'MBTA':
-            avl = MBTA_AVL(params, bus_gtfs)
-        # elif AGENCY == 'WMATA':
-        #     avl = WMATA_AVL(params, bus_gtfs)
-        else:
-            avl = AVL(params, bus_gtfs) 
-        avl_records = avl.records
-    else:
-        avl_records = None
 
     # ------shape generation------ 
     if shape_gen or read_shapes(params.output_paths['shapes']).empty:
@@ -120,6 +129,17 @@ def __main__(args):
 
     # ------metric calculation and aggregation------
     if metric_calc_agg:
+        # AVL
+        if 'AVL' in data_option:
+            if AGENCY == 'MBTA':
+                avl = MBTA_AVL(params, bus_gtfs)
+            # elif AGENCY == 'WMATA':
+            #     avl = WMATA_AVL(params, bus_gtfs)
+            else:
+                avl = AVL(params, bus_gtfs) 
+            avl_records = avl.records
+        else:
+            avl_records = None
 
         # ------AVL data generation------
         if 'AVL' in data_option:
@@ -140,7 +160,7 @@ def __main__(args):
             metrics = Metric_Calculation(shapes, gtfs_records, avl_records, params)
             agg = Metric_Aggregation(metrics, params)
 
-        write_metrics_to_frontend_config(agg.metrics_names, input_paths['frontend_config'])
+        write_to_frontend_config(agg.metrics_names, params.frontend_config, input_paths['frontend_config'])
     logger.info(f'ROVE backend process completed')
 
 if __name__ == "__main__":

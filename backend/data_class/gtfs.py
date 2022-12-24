@@ -29,7 +29,7 @@ class GTFS():
     REQUIRED_DATA_SPEC = {
                         'stops':{
                             'stop_id':'string',
-                            'stop_code':'string',
+                            # 'stop_code':'string',
                             'stop_name': 'string',
                             'stop_lat':'float64',
                             'stop_lon':'float64'
@@ -125,16 +125,20 @@ class GTFS():
 
         rove_params = self.rove_params
 
-        # Retrieve GTFS data for the sample date
+        # Retrieve GTFS data
         try:
-            service_id_list = list(set([ptg.read_service_ids_by_date(path)[day] for day in rove_params.date_list]))
+            service_ids_by_date = ptg.read_service_ids_by_date(path)
+            not_available_dates = set(rove_params.date_list) - set(service_ids_by_date)
+            available_dates = set(rove_params.date_list) - not_available_dates
+            service_id_list = list(set([service_ids_by_date[day] for day in available_dates]))
+
             logger.debug(f'service IDs retrieved: {set(frozenset().union(*service_id_list))}')
         except KeyError as err:
             logger.fatal(f'{err}: Service IDs for days {rove_params.date_list} cannot be found in GTFS.', exc_info=True)
             quit()
 
         # Load GTFS feed
-        view = {'routes.txt': {'route_type': rove_params.config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
+        view = {'routes.txt': {'route_type': rove_params.backend_config['route_type'][self.mode]}, 'trips.txt': {'service_id': service_id_list}}
         feed = ptg.load_feed(path, view)
 
         # Store all required raw tables in a dict, enforce that every table listed in the spec exists and is not empty

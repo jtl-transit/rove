@@ -23,11 +23,18 @@ conda create --name @ENV_NAME python=3.7
 conda activate @ENV_NAME
 ```
 
+For example:
+
+```
+conda create --name rove python=3.7
+conda activate rove
+```
+
 Import dependencies via requirements_back.txt (replace @ROVE_DIRECTORY with the location of your cloned repo from step 1):
 
 ```
 cd @ROVE_DIRECTORY
-pip install -r requirements_back.txt
+pip install -r requirements.txt
 ```
 
 ### 3. Create a configuration file

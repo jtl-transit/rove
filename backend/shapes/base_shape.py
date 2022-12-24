@@ -12,6 +12,7 @@ from time import sleep
 import geopandas as gpd
 from shapely.geometry import LineString
 import polyline
+import stateplane
 
 logger = logging.getLogger("backendLogger")
 
@@ -50,7 +51,7 @@ class BaseShape():
         logger.info(f'Generating shapes...')
         self.params = params
         self.outpath = self.params.output_paths['shapes']
-        self.patterns = self.__check_patterns(patterns)
+        self.patterns, self.sample_coord = self.__check_patterns(patterns)
         self.mode = mode
         self.shapes = self.generate_segment_shapes()
         # self.shapes = read_shapes(self.params.output_paths['shapes'])
@@ -76,8 +77,10 @@ class BaseShape():
             for seg_id, seg_info in segments.items():
                 if not isinstance(seg_info, List) or not all([isinstance(coords, Tuple) for coords in seg_info]):
                     raise TypeError(f'info for segment: {seg_id} must be a list of coordinates')
+                else:
+                    sample_coord = seg_info[0]
         logger.debug(f'total number of patterns: {len(patterns.keys())}')
-        return patterns
+        return patterns, sample_coord
 
     def generate_segment_shapes(self) -> pd.DataFrame:
         """For each segment, find its encoded polyline and distance, then save the data in a json file as well
@@ -155,8 +158,8 @@ class BaseShape():
                             }
                             for p_name, segments in all_matched.items() \
                                 for s_name, s_info in segments.items()]
-
-        with open(self.outpath, 'w') as fp:
+        outpath = check_parent_dir(self.outpath)
+        with open(outpath, 'w') as fp:
             json.dump(matched_output, fp)
 
         skipped_output = [
@@ -180,7 +183,7 @@ class BaseShape():
     def check_signal_intersection(self):
 
         OSM_PLANE = 'EPSG:4326'
-        STATE_PLANE = self.params.backend_config['crs']
+        STATE_PLANE = f'EPSG:{stateplane.identify(self.sample_coord)}'
         logger.info(f'checking intersecting signals')
         signal_inpath = check_is_file(self.params.input_paths['signals'])
         signal_df = gpd.read_file(signal_inpath)

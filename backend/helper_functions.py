@@ -9,68 +9,65 @@ import datetime
 import os
 import shutil
 import logging
-import workalendar.usa
+from workalendar.registry import registry
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import pandas as pd
 import json
 import numpy as np
 
 logger = logging.getLogger("backendLogger")
 
-def day_list_generation(MONTH, YEAR, DATE_TYPE, workalendarPath):
-    """Generate list of dates of the given month, year and option
+def string_is_date(date_str:str):
+    try:
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+        isdate = True
+    except ValueError:
+        isdate = False
+    return isdate
+
+def string_is_month(month_str:str):
+    return  month_str.isnumeric() and int(month_str) >= 1 and int(month_str) <= 12
+
+def day_list_generation(raw_date_list:List, date_type:str, iso3166_code:str):
+    """Generate list of dates of the given a raw date list, date type, and the ISO3166 code of the region.
 
     Args:
-        MONTH (str): A month (MM) between 1 and 12
-        YEAR (str): A year (YYYY)
-        DATE_TYPE (str): one of "Workday", "Saturday", "Sunday"
-        workalendarPath (str): the path to the workalendar data of the analyzed agency
+        raw_date_list (List): a list of dates
+        date_type (str): one of "Workday", "Saturday", "Sunday"
+        iso3166_code (str): a ISO3166 code of the region
 
     Returns:
-        list(datetime): list of dates
+        list(datetime): a list of dates of the date type
 
     Raises:
-        ValueError: if MONTH is out of [1, 12] range or if DATE_TYPE is not one of "Workday", "Saturday", "Sunday"
+        ValueError: date_type is not one of "Workday", "Saturday", "Sunday"
     """
+    
+    # find the appropriate workalendar class based on sample coordinate
 
-    MONTH = int(MONTH)
-    YEAR = int(YEAR)
+    calendar = registry.get(iso3166_code)()
 
-    date_type_list = ["Workday", "Saturday", "Sunday"]
-    if MONTH<1 or MONTH >12:
-        raise ValueError('MONTH must be between 1 and 12.')
-    elif DATE_TYPE not in date_type_list:
-        raise ValueError(f'date_type must be one of {date_type_list}.')
-        
-    NEXT_YEAR = (datetime.date(YEAR, MONTH, 1) + datetime.timedelta(days=31)).year
-    NEXT_MONTH = (datetime.date(YEAR, MONTH, 1) + datetime.timedelta(days=31)).month
-    total_number_days = (datetime.date(NEXT_YEAR, NEXT_MONTH, 1) - datetime.date(YEAR, MONTH, 1)).days
-
-    ALL_DAYS = []
-    for i in range(1, total_number_days+1):
-        ALL_DAYS.append(datetime.date(YEAR, MONTH, i))
-        holiday_calendar = eval(workalendarPath + '()')
-        HOLIDAYS = [i[0] for i in holiday_calendar.holidays()]
+    HOLIDAYS = [d for d in raw_date_list if not calendar.is_working_day(d)]
 
     WORKDAYS = []
     SATURDAYS = []
     SUNDAYS = []
-    for day in ALL_DAYS:
-        if day in HOLIDAYS:
-            continue
-        elif day.isoweekday() == 6:
+    for day in raw_date_list:
+        if day.isoweekday() == 6:
             SATURDAYS.append(day)
         elif day.isoweekday() == 7:
             SUNDAYS.append(day)
+        elif day in HOLIDAYS:
+            continue
         else:
             WORKDAYS.append(day)
 
-    if DATE_TYPE == "Workday":
+    if date_type == "Workday":
         return WORKDAYS
-    elif DATE_TYPE == "Saturday":
+    elif date_type == "Saturday":
         return SATURDAYS
-    elif DATE_TYPE == "Sunday":
+    elif date_type == "Sunday":
         return SUNDAYS
 
 def check_is_file(path, extension=None):
@@ -341,20 +338,32 @@ def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_co
 
     return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)
 
-def write_metrics_to_frontend_config(metric_names:Dict, path):
+def write_to_frontend_config(metric_names:Dict, config:Dict, path:str):
 
-    fpath = check_is_file(path)
+    fpath = check_parent_dir(path)
     metrics_list = list(metric_names.keys())
     metrics = {
         k: {
+            'label': v['label'],
+            'order': metrics_list.index(k)
+        } if 'label' in v else {
             'label': v,
             'order': metrics_list.index(k)
         }
         for k, v in metric_names.items()
     }
-    with open(fpath, 'r+') as f:
-        config = json.load(f)
+    with open(fpath, 'w') as f:
+        # config = json.load(f)
         config['units'] = metrics # <--- add `id` value.
+        f.seek(0)        # <--- should reset file position to the beginning.
+        json.dump(config, f)
+        f.truncate()     # remove remaining part
+
+def write_to_backend_config(config:Dict, path:str):
+    
+    fpath = check_parent_dir(path)
+
+    with open(fpath, 'w') as f:
         f.seek(0)        # <--- should reset file position to the beginning.
         json.dump(config, f)
         f.truncate()     # remove remaining part

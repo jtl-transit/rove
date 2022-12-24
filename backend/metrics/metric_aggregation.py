@@ -63,7 +63,7 @@ class Metric_Aggregation():
         #: A dict of minimum and maximum speeds that bound the calculated speeds.
         self.speed_range = params.backend_config['speed_range']
         #: A dict of time periods for data aggregation, retrieved from the "time_periods" object in backend_config.
-        self.time_dict:Dict[str, Dict] = params.backend_config['time_periods']
+        self.time_dict:Dict[str, Dict] = params.frontend_config['periodRanges']
 
         self.metrics_names:Dict[str, str] = params.frontend_config['units']
         self.metrics_names['sample_size'] = 'Sample Size'
@@ -125,23 +125,26 @@ class Metric_Aggregation():
         :raises ValueError: end_time is earlier than start_time
         """
 
-        if not isinstance(start_time, List) or not isinstance(end_time, List) or \
-            len(start_time) != 2 or len(end_time) != 2:
-            raise TypeError(f'start_time and end_time must both be lists of length 2: [hour, minute].')
-
-        start_time = start_time[0]*3600 + start_time[1]*60
-        end_time = end_time[0]*3600 + end_time[1]*60
+        
+        if isinstance(start_time, int) and isinstance(end_time, int):
+            start_time = start_time*3600
+            end_time = end_time*3600
+        elif isinstance(start_time, List) and isinstance(end_time, List) and len(start_time) == 2 and len(end_time) == 2:
+                start_time = start_time[0]*3600 + start_time[1]*60
+                end_time = end_time[0]*3600 + end_time[1]*60
+        else:
+            raise TypeError(f'start_time and end_time must both be lists of length 2: [hour, minute], or both be integer hours.')        
 
         if end_time < start_time:
             raise ValueError(f'Start time must be smaller than end time.')
         
         self.gtfs_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_stop_metrics, start_time, end_time, 'stop')
-        self.gtfs_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_route_metrics, start_time, end_time, 'route_id')
+        self.gtfs_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_route_metrics, start_time, end_time, 'route')
         self.gtfs_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.gtfs_tpbp_metrics, start_time, end_time, 'tpbp')
 
         if 'AVL' in self.data_option:
             self.avl_stop_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_stop_metrics, start_time, end_time, 'stop', 'stop_time')
-            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route_id', 'stop_time')
+            self.avl_route_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_route_metrics, start_time, end_time, 'route', 'stop_time')
             self.avl_tpbp_metrics_time_filtered = self.__get_time_filtered_metrics(self.avl_tpbp_metrics, start_time, end_time, 'tpbp', 'stop_time')
         
         self.aggregate_metrics(percentile)
@@ -154,13 +157,13 @@ class Metric_Aggregation():
 
     def aggregate_by_10min_intervals(self, output_path:str):
         """Generate aggregation output for every 10-min interval of the day and write to a pickled file the results in a dict. 
-        Each key is a 10-min interval of the full day (defined in the config file under 'time_periods' -> 'full'), 
+        Each key is a 10-min interval of the full day (defined in the frontend config file under 'PeriodRange' -> 'full'), 
         and each element is a dict, whose key is a percentile of aggregation (e.g. 50 or 90), and element is a 
         tuple of five dataframes, each one containing the aggregated metrics of stop, stop-aggregated, route, timepoint, and
         timepoint-aggregated metrics.
         """
         logger.info(f'aggregating metrics for 10-min intervals')
-        interval_to_second = lambda x: x[0] * SECONDS_IN_HOUR + x[1] * SECONDS_IN_MINUTE
+        interval_to_second = lambda x: x[0] * SECONDS_IN_HOUR + x[1] * SECONDS_IN_MINUTE if isinstance(x, List) else x * SECONDS_IN_HOUR
         second_to_interval = lambda x: (x // SECONDS_IN_HOUR, (x % SECONDS_IN_HOUR) // SECONDS_IN_MINUTE)
         
         day_start, day_end = self.time_dict['full']
@@ -224,7 +227,7 @@ class Metric_Aggregation():
         
         if data_type == 'segments':
             table_rename = {
-                'route_id': 'route_id',
+                'route_id': 'route',
                 'stop_pair': 'segment'
             }
             index_cols = ['route_id', 'first_stop', 'second_stop']
@@ -235,7 +238,7 @@ class Metric_Aggregation():
             index_cols = ['first_stop', 'second_stop']
         elif data_type == 'routes':
             table_rename = {
-                'route_id': 'route_id',
+                'route_id': 'route',
                 'direction_id': 'direction'
             }
             index_cols = ['route_id', 'direction_id']
@@ -262,7 +265,7 @@ class Metric_Aggregation():
 
     def __get_time_filtered_metrics(self, metrics:pd.DataFrame, start_time:int, end_time:int, data_type:str, stop_time_col:str='arrival_time'):
 
-        if data_type == 'route_id':
+        if data_type == 'route':
             time_filtered_metrics = deepcopy(metrics.loc[(metrics['trip_start_time'] >= start_time) & (metrics['trip_start_time'] < end_time), :])
         else:
             time_filtered_metrics = deepcopy(metrics.loc[(metrics[stop_time_col] >= start_time) & (metrics[stop_time_col] < end_time), :])

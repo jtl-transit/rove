@@ -32,17 +32,17 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
 
 
     def schedule_sufficiency_index(self):
-        """Weighted coefficient of variation of running time.
+        """Weighted coefficient of standard deviation of running time.
 
-        - corridor level: coefficient of variation of corridor-level running time, weighted by number of observations of each trip_id
-        - route level: coefficient of variation of route-level running time, weighted by number of observations of each trip_id
+        - corridor level: coefficient of standard deviation of corridor-level running time, weighted by number of observations of each trip_id
+        - route level: coefficient of standard deviation of route-level running time, weighted by number of observations of each trip_id
         """
         sig_fig = 2
 
         def __ssi_calculation(records:pd.DataFrame, by_trips_cols:List) -> pd.DataFrame:
             data_by_trips = records.groupby(by_trips_cols)['observed_running_time_with_dwell'].agg('mean').to_frame(name = 'mean')
-            data_by_trips['var'] = records.groupby(by_trips_cols)['observed_running_time_with_dwell'].var()
-            data_by_trips['cov'] = data_by_trips['var'] / data_by_trips['mean']
+            data_by_trips['std'] = records.groupby(by_trips_cols)['observed_running_time_with_dwell'].std()
+            data_by_trips['cov'] = data_by_trips['std'] / data_by_trips['mean']
             data_by_trips['count'] = records.groupby(by_trips_cols)['observed_running_time_with_dwell'].count()
             data_by_trips['total_trips'] = data_by_trips.groupby([item for item in by_trips_cols if item not in ['trip_id']])['count'].transform('sum')
             data_by_trips['weight'] = data_by_trips['count'] / data_by_trips['total_trips']
