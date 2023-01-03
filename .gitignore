@@ -24,6 +24,7 @@ backend_main_test.py
 *.ipynb
 test.py
 
+input/*
 data/
 logs/
 *.p
