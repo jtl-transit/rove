@@ -18,7 +18,6 @@ backend_main_test.py
 
 *.xml
 *.csv
-*.txt
 *.iml
 *.json
 *.ipynb
