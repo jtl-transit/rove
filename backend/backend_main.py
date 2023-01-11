@@ -18,7 +18,7 @@ YEAR = "2022" # YYYY in string format
 START_DATE = '2022-09-11' # YYYY-MM-DD
 END_DATE = '2022-12-11' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
@@ -28,6 +28,30 @@ METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggreg
 logger = getLogger('backendLogger')
 
 def __main__(args):
+    """Main method of ROVE backend - run this file to generate shapes and metrics in the backend. If the file is run in the command line, 
+    selected arguments will be required (see details below). Otherwise, if the file is run in an IDE, then use the above variables to change 
+    selection of agency, dates, date type, data option, etc.
+
+    :param args: command line arguments needed for the backend.
+    "-a" or "--agency": REQUIRED, name of the agency to be analyzed, must be a string with no space. E.g. "WMATA", "MBTA", "MTA_Manhattan".
+    "-m" or "--month": REQUIRED, name of the month (or months) to be analyzed, must be a string with not space. E.g. if supplied "01", the backend
+        will calculate metrics for the January of the specified year (if no start date end date is given); alternatively, if supplied a non-numeric 
+        string, e.g. "Q2", then a "start date" and "end date" must be supplied so the backend will know which time window to calculate the metrics for.
+    "-y" or "--year": REQUIRED, name of the year to be analyzed, must be a 4-character string, e.g. "2022", "2023".
+    "-sd" or "--start_date": Optionally required, the start date ("YYYY-MM-DD") of the analysis time window. Required only when the given "--month" 
+        is not numeric. Can also be used to select a smaller time window than the whole month, when the given "--month" is numeric. E.g. "2022-09-05".
+    "-ed" or "--end_date": Optionally required, the end date ("YYYY-MM-DD") of the analysis time window. Used in the same way as "--start_date". 
+        E.g. "2022-09-20".
+    "-dt" or "--date_type": type of dates the backend analyzes. Must be one of "Workday" (default), "Saturday", "Sunday".
+    "-do" or "--data_option": type of analysis. Must be one of "GTFS" (default) or "GTFS-AVL".
+    "-sg" or "--shape_gen": perform shape generation (default).
+    "-no-sg" or "--no_shape_gen": don't perform shape generation. 
+    "-ma" or "--metric_agg": perform metrics aggregation (default).
+    "-no-ma" or "--no_metric_agg": don't perform metrics aggregation.
+    "-sig" or "--check_signal": check each shape segment and see if it intersects with a traffic signal. This operation may take some time.
+    "-no-sig" or "--no_check_signal": don't check whether shape segments intersect with traffic signals (default).
+    :type args: _type_
+    """
     if len(args) > 0:
         parser = argparse.ArgumentParser(description="Do something.")
         parser.add_argument("-a", "--agency", type=str, required=True)
@@ -41,10 +65,10 @@ def __main__(args):
         parser.add_argument("-no-sg", "--no_shape_gen", dest='shape_gen', action='store_false', required=False)
         parser.set_defaults(shape_gen=True)
         parser.add_argument("-ma", "--metric_agg", action='store_true', required=False)
-        parser.add_argument("-no-ma", "--no-metric_agg", dest='metric_agg', action='store_false', required=False)
+        parser.add_argument("-no-ma", "--no_metric_agg", dest='metric_agg', action='store_false', required=False)
         parser.set_defaults(metric_agg=True)
         parser.add_argument("-sig", "--check_signal", action='store_true', required=False)
-        parser.add_argument("-no-sig", "--no-check_signal", dest='check_signal', action='store_false', required=False)
+        parser.add_argument("-no-sig", "--no_check_signal", dest='check_signal', action='store_false', required=False)
         parser.set_defaults(check_signal=False)
         args = parser.parse_args(args)
 
