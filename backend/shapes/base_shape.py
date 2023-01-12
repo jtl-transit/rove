@@ -12,6 +12,7 @@ from time import sleep
 import geopandas as gpd
 from shapely.geometry import LineString
 import polyline
+from geopy.distance import distance as geodist
 import stateplane
 
 logger = logging.getLogger("backendLogger")
@@ -46,13 +47,14 @@ class BaseShape():
         'radius_increase_step': 10 # Step size used to increase search area when Valhalla cannot find an initial match (meters)
         }
 
-    def __init__(self, patterns, params:ROVE_params, check_signal, mode='bus'):
+    def __init__(self, patterns, params:ROVE_params, check_signal, mode='bus', use_valhalla=True):
 
         logger.info(f'Generating shapes...')
         self.params = params
         self.outpath = self.params.output_paths['shapes']
         self.patterns, self.sample_coord = self.__check_patterns(patterns)
         self.mode = mode
+        self.use_valhalla = use_valhalla
         self.shapes = self.generate_segment_shapes()
         # self.shapes = read_shapes(self.params.output_paths['shapes'])
         if check_signal:
@@ -98,51 +100,67 @@ class BaseShape():
         # for p_name, segments in self.patterns.items():
         for p_name, segments in tqdm(self.patterns.items(), desc='Generating pattern shapes', position=0):
             for s_name, coords in segments.items():
-                stop_distance = PARAMETERS['stop_distance_meter']
-                found_geometry = False
-                break_radius = PARAMETERS['stop_radius']
-                via_radius = PARAMETERS['intermediate_radius']
-                radius_increase = 0
-                while radius_increase <= PARAMETERS['maximum_radius_increase'] and not found_geometry:
+                if self.use_valhalla:
+                    stop_distance = PARAMETERS['stop_distance_meter']
+                    found_geometry = False
+                    break_radius = PARAMETERS['stop_radius']
+                    via_radius = PARAMETERS['intermediate_radius']
+                    radius_increase = 0
+                    while radius_increase <= PARAMETERS['maximum_radius_increase'] and not found_geometry:
 
-                    seg_shape = []
-                    # Get subset of coordinates based on distance threshold.
-                    # Lower bounded at 1 to avoid division by zero.
-                    segment_length = self.__get_distance(coords[0], coords[-1])
-                    interval_count = max(math.floor(segment_length/stop_distance)+1,1) # min: 1
-                    step = math.ceil((len(coords)-1) / interval_count ) # max: len(coords)-1
-                    coords_to_use = [coords[i] for i in np.unique(np.append(np.arange(0, len(coords), step),[len(coords)-1]))]
+                        seg_shape = []
+                        # Get subset of coordinates based on distance threshold.
+                        # Lower bounded at 1 to avoid division by zero.
+                        segment_length = self.__get_distance(coords[0], coords[-1])
+                        interval_count = max(math.floor(segment_length/stop_distance)+1,1) # min: 1
+                        step = math.ceil((len(coords)-1) / interval_count ) # max: len(coords)-1
+                        coords_to_use = [coords[i] for i in np.unique(np.append(np.arange(0, len(coords), step),[len(coords)-1]))]
 
-                    # build segment shape to be passed to Valhalla
-                    for i in range(len(coords_to_use)):
-                        if i==0 or i==len(coords_to_use)-1:
-                            type='break'
-                            radius = break_radius + radius_increase
-                        else:
-                            type='via'
-                            radius = via_radius + radius_increase
-                        
-                        coord = coords_to_use[i]
-                        seg_shape.append(Valhalla_Point(coord[0], coord[1], type, radius).point_parameters())
+                        # build segment shape to be passed to Valhalla
+                        for i in range(len(coords_to_use)):
+                            if i==0 or i==len(coords_to_use)-1:
+                                type='break'
+                                radius = break_radius + radius_increase
+                            else:
+                                type='via'
+                                radius = via_radius + radius_increase
+                            
+                            coord = coords_to_use[i]
+                            seg_shape.append(Valhalla_Point(coord[0], coord[1], type, radius).point_parameters())
 
-                    radius_increase = radius_increase + PARAMETERS['radius_increase_step']
-                    matched, skipped = Valhalla_Request(s_name, seg_shape).get_trace_route_response()
+                        radius_increase = radius_increase + PARAMETERS['radius_increase_step']
+                        matched, skipped = Valhalla_Request(s_name, seg_shape).get_trace_route_response()
 
-                    if not skipped:
-                        found_geometry = True
-                
-                # assume the first leg of the matched result corresponds to the segment
-                if bool(matched):
-                    if p_name not in all_matched:
-                        all_matched[p_name] = {}
+                        if not skipped:
+                            found_geometry = True
+                    
+                    # assume the first leg of the matched result corresponds to the segment
+                    if bool(matched):
+                        if p_name not in all_matched:
+                            all_matched[p_name] = {}
 
-                    all_matched[p_name][s_name] = matched[s_name][0]
+                        all_matched[p_name][s_name] = matched[s_name][0]
 
-                if bool(skipped):
-                    if p_name not in all_skipped:
-                        all_skipped[p_name] = {}
-                    all_skipped[p_name][s_name] = skipped[s_name]
-
+                    if bool(skipped):
+                        if p_name not in all_skipped:
+                            all_skipped[p_name] = {}
+                        all_skipped[p_name][s_name] = skipped[s_name]
+                else:
+                    if len(coords) > 1:
+                        if p_name not in all_matched:
+                            all_matched[p_name] = {}
+                        geometry = polyline.encode(coords, precision=6)
+                        distance = sum([geodist(coords[i], coords[i+1]).kilometers  for i in range(len(coords)-1)])
+                        all_matched[p_name][s_name] = {
+                            'geometry': geometry,
+                            'distance': round(distance, 2)
+                        }
+                    else:
+                        if p_name not in all_skipped:
+                            all_skipped[p_name] = {}
+                        all_skipped[p_name][s_name] = {
+                            'coords': coords
+                        }
             # pbar.update()
 
         matched_output = [
@@ -422,7 +440,7 @@ class Valhalla_Request():
                     
                     if self.shape_name not in matched:
                         matched[self.shape_name] = {}
-                                        
+
                     matched[self.shape_name][leg_index] = {
                         'geometry': geometry,
                         'distance': length

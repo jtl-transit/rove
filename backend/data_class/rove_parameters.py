@@ -257,8 +257,10 @@ class ROVE_params(object, metaclass=ABCMeta):
         return fconfig
 
     def generate_date_list(self)->List[datetime.datetime]:
-        """Generate a list of dates of date_type in the given month and year. For example, if the user specified to analyze "MBTA", "02", "2021", "Workday" as the 
-        agency, month, year and date_type, then this method will return a list of datetime objects that are the workdays (no weekend or holiday) in Feb 2021 in Massachusetts. 
+        """Generate a list of dates of date_type between the start_date and end_date or in the given month and year. For example, if the user specified to 
+        analyze "MBTA", "02", "2021", "Workday" as the agency, month, year and date_type and did not specify a start_date or end_date, then this method will 
+        return a list of datetime objects that are the workdays (no weekend or holiday) in Feb 2021 in the state/country represented by the iso3166_code; 
+        otherwise, if a start_date and end_date are specified, then this method will return a list of datetime objects between the start date and end date, but the 
         A "workalendarPath" object must exist in the backend_config JSON file for the method to know which state/region to lookup the holiday calendar for, and its value must
         be the workalendar class for the region that the agency operates in. E.g. for the MBTA, this name-value pair is specified in the backend_config file: 
         "workalendarPath": "workalendar.usa.massachusetts.Massachusetts". For details on how to find the correct workalendar class for your region, refer to 

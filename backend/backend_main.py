@@ -16,12 +16,12 @@ AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "Q2" # MM in string format
 YEAR = "2022" # YYYY in string format
 START_DATE = '2022-09-11' # YYYY-MM-DD
-END_DATE = '2022-12-11' # YYYY-MM-DD
+END_DATE = '2022-10-11' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
-SHAPE_GENERATION = False # True/False: whether to generate shapes
-METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
+SHAPE_GENERATION = True # True/False: whether to generate shapes
+METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
 
@@ -147,7 +147,7 @@ def __main__(args):
 
     # ------shape generation------ 
     if shape_gen or read_shapes(params.output_paths['shapes']).empty:
-        shapes = BaseShape(bus_gtfs.patterns_dict, params=params, check_signal=check_signal).shapes
+        shapes = BaseShape(bus_gtfs.patterns_dict, params=params, check_signal=check_signal, use_valhalla=False).shapes
     else:
         shapes = read_shapes(params.output_paths['shapes'])
 
