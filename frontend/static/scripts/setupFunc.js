@@ -15,7 +15,7 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
 // Adds static elements to the map that are not dependent on any metric data being loaded.
 function initializeDataPanel(){
-
+	console.log('initializeDataPanel')
 	// Drop journey visualization buttons if WMATA instance (not supported)
 	if(transitFileDescription[0].slice(0,5) === 'WMATA'){
 		$('#button-viz').hide();
@@ -169,7 +169,6 @@ function initializeDataPanel(){
 	$('#select-background-button').click(function(){
 		
 		var selectedBackground = $('#select-background').val();
-
 		// Add new background layer if none exists
 		if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
 			$.ajax({
@@ -212,9 +211,9 @@ function initializeDataPanel(){
 					}).addTo(map);
 
 					backgroundLayer.bringToBack();
-
 					backgroundLayer.eachLayer(function(layer) {
 						var popText = '<p>'
+						popText+= 'ANNABEL </br>'
 						var layerProps = Object.keys(layer.feature.properties)
 						for(property in layerProps){
 							popText += '<b> '
@@ -226,6 +225,11 @@ function initializeDataPanel(){
 						popText += '</p>'
 						layer.bindPopup(popText)
 					});
+					backgroundLayer.on('click', function(e) {
+						var marker1 = e.layer._leaflet_id;
+						// console.log(marker1, backgroundLayer._layers[marker1])
+						createRoutePolygonMap(backgroundLayer._layers[marker1], routesGeojson)
+					  });
 					populateEquityBackgroundFilters();
 				}
 			});
@@ -326,7 +330,6 @@ function createMap(){
 
 	// Get peak directions
 	peakDirections = getPeakDirections(selectedFile);
-
 	// Loop to create geoJSON linestring from each encoded polyline in shape file and append properties from server data
 	var lineFeatures = [];
 	
@@ -681,6 +684,13 @@ function createMap(){
 		});
 	}
 
+	// console.log(lineFeatures, 'lineFeatures')
+	// var point = turf.point([38.795961, -77.075091])
+	// var line = turf.lineString(makeLatLongArray(lineFeatures[0]._latlngs))
+	// console.log( 'shape of bus line in lat/long array', line)
+	// console.log( 'test', point)
+	// console.log('busShapes', turf.booleanIntersects(line, point))
+	// console.log('backgroundLayer', backgroundLayer)
 	// Add shapes to map and store parameters
 	routesGeojson.addTo(map);
 	mapCenter = routesGeojson.getBounds().getCenter();
@@ -863,4 +873,99 @@ function displaySegments(e) {
 		}
 		e.layer.openPopup();
 	}
+}
+
+function makeLatLongArray(coordinateArray) {
+	if(coordinateArray.length === 1){
+		makeLatLongArray(coordinateArray[0])
+	}
+	return coordinateArray.map(coordinates => Object.values(coordinates))
+}
+
+function createRoutePolygonMap(polygon, routes){
+	// takes background polygons and bus routes and returns a object in the shape
+	// {polygonID: [{segments: [segment-indexes]}]}
+	// what does the data actually look like - we have data at each stop
+	// polygons._layers.forEach(polygon => {
+	// 	console.log(polygon.feature.geometry.coordinates)
+	// })
+
+	// console.log('routes', routes)
+	// console.log('polygon', polygon)
+
+	// make polygons into turf polygons
+	// var turfPolygons = {};
+	// console.log('pre turf polygon', polygon)
+	// var polygonCoordinates = []
+	// for (let i = 0; i < polygon.feature.geometry.coordinates.length ; i++){
+	// 	// console.log(polygon[1]._latlngs.length)
+	// 	var coordinates = polygon.feature.geometry.coordinates[i];
+	// 	if(coordinates.length === 1){
+	// 		coordinates=coordinates[0]	
+	// 	}
+	// 	var temp = coordinates.concat([coordinates[0]]);
+	// 	polygonCoordinates = polygonCoordinates.concat(temp)
+	// }
+	// 	turfPolygons[polygon[1]._leaflet_id] = turf.multiPolygon([polygonCoordinates])
+	// // })
+	// console.log(turfPolygons)
+
+
+	// console.log(routes._layers)
+
+	//make route segments into turf lines
+	// var polygonSegmentIntersections = {}
+	// var lineSegments = {}
+
+	// console.log('segs', Object.values(routes._layers).length)
+	// console.log('polys', Object.entries(turfPolygons).length)
+	// segment.options.segIndex
+	// var testPolycoords = polygon.feature.geometry.coordinates[0].concat(polygon.feature.geometry.coordinates[0][0])
+	// console.log(testPolycoords)
+	// console.log(polygonCoordinates)
+	var turfPoly = turf.multiPolygon([[makeLatLongArray(polygon._latlngs[0])]])
+	console.log('turfPoly', turfPoly)
+	// var segmentsArr = []
+	Object.values(routes._layers).forEach(segment => {
+		// console.log('segment pre turf', segment)
+		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
+		// console.log('turfLine', turfLine)
+		if (turf.booleanIntersects(turfLine, turfPoly)){
+			console.log('match')
+			// segmentsArr = segmentsArr.concat(segment)
+		}
+
+		// Object.entries(turfPolygons).forEach(poly => {
+			// linesefturf = turf.lineString(makeLatLongArray(segment._latlngs)) 
+			// console.log('seg')
+			// if(turf.booleanIntersects(poly[1], linesefturf)){
+				// console.log('intersect')
+				// lineSegments[segment.options.segIndex] = {
+				// 	'latlng': turf.lineString(makeLatLongArray(segment._latlngs)),
+				// 	'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
+				// 	'seg-boardings': segment.options['seg-boardings'],
+				// 	'seg-crowding': segment.options['seg-crowding'],
+				// };
+			// }
+		// })
+	})
+
+	// console.log('lineSegments',segmentsArr)
+
+	// Object.entries(turfPolygons).forEach(poly => {
+	// 	console.log('test poly', poly)
+	// 	turfPolygons[poly[0]]['lineData'] = Object.values(lineSegments).filter(line => turf.booleanIntersects(poly[1], line.latlng))
+	// })
+	// console.log('final:',turfPolygons)
+
+	// determine which lines intersect with which polygons
+	// var polygonSegmentIntersections = {}
+	// turfPolygons.forEach(poly => {
+	// 	Object.entries(lineSegments).forEach(seg => {
+	// 		console.log(turf.booleanIntersects(poly, seg[1].latlng))
+	// 	})
+	// })
+
+	// return map of polygons: line segments
+	
 }
