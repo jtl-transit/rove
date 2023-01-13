@@ -226,9 +226,8 @@ function initializeDataPanel(){
 						layer.bindPopup(popText)
 					});
 					backgroundLayer.on('click', function(e) {
-						var marker1 = e.layer._leaflet_id;
-						// console.log(marker1, backgroundLayer._layers[marker1])
-						createRoutePolygonMap(backgroundLayer._layers[marker1], routesGeojson)
+						var marker = e.layer._leaflet_id;
+						var matches = findIntersectingRoutes(backgroundLayer._layers[marker], routesGeojson)
 					  });
 					populateEquityBackgroundFilters();
 				}
@@ -882,90 +881,35 @@ function makeLatLongArray(coordinateArray) {
 	return coordinateArray.map(coordinates => Object.values(coordinates))
 }
 
-function createRoutePolygonMap(polygon, routes){
-	// takes background polygons and bus routes and returns a object in the shape
-	// {polygonID: [{segments: [segment-indexes]}]}
-	// what does the data actually look like - we have data at each stop
-	// polygons._layers.forEach(polygon => {
-	// 	console.log(polygon.feature.geometry.coordinates)
-	// })
-
-	// console.log('routes', routes)
-	// console.log('polygon', polygon)
-
-	// make polygons into turf polygons
-	// var turfPolygons = {};
-	// console.log('pre turf polygon', polygon)
-	// var polygonCoordinates = []
-	// for (let i = 0; i < polygon.feature.geometry.coordinates.length ; i++){
-	// 	// console.log(polygon[1]._latlngs.length)
-	// 	var coordinates = polygon.feature.geometry.coordinates[i];
-	// 	if(coordinates.length === 1){
-	// 		coordinates=coordinates[0]	
-	// 	}
-	// 	var temp = coordinates.concat([coordinates[0]]);
-	// 	polygonCoordinates = polygonCoordinates.concat(temp)
+function findIntersectingRoutes(polygon, routes){
+	// takes selected background polygon and bus routes and returns an object in the shape
+	// {
+	// 	'segmentIndexID' : {
+	// 		'seg-observed_speed_without_dwell' : number,
+	// 		'seg-boardings': number,
+	// 		'seg-crowding': number
+	// 		}
 	// }
-	// 	turfPolygons[polygon[1]._leaflet_id] = turf.multiPolygon([polygonCoordinates])
-	// // })
-	// console.log(turfPolygons)
+	
+	var polys = []
+	for (var i = 0; i < polygon._latlngs.length; i++){
+		polys = polys.concat(makeLatLongArray(polygon._latlngs[i]))
+	}
+	var turfPoly = turf.multiPolygon([[polys]])
 
-
-	// console.log(routes._layers)
-
-	//make route segments into turf lines
-	// var polygonSegmentIntersections = {}
-	// var lineSegments = {}
-
-	// console.log('segs', Object.values(routes._layers).length)
-	// console.log('polys', Object.entries(turfPolygons).length)
-	// segment.options.segIndex
-	// var testPolycoords = polygon.feature.geometry.coordinates[0].concat(polygon.feature.geometry.coordinates[0][0])
-	// console.log(testPolycoords)
-	// console.log(polygonCoordinates)
-	var turfPoly = turf.multiPolygon([[makeLatLongArray(polygon._latlngs[0])]])
-	console.log('turfPoly', turfPoly)
-	// var segmentsArr = []
+	var matchingSegments = {}
 	Object.values(routes._layers).forEach(segment => {
 		// console.log('segment pre turf', segment)
 		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
 		// console.log('turfLine', turfLine)
 		if (turf.booleanIntersects(turfLine, turfPoly)){
-			console.log('match')
-			// segmentsArr = segmentsArr.concat(segment)
+			matchingSegments[segment.options.segIndex] = {				
+					'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
+					'seg-boardings': segment.options['seg-boardings'],
+					'seg-crowding': segment.options['seg-crowding'],
+				}
+			}
 		}
-
-		// Object.entries(turfPolygons).forEach(poly => {
-			// linesefturf = turf.lineString(makeLatLongArray(segment._latlngs)) 
-			// console.log('seg')
-			// if(turf.booleanIntersects(poly[1], linesefturf)){
-				// console.log('intersect')
-				// lineSegments[segment.options.segIndex] = {
-				// 	'latlng': turf.lineString(makeLatLongArray(segment._latlngs)),
-				// 	'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
-				// 	'seg-boardings': segment.options['seg-boardings'],
-				// 	'seg-crowding': segment.options['seg-crowding'],
-				// };
-			// }
-		// })
-	})
-
-	// console.log('lineSegments',segmentsArr)
-
-	// Object.entries(turfPolygons).forEach(poly => {
-	// 	console.log('test poly', poly)
-	// 	turfPolygons[poly[0]]['lineData'] = Object.values(lineSegments).filter(line => turf.booleanIntersects(poly[1], line.latlng))
-	// })
-	// console.log('final:',turfPolygons)
-
-	// determine which lines intersect with which polygons
-	// var polygonSegmentIntersections = {}
-	// turfPolygons.forEach(poly => {
-	// 	Object.entries(lineSegments).forEach(seg => {
-	// 		console.log(turf.booleanIntersects(poly, seg[1].latlng))
-	// 	})
-	// })
-
-	// return map of polygons: line segments
-	
+	)	
+	return matchingSegments
 }
