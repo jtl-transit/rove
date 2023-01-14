@@ -15,6 +15,7 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
 // Adds static elements to the map that are not dependent on any metric data being loaded.
 function initializeDataPanel(){
+	
 	// Drop journey visualization buttons if WMATA instance (not supported)
 	if(transitFileDescription[0].slice(0,5) === 'WMATA'){
 		$('#button-viz').hide();
@@ -168,6 +169,7 @@ function initializeDataPanel(){
 	$('#select-background-button').click(function(){
 		
 		var selectedBackground = $('#select-background').val();
+
 		// Add new background layer if none exists
 		if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
 			$.ajax({
@@ -210,6 +212,7 @@ function initializeDataPanel(){
 					}).addTo(map);
 
 					backgroundLayer.bringToBack();
+
 					backgroundLayer.eachLayer(function(layer) {
 						var popText = '<p>'
 						var layerProps = Object.keys(layer.feature.properties)
@@ -342,6 +345,7 @@ function createMap(){
 
 	// Get peak directions
 	peakDirections = getPeakDirections(selectedFile);
+
 	// Loop to create geoJSON linestring from each encoded polyline in shape file and append properties from server data
 	var lineFeatures = [];
 	
@@ -696,6 +700,7 @@ function createMap(){
 		});
 	}
 
+	// Add shapes to map and store parameters
 	routesGeojson.addTo(map);
 	mapCenter = routesGeojson.getBounds().getCenter();
 
@@ -909,11 +914,6 @@ function findIntersectingRoutes(polygon, routes){
 			matchingSegments['speed'] = matchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
 			matchingSegments['boardings'] = matchingSegments['boardings'].concat(segment.options['seg-boardings'])
 			matchingSegments['crowding'] = matchingSegments['crowding'].concat(segment.options['seg-crowding'])
-			// matchingSegments[segment.options.segIndex] = {				
-			// 		'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
-			// 		'seg-boardings': segment.options['seg-boardings'],
-			// 		'seg-crowding': segment.options['seg-crowding'],
-			// 	}
 			}
 		}
 	)	
