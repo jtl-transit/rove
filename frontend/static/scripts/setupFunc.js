@@ -15,7 +15,6 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
 // Adds static elements to the map that are not dependent on any metric data being loaded.
 function initializeDataPanel(){
-	console.log('initializeDataPanel')
 	// Drop journey visualization buttons if WMATA instance (not supported)
 	if(transitFileDescription[0].slice(0,5) === 'WMATA'){
 		$('#button-viz').hide();
@@ -213,7 +212,6 @@ function initializeDataPanel(){
 					backgroundLayer.bringToBack();
 					backgroundLayer.eachLayer(function(layer) {
 						var popText = '<p>'
-						popText+= 'ANNABEL </br>'
 						var layerProps = Object.keys(layer.feature.properties)
 						for(property in layerProps){
 							popText += '<b> '
@@ -222,13 +220,28 @@ function initializeDataPanel(){
 							popText += layer.feature.properties[layerProps[property]]
 							popText += '</br>'
 						}
+						popText += '<div id="EFC-data-div" />'
 						popText += '</p>'
 						layer.bindPopup(popText)
 					});
 					backgroundLayer.on('click', function(e) {
 						var marker = e.layer._leaflet_id;
 						var matches = findIntersectingRoutes(backgroundLayer._layers[marker], routesGeojson)
-					  });
+						var EFCData = calculateIntersectedAverage(matches);
+						var EFCText = `<p>`
+						var EFCkeys = Object.keys(EFCData)
+						EFCkeys.forEach(property =>{
+							EFCText += '<b> Average '
+							EFCText += property
+							EFCText += ':</b> '
+							EFCText += EFCData[property]
+							EFCText += '</br>'
+
+						}) 
+						EFCText += '</p>'
+
+						document.getElementById('EFC-data-div').innerHTML = EFCText
+					});
 					populateEquityBackgroundFilters();
 				}
 			});
@@ -683,14 +696,6 @@ function createMap(){
 		});
 	}
 
-	// console.log(lineFeatures, 'lineFeatures')
-	// var point = turf.point([38.795961, -77.075091])
-	// var line = turf.lineString(makeLatLongArray(lineFeatures[0]._latlngs))
-	// console.log( 'shape of bus line in lat/long array', line)
-	// console.log( 'test', point)
-	// console.log('busShapes', turf.booleanIntersects(line, point))
-	// console.log('backgroundLayer', backgroundLayer)
-	// Add shapes to map and store parameters
 	routesGeojson.addTo(map);
 	mapCenter = routesGeojson.getBounds().getCenter();
 
@@ -897,19 +902,40 @@ function findIntersectingRoutes(polygon, routes){
 	}
 	var turfPoly = turf.multiPolygon([[polys]])
 
-	var matchingSegments = {}
+	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
 	Object.values(routes._layers).forEach(segment => {
-		// console.log('segment pre turf', segment)
 		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
-		// console.log('turfLine', turfLine)
 		if (turf.booleanIntersects(turfLine, turfPoly)){
-			matchingSegments[segment.options.segIndex] = {				
-					'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
-					'seg-boardings': segment.options['seg-boardings'],
-					'seg-crowding': segment.options['seg-crowding'],
-				}
+			matchingSegments['speed'] = matchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
+			matchingSegments['boardings'] = matchingSegments['boardings'].concat(segment.options['seg-boardings'])
+			matchingSegments['crowding'] = matchingSegments['crowding'].concat(segment.options['seg-crowding'])
+			// matchingSegments[segment.options.segIndex] = {				
+			// 		'seg-observed_speed_without_dwell': segment.options['seg-observed_speed_without_dwell'],
+			// 		'seg-boardings': segment.options['seg-boardings'],
+			// 		'seg-crowding': segment.options['seg-crowding'],
+			// 	}
 			}
 		}
 	)	
 	return matchingSegments
+}
+
+function calculateIntersectedAverage(segments){
+	function removeNulls(arr) {
+		return arr.filter(el => el !== null)
+	}
+
+	function getAverage(arr){
+		return arr.reduce((a, b) => a + b) / arr.length
+	}
+
+	var speed = removeNulls(segments['speed']);
+	var boardings = removeNulls(segments['boardings']);
+	var crowding = removeNulls(segments['crowding']);
+
+	return {
+		'speed' : getAverage(speed),
+		'boardings' : getAverage(boardings),
+		'crowding' : getAverage(crowding),
+	}
 }
