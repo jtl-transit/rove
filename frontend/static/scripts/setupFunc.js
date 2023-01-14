@@ -15,7 +15,7 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
 // Adds static elements to the map that are not dependent on any metric data being loaded.
 function initializeDataPanel(){
-	
+
 	// Drop journey visualization buttons if WMATA instance (not supported)
 	if(transitFileDescription[0].slice(0,5) === 'WMATA'){
 		$('#button-viz').hide();
@@ -223,27 +223,28 @@ function initializeDataPanel(){
 							popText += layer.feature.properties[layerProps[property]]
 							popText += '</br>'
 						}
-						popText += '<div id="EFC-data-div" />'
+						popText += `<div id="EFC-data-div-${layer._leaflet_id}" />`
 						popText += '</p>'
 						layer.bindPopup(popText)
 					});
 					backgroundLayer.on('click', function(e) {
 						var marker = e.layer._leaflet_id;
-						var matches = findIntersectingRoutes(backgroundLayer._layers[marker], routesGeojson)
-						var EFCData = calculateIntersectedAverage(matches);
-						var EFCText = `<p>`
-						var EFCkeys = Object.keys(EFCData)
-						EFCkeys.forEach(property =>{
-							EFCText += '<b> Average '
-							EFCText += property
-							EFCText += ':</b> '
-							EFCText += EFCData[property]
-							EFCText += '</br>'
+						var matches = findIntersectingRoutes(backgroundLayer._layers[marker])
+						if(matches){
+							var EFCData = calculateIntersectedAverage(matches);
+							var EFCText = `<p>`
+							var EFCkeys = Object.keys(EFCData)
+							EFCkeys.forEach(property =>{
+								EFCText += '<b> Average '
+								EFCText += property
+								EFCText += ':</b> '
+								EFCText += EFCData[property]
+								EFCText += '</br>'
 
-						}) 
-						EFCText += '</p>'
-
-						document.getElementById('EFC-data-div').innerHTML = EFCText
+							}) 
+							EFCText += '</p>'
+							document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+						}
 					});
 					populateEquityBackgroundFilters();
 				}
@@ -891,24 +892,23 @@ function makeLatLongArray(coordinateArray) {
 	return coordinateArray.map(coordinates => Object.values(coordinates))
 }
 
-function findIntersectingRoutes(polygon, routes){
-	// takes selected background polygon and bus routes and returns an object in the shape
-	// {
-	// 	'segmentIndexID' : {
-	// 		'seg-observed_speed_without_dwell' : number,
-	// 		'seg-boardings': number,
-	// 		'seg-crowding': number
-	// 		}
-	// }
+function findIntersectingRoutes(polygon){
+	// takes selected background polygon and returns an object in the shape
+	// 	 {
+	// 		'speed' : [number],
+	// 		'boardings': [number],
+	// 		'crowding': [number]
+	// 	}
 	
-	var polys = []
+	var polygons = []
+	// for zones that are made up of 2 or more distinct polygons
 	for (var i = 0; i < polygon._latlngs.length; i++){
-		polys = polys.concat(makeLatLongArray(polygon._latlngs[i]))
+		polygons = polygons.concat(makeLatLongArray(polygon._latlngs[i]))
 	}
-	var turfPoly = turf.multiPolygon([[polys]])
+	var turfPoly = turf.multiPolygon([[polygons]])
 
 	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
-	Object.values(routes._layers).forEach(segment => {
+	Object.values(routesGeojson._layers).forEach(segment => {
 		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
 		if (turf.booleanIntersects(turfLine, turfPoly)){
 			matchingSegments['speed'] = matchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
@@ -926,7 +926,7 @@ function calculateIntersectedAverage(segments){
 	}
 
 	function getAverage(arr){
-		return arr.reduce((a, b) => a + b) / arr.length
+		return arr.length > 0 ? arr.reduce((a, b) => a + b) / arr.length : 'N/A'
 	}
 
 	var speed = removeNulls(segments['speed']);
