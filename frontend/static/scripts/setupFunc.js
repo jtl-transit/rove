@@ -169,6 +169,7 @@ function initializeDataPanel(){
 	$('#select-background-button').click(function(){
 		
 		var selectedBackground = $('#select-background').val();
+		var backgroundDataCache = {};
 
 		// Add new background layer if none exists
 		if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
@@ -228,22 +229,33 @@ function initializeDataPanel(){
 						layer.bindPopup(popText)
 					});
 					backgroundLayer.on('click', function(e) {
-						var marker = e.layer._leaflet_id;
-						var matches = findIntersectingRoutes(backgroundLayer._layers[marker])
-						if(matches){
-							var EFCData = calculateIntersectedAverage(matches);
-							var EFCText = `<p>`
-							var EFCkeys = Object.keys(EFCData)
-							EFCkeys.forEach(property =>{
-								EFCText += '<b> Average '
-								EFCText += property
-								EFCText += ':</b> '
-								EFCText += EFCData[property]
-								EFCText += '</br>'
+						if(routesGeojson._layers){
+							var marker = e.layer._leaflet_id;
+							var matches = {};
 
-							}) 
-							EFCText += '</p>'
-							document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+							// pull from cache or finding intersections & adding them to the cache
+							if(backgroundDataCache[marker]){
+								matches = backgroundDataCache[marker]
+							} else{
+								matches = findIntersectingRoutes(backgroundLayer._layers[marker])
+								backgroundDataCache[marker] = matches
+							}
+
+							if(matches){
+								var EFCData = calculateIntersectedAverage(matches);
+								var EFCText = `<p>`
+								var EFCkeys = Object.keys(EFCData)
+								EFCkeys.forEach(property =>{
+									EFCText += '<b> Average '
+									EFCText += property
+									EFCText += ':</b> '
+									EFCText += EFCData[property]
+									EFCText += '</br>'
+
+								}) 
+								EFCText += '</p>'
+								document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+							}
 						}
 					});
 					populateEquityBackgroundFilters();
