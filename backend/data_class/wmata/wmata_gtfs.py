@@ -29,12 +29,14 @@ class WMATA_GTFS(GTFS):
         fsn_active = fsn_df[fsn_df['active']==1].groupby('signid').get_group(fsn_df['signid'].max())
         fsn_lookup = fsn_active.groupby('category')['route'].apply(list).to_dict()
 
-        with open(self.rove_params.input_paths['frontend_config'], 'r+') as f:
-            data = json.load(f)
-            data['routeTypes'] = fsn_lookup # <--- add `id` value.
-            f.seek(0)        # <--- should reset file position to the beginning.
-            json.dump(data, f)
-            f.truncate()     # remove remaining part
+        self.rove_params.frontend_config['routeTypes'] = fsn_lookup
+        
+        # with open(self.rove_params.frontend_config, 'r+') as f:
+        #     data = json.load(f)
+        #     self.rove_params.frontend_config['routeTypes'] = fsn_lookup # <--- add `id` value.
+        #     f.seek(0)        # <--- should reset file position to the beginning.
+        #     json.dump(data, f)
+        #     f.truncate()     # remove remaining part
 
     def add_timepoints(self):
         logger.info(f'adding timepoint to GTFS records')

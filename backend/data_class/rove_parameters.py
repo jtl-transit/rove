@@ -195,12 +195,28 @@ class ROVE_params(object, metaclass=ABCMeta):
             "early_night": [19, 23],
             "late_night": [23, 27]
         }
+        default_redValues = {
+            "scheduled_headway": "High",
+            "observed_headway": "High",
+            "scheduled_running_time": "High",
+            "observed_running_time": "High",
+            "excess_wait_time": "High",
+            "crowding": "High",
+            "boardings": "High",
+            "on_time_performance": "High",
+            "scheduled_wait_time": "High",
+            "observed_wait_time": "High",
+            "passenger_flow": "High",
+            "passenger_load": "High",
+            "vehicle_congestion_delay": "High",
+            "passenger_congestion_delay": "High",
+        }
         init_fconfig = {
             'transitFileProp': {},
             'vizFileProp': {},
             'URL_prefix': '',
             'units': {},
-            'redValues': {},
+            'redValues': default_redValues,
             'directionLabels': default_directionLabels,
             'backgroundLayerProp': {},
             'timePeriods': default_timePeriods,
