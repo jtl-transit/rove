@@ -229,11 +229,12 @@ function initializeDataPanel(){
 						layer.bindPopup(popText)
 					});
 					backgroundLayer.on('click', function(e) {
+						// check if route data exists
 						if(routesGeojson._layers){
 							var marker = e.layer._leaflet_id;
 							var matches = {};
 
-							// pull from cache or finding intersections & adding them to the cache
+							// pull from cache or find intersections & add them to the cache
 							if(backgroundDataCache[marker]){
 								matches = backgroundDataCache[marker]
 							} else{
@@ -241,6 +242,7 @@ function initializeDataPanel(){
 								backgroundDataCache[marker] = matches
 							}
 
+							// checks for matches and adds them to popup
 							if(matches){
 								var EFCData = calculateIntersectedAverage(matches);
 								var EFCText = `<p>`
