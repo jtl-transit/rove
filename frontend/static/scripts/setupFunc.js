@@ -948,8 +948,8 @@ function calculateIntersectedAverage(segments){
 	var crowding = removeNulls(segments['crowding']);
 
 	return {
-		'speed' : getAverage(speed),
-		'boardings' : getAverage(boardings),
-		'crowding' : getAverage(crowding),
+		'speed' : Number.parseFloat(getAverage(speed)).toFixed(1),
+		'boardings' : Number.parseFloat(getAverage(boardings)).toFixed(1),
+		'crowding' : Number.parseFloat(getAverage(crowding)).toFixed(1),
 	}
 }
