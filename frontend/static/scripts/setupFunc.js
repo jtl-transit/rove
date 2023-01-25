@@ -216,6 +216,7 @@ function initializeDataPanel(){
 
 					backgroundLayer.eachLayer(function(layer) {
 						var popText = '<p>'
+						popText += `<div id="EFC-data-div-${layer._leaflet_id}"> </div>`
 						var layerProps = Object.keys(layer.feature.properties)
 						for(property in layerProps){
 							popText += '<b> '
@@ -224,7 +225,6 @@ function initializeDataPanel(){
 							popText += layer.feature.properties[layerProps[property]]
 							popText += '</br>'
 						}
-						popText += `<div id="EFC-data-div-${layer._leaflet_id}" />`
 						popText += '</p>'
 						layer.bindPopup(popText)
 					});
@@ -245,14 +245,18 @@ function initializeDataPanel(){
 							// checks for matches and adds them to popup
 							if(matches){
 								var EFCData = calculateIntersectedAverage(matches);
+								var EFCUnits = {
+									'speed': 'mph', 
+									'crowding': '% of seated capacity', 
+									'boardings': 'pax'
+								}
+
 								var EFCText = `<p>`
 								var EFCkeys = Object.keys(EFCData)
 								EFCkeys.forEach(property =>{
-									EFCText += '<b> Average '
-									EFCText += property
-									EFCText += ':</b> '
-									EFCText += EFCData[property]
-									EFCText += '</br>'
+									EFCText += `<b> Average ${property}: </b> 
+										${EFCData[property]} (${EFCUnits[property]}) 
+										</br>`
 
 								}) 
 								EFCText += '</p>'
