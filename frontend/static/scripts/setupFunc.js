@@ -170,6 +170,8 @@ function initializeDataPanel(){
 		
 		var selectedBackground = $('#select-background').val();
 		var backgroundDataCache = {};
+		var backgroundDataCacheInside = {};
+		var backgroundDataCacheOutside = {};
 
 		// Add new background layer if none exists
 		if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
@@ -232,33 +234,37 @@ function initializeDataPanel(){
 					backgroundLayer.on('click', function(e) {
 						// ensures findIntersections isn't run on merged polygon
 						if(selectedBackground === '2'){
-							var test = []
-							const latlngs = Object.values(backgroundLayer._layers)[0]._latlngs
-							for (var i = 0; i < latlngs.length; i++){
-								for(var j = 0; j< latlngs[i].length ; j++){
-										test = test.concat([makeLatLongArray(latlngs[i][j])])
-								}
-							}
-							var turfPolyMerged = turf.multiPolygon([test])
-							var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
-							var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
-							Object.values(routesGeojson._layers).forEach(segment => {
-								var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
-								var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
-								if (turf.booleanPointInPolygon(max, turfPolyMerged) || turf.booleanPointInPolygon(min, turfPolyMerged)){
-										insideMatchingSegments['speed'] = insideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
-										insideMatchingSegments['boardings'] = insideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
-										insideMatchingSegments['crowding'] = insideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
-									} else {
-										outsideMatchingSegments['speed'] = outsideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
-										outsideMatchingSegments['boardings'] = outsideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
-										outsideMatchingSegments['crowding'] = outsideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
+							if(!backgroundDataCacheInside.hasOwnProperty('speed')) {
+								var test = []
+								const latlngs = Object.values(backgroundLayer._layers)[0]._latlngs
+								for (var i = 0; i < latlngs.length; i++){
+									for(var j = 0; j< latlngs[i].length ; j++){
+											test = test.concat([makeLatLongArray(latlngs[i][j])])
 									}
 								}
-							)
+								var turfPolyMerged = turf.multiPolygon([test])
+								var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+								var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+								Object.values(routesGeojson._layers).forEach(segment => {
+									var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
+									var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
+									if (turf.booleanPointInPolygon(max, turfPolyMerged) || turf.booleanPointInPolygon(min, turfPolyMerged)){
+											insideMatchingSegments['speed'] = insideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
+											insideMatchingSegments['boardings'] = insideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
+											insideMatchingSegments['crowding'] = insideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
+										} else {
+											outsideMatchingSegments['speed'] = outsideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
+											outsideMatchingSegments['boardings'] = outsideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
+											outsideMatchingSegments['crowding'] = outsideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
+										}
+									}
+								)
+								var matchingEFCData = calculateIntersectedAverage(insideMatchingSegments);
+								var unmatchingEFCData = calculateIntersectedAverage(outsideMatchingSegments);
+								backgroundDataCacheInside = matchingEFCData
+								backgroundDataCacheOutside = unmatchingEFCData
+							}
 
-							var matchingEFCData = calculateIntersectedAverage(insideMatchingSegments);
-							var unmatchingEFCData = calculateIntersectedAverage(outsideMatchingSegments);
 							var EFCUnits = {
 								'speed': 'mph', 
 								'crowding': '% of seated capacity', 
@@ -266,10 +272,10 @@ function initializeDataPanel(){
 							}
 
 							var EFCText = `<p><b>Inside EFC</b><br/>`
-							var EFCkeys = Object.keys(matchingEFCData)
+							var EFCkeys = Object.keys(backgroundDataCacheInside)
 							EFCkeys.forEach(property =>{
 								EFCText += `<b> Average ${property}: </b> 
-									${matchingEFCData[property]} (${EFCUnits[property]}) 
+									${backgroundDataCacheInside[property]} (${EFCUnits[property]}) 
 									</br>`
 
 							}) 
@@ -277,7 +283,7 @@ function initializeDataPanel(){
 							EFCText += `<p><b>Outside EFC</b><br/>`
 							EFCkeys.forEach(property =>{
 								EFCText += `<b> Average ${property}: </b> 
-									${unmatchingEFCData[property]} (${EFCUnits[property]}) 
+									${backgroundDataCacheOutside[property]} (${EFCUnits[property]}) 
 									</br>`
 
 							}) 
