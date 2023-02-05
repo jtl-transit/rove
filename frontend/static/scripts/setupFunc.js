@@ -217,6 +217,7 @@ function initializeDataPanel(){
 					backgroundLayer.eachLayer(function(layer) {
 						var popText = '<p>'
 						popText += `<div id="EFC-data-div-${layer._leaflet_id}"> </div>`
+						popText += `<div id="EFC-data-div-ALLEFCs"> </div>`
 						var layerProps = Object.keys(layer.feature.properties)
 						for(property in layerProps){
 							popText += '<b> '
@@ -226,41 +227,100 @@ function initializeDataPanel(){
 							popText += '</br>'
 						}
 						popText += '</p>'
-						layer.bindPopup(popText)
+						layer.bindPopup(popText, {minWidth: 250})
 					});
 					backgroundLayer.on('click', function(e) {
-						// check if route data exists
-						if(routesGeojson._layers){
-							var marker = e.layer._leaflet_id;
-							var matches = {};
+						// ensures findIntersections isn't run on merged polygon
+						if(selectedBackground === '2'){
+							var test = []
+							const latlngs = Object.values(backgroundLayer._layers)[0]._latlngs
+							for (var i = 0; i < latlngs.length; i++){
+								for(var j = 0; j< latlngs[i].length ; j++){
+										test = test.concat([makeLatLongArray(latlngs[i][j])])
+								}
+							}
+							var turfPolyMerged = turf.multiPolygon([test])
+							var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+							var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+							Object.values(routesGeojson._layers).forEach(segment => {
+								var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
+								var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
+								if (turf.booleanPointInPolygon(max, turfPolyMerged) || turf.booleanPointInPolygon(min, turfPolyMerged)){
+										insideMatchingSegments['speed'] = insideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
+										insideMatchingSegments['boardings'] = insideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
+										insideMatchingSegments['crowding'] = insideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
+									} else {
+										outsideMatchingSegments['speed'] = outsideMatchingSegments['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
+										outsideMatchingSegments['boardings'] = outsideMatchingSegments['boardings'].concat(segment.options['seg-boardings'])
+										outsideMatchingSegments['crowding'] = outsideMatchingSegments['crowding'].concat(segment.options['seg-crowding'])
+									}
+								}
+							)
 
-							// pull from cache or find intersections & add them to the cache
-							if(backgroundDataCache[marker]){
-								matches = backgroundDataCache[marker]
-							} else{
-								matches = findIntersectingRoutes(backgroundLayer._layers[marker])
-								backgroundDataCache[marker] = matches
+							var matchingEFCData = calculateIntersectedAverage(insideMatchingSegments);
+							var unmatchingEFCData = calculateIntersectedAverage(outsideMatchingSegments);
+							var EFCUnits = {
+								'speed': 'mph', 
+								'crowding': '% of seated capacity', 
+								'boardings': 'pax'
 							}
 
-							// checks for matches and adds them to popup
-							if(matches){
-								var EFCData = calculateIntersectedAverage(matches);
-								var EFCUnits = {
-									'speed': 'mph', 
-									'crowding': '% of seated capacity', 
-									'boardings': 'pax'
+							var EFCText = `<p><b>Inside EFC</b><br/>`
+							var EFCkeys = Object.keys(matchingEFCData)
+							EFCkeys.forEach(property =>{
+								EFCText += `<b> Average ${property}: </b> 
+									${matchingEFCData[property]} (${EFCUnits[property]}) 
+									</br>`
+
+							}) 
+							EFCText += '</p>'
+							EFCText += `<p><b>Outside EFC</b><br/>`
+							EFCkeys.forEach(property =>{
+								EFCText += `<b> Average ${property}: </b> 
+									${unmatchingEFCData[property]} (${EFCUnits[property]}) 
+									</br>`
+
+							}) 
+							EFCText += '</p>'
+							document.getElementById(`EFC-data-div-ALLEFCs`).innerHTML = EFCText
+							
+							// return matchingSegments
+						// }
+						} else {
+						// check if route data exists
+							if(routesGeojson._layers){
+								var marker = e.layer._leaflet_id;
+								var matches = {};
+
+								// pull from cache or find intersections & add them to the cache
+								if(backgroundDataCache[marker]){
+									matches = backgroundDataCache[marker]
+								} else{
+									matches = findIntersectingRoutes(backgroundLayer._layers[marker])
+									backgroundDataCache[marker] = matches
 								}
 
-								var EFCText = `<p>`
-								var EFCkeys = Object.keys(EFCData)
-								EFCkeys.forEach(property =>{
-									EFCText += `<b> Average ${property}: </b> 
-										${EFCData[property]} (${EFCUnits[property]}) 
-										</br>`
 
-								}) 
-								EFCText += '</p>'
-								document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+								// checks for matches and adds them to popup
+								if(matches){
+									var EFCData = calculateIntersectedAverage(matches);
+									var EFCUnits = {
+										'speed': 'mph', 
+										'crowding': '% of seated capacity', 
+										'boardings': 'pax'
+									}
+
+									var EFCText = `<p>`
+									var EFCkeys = Object.keys(EFCData)
+									EFCkeys.forEach(property =>{
+										EFCText += `<b> Average ${property}: </b> 
+											${EFCData[property]} (${EFCUnits[property]}) 
+											</br>`
+
+									}) 
+									EFCText += '</p>'
+									document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+								}
 							}
 						}
 					});
@@ -944,7 +1004,7 @@ function calculateIntersectedAverage(segments){
 	}
 
 	function getAverage(arr){
-		return arr.length > 0 ? arr.reduce((a, b) => a + b) / arr.length : 'N/A'
+		return arr.length > 0 ? Number.parseFloat(arr.reduce((a, b) => a + b) / arr.length).toFixed(1) : 'N/A'
 	}
 
 	var speed = removeNulls(segments['speed']);
@@ -952,8 +1012,8 @@ function calculateIntersectedAverage(segments){
 	var crowding = removeNulls(segments['crowding']);
 
 	return {
-		'speed' : Number.parseFloat(getAverage(speed)).toFixed(1),
-		'boardings' : Number.parseFloat(getAverage(boardings)).toFixed(1),
-		'crowding' : Number.parseFloat(getAverage(crowding)).toFixed(1),
+		'speed' : getAverage(speed),
+		'boardings' : getAverage(boardings),
+		'crowding' : getAverage(crowding),
 	}
 }
