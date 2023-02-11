@@ -15,13 +15,13 @@ import sys
 AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "Q2" # MM in string format
 YEAR = "2022" # YYYY in string format
-START_DATE = '2022-09-11' # YYYY-MM-DD
-END_DATE = '2022-10-11' # YYYY-MM-DD
+START_DATE = '2022-09-01' # YYYY-MM-DD
+END_DATE = '2022-09-15' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
-SHAPE_GENERATION = True # True/False: whether to generate shapes
-METRIC_CAL_AGG = False # True/False: whether to run metric calculation and aggregation
+SHAPE_GENERATION = False # True/False: whether to generate shapes
+METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
 
 # --------------------------------END PARAMETERS--------------------------------------
 
@@ -85,7 +85,7 @@ def __main__(args):
         check_signal = args.check_signal
 
         if not string_is_month(month) and (not string_is_date(start_date) or not string_is_date(end_date)):
-            parser.error(f'-sd (--start_date) and -ed (--end_date) must be valid strig dates (YYYY--MM-DD) '\
+            parser.error(f'-sd (--start_date) and -ed (--end_date) must be valid string dates (YYYY-MM-DD) '\
                             +f'when -m (--month) is not a valid numeric string between 1 and 12 (received {month}).')
 
     else:
@@ -102,7 +102,7 @@ def __main__(args):
         check_signal = False
 
         if not string_is_month(month) and (not string_is_date(start_date) or not string_is_date(end_date)):
-            logger.fatal(f'START_DATE and END_DATE must be valid strig dates (YYYY--MM-DD) '\
+            logger.fatal(f'START_DATE and END_DATE must be valid string dates (YYYY-MM-DD) '\
                             +f'when MONTH is not a valid numeric string between 1 and 12 (received {month}).')
             quit()
 

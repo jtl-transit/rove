@@ -87,8 +87,9 @@ class AVL():
                                                                                                       
         logger.info(f'validating {alias} data')
         #: Validated data, see :py:meth:`.AVL.validate_data` for details.
-        self.validated_data:pd.DataFrame = self.validate_data(bus_gtfs)
+        self.validated_data:pd.DataFrame = self.validate_data()
 
+        self.check_avl_gtfs_ids_match()
         #: AVL records table, see :py:meth:`.AVL.get_avl_records` for details.
         self.records:pd.DataFrame = self.get_avl_records()
 
@@ -124,7 +125,7 @@ class AVL():
         return raw_avl
 
  
-    def validate_data(self, gtfs:GTFS) -> pd.DataFrame:
+    def validate_data(self) -> pd.DataFrame:
         """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
         to integer seconds if necessary. Filter to keep only AVL records of dates in the date_list in ROVE_params.
 
@@ -156,6 +157,26 @@ class AVL():
                
         return data
     
+    def check_avl_gtfs_ids_match(self):
+        logger.debug(f'checking consistency of AVL and GTFS IDs')
+        gtfs_stop_ids_set = set(self.gtfs.validated_data['stops']['stop_id'])
+        gtfs_trip_ids_set = set(self.gtfs.validated_data['trips']['trip_id'])
+
+        avl_stop_ids_set = set(self.validated_data['stop_id'])
+        avl_trip_ids_set = set(self.validated_data['trip_id'])
+
+        matching_stop_ids = gtfs_stop_ids_set & avl_stop_ids_set
+        matching_trip_ids = gtfs_trip_ids_set & avl_trip_ids_set
+        logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
+        logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
+
+        if len(matching_stop_ids) == 0:
+            raise ValueError(f'None of stop_ids in the AVL data match with stop_ids in the GTFS data. Please '+\
+                             'make sure stop_ids from both data sources match.')
+        if len(matching_trip_ids) == 0:
+            raise ValueError(f'None of trip_ids in the AVL data match with trip_ids in the GTFS data. Please '+\
+                             'make sure trip_ids from both data sources match.')
+
     def convert_dwell_time(self, data:pd.Series) -> pd.Series:
         """Convert dwell times to integer seconds.
 
