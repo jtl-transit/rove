@@ -235,6 +235,12 @@ function initializeDataPanel(){
 						// check if route data exists
 						if(routesGeojson._layers){
 							// ensures findIntersections isn't run on merged polygon. Merged EFC is under '2' in the selectedBackground object
+							var EFCUnits = {
+								'speed': {title: 'Speed', unit: 'mph'}, 
+								'crowding': {title: 'Crowding', unit: '% of seated capacity'}, 
+								'boardings': {title: 'Boardings', unit: 'pax'},
+								'on-time-perf': {title: 'On Time Performance', unit:'sec'}
+							}
 							if(selectedBackground === '2'){
 								if(!backgroundDataCacheInside.hasOwnProperty('speed')) {
 									var test = []
@@ -246,8 +252,8 @@ function initializeDataPanel(){
 									}
 									
 									var turfPolyMerged = turf.multiPolygon([test])
-									var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
-									var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+									var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
+									var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
 									Object.values(routesGeojson._layers).forEach(segment => {
 										var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
 										var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
@@ -260,25 +266,19 @@ function initializeDataPanel(){
 									backgroundDataCacheOutside = calculateIntersectedAverage(outsideMatchingSegments);
 								}
 
-								var EFCUnits = {
-									'speed': 'mph', 
-									'crowding': '% of seated capacity', 
-									'boardings': 'pax'
-								}
-
 								var EFCText = `<p><b>Inside EFC</b><br/>`
 								var EFCkeys = Object.keys(backgroundDataCacheInside)
 								EFCkeys.forEach(property =>{
-									EFCText += `<b> Average ${property}: </b> 
-										${backgroundDataCacheInside[property]} (${EFCUnits[property]}) 
+									EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+										${backgroundDataCacheInside[property]} (${EFCUnits[property].unit}) 
 										</br>`
 
 								}) 
 								EFCText += '</p>'
 								EFCText += `<p><b>Outside EFC</b><br/>`
 								EFCkeys.forEach(property =>{
-									EFCText += `<b> Average ${property}: </b> 
-										${backgroundDataCacheOutside[property]} (${EFCUnits[property]}) 
+									EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+										${backgroundDataCacheOutside[property]} (${EFCUnits[property].unit}) 
 										</br>`
 
 								}) 
@@ -300,17 +300,12 @@ function initializeDataPanel(){
 								// checks for matches and adds them to popup
 								if(matches){
 									var EFCData = calculateIntersectedAverage(matches);
-									var EFCUnits = {
-										'speed': 'mph', 
-										'crowding': '% of seated capacity', 
-										'boardings': 'pax'
-									}
 
 									var EFCText = `<p>`
 									var EFCkeys = Object.keys(EFCData)
 									EFCkeys.forEach(property =>{
-										EFCText += `<b> Average ${property}: </b> 
-											${EFCData[property]} (${EFCUnits[property]}) 
+										EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+											${EFCData[property]} (${EFCUnits[property].unit}) 
 											</br>`
 
 									}) 
@@ -970,6 +965,7 @@ function fillCalculationObject(obj, segment){
 	obj['speed'] = obj['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
 	obj['boardings'] = obj['boardings'].concat(segment.options['seg-boardings'])
 	obj['crowding'] = obj['crowding'].concat(segment.options['seg-crowding'])
+	obj['on-time-perf'] = obj['on-time-perf'].concat(segment.options['seg-on_time_performance_sec'])
 }
 
 function findIntersectingRoutes(polygon){
@@ -977,7 +973,8 @@ function findIntersectingRoutes(polygon){
 	// 	 {
 	// 		'speed' : [number],
 	// 		'boardings': [number],
-	// 		'crowding': [number]
+	// 		'crowding': [number],
+	// 		'on-time-perf': [number]
 	// 	}
 	
 	var polygons = []
@@ -987,7 +984,7 @@ function findIntersectingRoutes(polygon){
 	}
 	var turfPoly = turf.multiPolygon([[polygons]])
 
-	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': []}
+	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
 	Object.values(routesGeojson._layers).forEach(segment => {
 		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
 		if (turf.booleanIntersects(turfLine, turfPoly)) fillCalculationObject(matchingSegments, segment);
@@ -1007,10 +1004,12 @@ function calculateIntersectedAverage(segments){
 	var speed = removeNulls(segments['speed']);
 	var boardings = removeNulls(segments['boardings']);
 	var crowding = removeNulls(segments['crowding']);
+	var perf = removeNulls(segments['on-time-perf']);
 
 	return {
 		'speed' : getAverage(speed),
 		'boardings' : getAverage(boardings),
 		'crowding' : getAverage(crowding),
+		'on-time-perf': getAverage(perf)
 	}
 }
