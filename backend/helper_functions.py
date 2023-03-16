@@ -339,7 +339,6 @@ def convert_trip_ids(raw_data_alias:str, raw_data:pd.DataFrame, raw_data_trip_co
     return return_data.dropna(subset=[raw_data_trip_col]).reset_index(drop=True)
 
 def write_to_frontend_config(metric_names:Dict, config:Dict, path:str):
-
     fpath = check_parent_dir(path)
     metrics_list = list(metric_names.keys())
     metrics = {

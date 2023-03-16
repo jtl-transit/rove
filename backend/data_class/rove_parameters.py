@@ -262,11 +262,11 @@ class ROVE_params(object, metaclass=ABCMeta):
     def get_transitFileProp_or_vizFileProp(self, name:str, fconfig:Dict, this_sub_dict:Dict):
         try:
             tf_keys = fconfig[name].keys()
-            tf_name_order_dict = {v['name']: k for k, v in fconfig[name]}
+            tf_name_order_dict = {v['name']: k for k, v in fconfig[name].items()}
             if this_sub_dict['name'] in tf_name_order_dict.keys():
                 transitFileProp_id = tf_name_order_dict[this_sub_dict['name']]
             else:
-                transitFileProp_id = max([i for i in tf_keys if i.isnumeric()]) + 1
+                transitFileProp_id = str(max([int(i) for i in tf_keys if i.isnumeric()]) + 1)
             fconfig[name][transitFileProp_id] = this_sub_dict
         except:
             fconfig[name] = {0: this_sub_dict}

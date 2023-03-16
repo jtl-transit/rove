@@ -13,12 +13,12 @@ import sys
 
 # -----------------------------------PARAMETERS--------------------------------------
 AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "10" # MM in string format
+MONTH = "Q1" # MM in string format
 YEAR = "2022" # YYYY in string format
-START_DATE = '' # YYYY-MM-DD
-END_DATE = '' # YYYY-MM-DD
+START_DATE = '2022-06-01' # YYYY-MM-DD
+END_DATE = '2022-06-05' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = False # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
