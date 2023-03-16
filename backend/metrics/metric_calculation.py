@@ -234,13 +234,13 @@ class Metric_Calculation():
 
         logger.info(f'calculating observed speed without dwell')
 
-        self.avl_stop_metrics = self.avl_stop_metrics.merge(self.gtfs_stop_metrics[['route_id', 'trip_id', 'stop_pair', 'stop_spacing']].drop_duplicates(), on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        self.avl_stop_metrics = self.avl_stop_metrics.merge(self.gtfs_stop_metrics[['route_id', 'stop_pair', 'stop_spacing']].drop_duplicates(), on=['route_id', 'stop_pair'], how='left')
         self.avl_stop_metrics['observed_speed_without_dwell'] = ((self.avl_stop_metrics['stop_spacing'] / self.avl_stop_metrics['observed_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.avl_route_metrics = self.avl_route_metrics.merge(self.gtfs_route_metrics[['route_id', 'trip_id', 'stop_spacing']].drop_duplicates(), on=['route_id', 'trip_id'], how='left')
+        self.avl_route_metrics = self.avl_route_metrics.merge(self.gtfs_route_metrics[['route_id', 'stop_spacing']].drop_duplicates(), on=['route_id'], how='left')
         self.avl_route_metrics['observed_speed_without_dwell'] = ((self.avl_route_metrics['stop_spacing'] / self.avl_route_metrics['observed_running_time']) * FT_PER_MIN_TO_MPH).round(2)
         
-        self.avl_tpbp_metrics = self.avl_tpbp_metrics.merge(self.gtfs_tpbp_metrics[['route_id', 'trip_id', 'stop_pair', 'stop_spacing']].drop_duplicates(), on=['route_id', 'trip_id', 'stop_pair'], how='left')
+        self.avl_tpbp_metrics = self.avl_tpbp_metrics.merge(self.gtfs_tpbp_metrics[['route_id', 'stop_pair', 'stop_spacing']].drop_duplicates(), on=['route_id', 'stop_pair'], how='left')
         self.avl_tpbp_metrics['observed_speed_without_dwell'] = ((self.avl_tpbp_metrics['stop_spacing'] / self.avl_tpbp_metrics['observed_running_time']) * FT_PER_MIN_TO_MPH).round(2)
 
     def observed_running_time_with_dwell(self):

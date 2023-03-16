@@ -167,6 +167,7 @@ class AVL():
 
         matching_stop_ids = gtfs_stop_ids_set & avl_stop_ids_set
         matching_trip_ids = gtfs_trip_ids_set & avl_trip_ids_set
+        logger.debug(f'count of gtfs stop IDs: {len(gtfs_stop_ids_set)}, trip IDs: {len(gtfs_trip_ids_set)}.')
         logger.debug(f'count of AVL stop IDs: {len(avl_stop_ids_set)}, trip IDs: {len(avl_trip_ids_set)}.')
         logger.debug(f'count of matching stop IDs: {len(matching_stop_ids)}, matching trip IDs: {len(matching_trip_ids)}.')
 
