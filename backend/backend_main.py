@@ -13,10 +13,10 @@ import sys
 
 # -----------------------------------PARAMETERS--------------------------------------
 AGENCY = "WMATA" # CTA, MBTA, WMATA
-MONTH = "Q2" # MM in string format
+MONTH = "10" # MM in string format
 YEAR = "2022" # YYYY in string format
-START_DATE = '2022-09-01' # YYYY-MM-DD
-END_DATE = '2022-09-15' # YYYY-MM-DD
+START_DATE = '' # YYYY-MM-DD
+END_DATE = '' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
