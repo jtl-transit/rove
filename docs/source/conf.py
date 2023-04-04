@@ -4,7 +4,7 @@
 import os
 import sys
 print(sys.executable)
-# sys.path.insert(0, os.path.abspath('../../backend/'))
+sys.path.insert(0, os.path.abspath('../../backend/'))
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
 autodoc_default_options = {
