@@ -23,7 +23,7 @@ backend_main_test.py
 *.ipynb
 test.py
 
-input/*
+frontend/input/*
 data/
 logs/
 *.p
