@@ -26,7 +26,6 @@ version = '0.1.0'
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
-    'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
