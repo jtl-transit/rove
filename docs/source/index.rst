@@ -25,11 +25,6 @@ Contents
    backend
    frontend
 
-.. automodule:: backend.data_class.rove_parameters
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   
 Contact Us
 --------
 
