@@ -4,7 +4,7 @@
 import os
 import sys
 print(sys.executable)
-sys.path.insert(0, os.path.abspath('../../backend/'))
+# sys.path.insert(0, os.path.abspath('../../backend/'))
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
 autodoc_default_options = {
@@ -15,7 +15,7 @@ autodoc_default_options = {
 autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge", "geopy"]
 
 project = 'Rove'
-copyright = '2022, MIT Transit Lab'
+copyright = '2023, MIT Transit Lab'
 author = 'Yuzhu Huang'
 
 release = '0.1'
@@ -26,6 +26,7 @@ version = '0.1.0'
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
+    'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
