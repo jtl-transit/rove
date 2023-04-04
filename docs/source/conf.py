@@ -12,7 +12,7 @@ autodoc_default_options = {
     'member-order':    'bysource',
 }
 
-autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge"]
+autodoc_mock_imports = ["workalendar", "pandas", "numpy", "scipy", "tqdm", "partridge", "geopy"]
 
 project = 'Rove'
 copyright = '2022, MIT Transit Lab'
