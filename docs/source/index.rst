@@ -12,7 +12,7 @@ software or advanced technical knowledge on the part of the end user.
 
 Check out the :doc:`install` section for further information.
 
-.. .. note::
+.. note::
 
    The current implementation of ROVE provides stable support for static GTFS data only. 
    Users wishing to display observed metrics calculated with AVL data may do so at your own discretion. 
@@ -23,7 +23,7 @@ Contents
 .. toctree::
    :maxdepth: 2
 
-   install
+   quick_start
    backend
    frontend
 

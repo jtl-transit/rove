@@ -1,10 +1,15 @@
-Installation
+Quick Start
 =====
-
-Backend Setup
+Step 1. Clone Repository from Github
 ------------
+Visit the `ROVE repo on Github <https://github.com/jtl-transit/rove>`_ to download the source code.
 
-Install and activate the ROVE virtual environment, then import dependencies via ``requirements_back.txt``.
+Step 2. Download Miniconda
+------------
+If you don't have conda or miniconda already, you can `download miniconda here <https://docs.conda.io/en/latest/miniconda.html>`_. 
+You might need to have admin rights for this installation.
+
+Install and activate the ROVE virtual environment, then import dependencies via ``requirements.txt``.
 
 .. code-block:: console
    
@@ -13,17 +18,7 @@ Install and activate the ROVE virtual environment, then import dependencies via 
    (.venv) cd @Directory_of_tool
    (.venv) pip install -r requirements_back.txt
 
-Frontend Setup
-----------------
 
-Assuming the ROVE virtual environment already exists (if not, follow the first line in the Backend Setup snippet above), 
-import dependencies via ``requirements_front.txt``.
-
-.. code-block:: console
-
-   conda activate @ENV_NAME
-   (.venv) cd @Directory_of_tool
-   (.venv) pip install -r requirements_front.txt
 
 Set APP and ENV variables and spin up the Flask web app. 
 
