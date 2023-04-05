@@ -1,5 +1,8 @@
 Quick Start
 =====
+Using ROVE for the First Time
+============
+
 Step 1. Download the ROVE Source Code
 ------------
 Visit the `ROVE repo on Github <https://github.com/jtl-transit/rove>`_ to download the source code.
@@ -94,10 +97,13 @@ Note that to run the Flask app on a specific host and port, one can use the hand
 
 You should now see the ROVE app loaded in the broswer.
 
+Quick Guide to the UI
+------------
+
 .. _advanced_usage:
 
 Advanced Usage
-------------
+============
 
 Command Line Arguments
-============
+------------
