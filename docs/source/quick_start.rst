@@ -17,12 +17,15 @@ Then create the virtual environment for ROVE.
    (base) cd C:/Users/Name/Downloads/rove
    (base) conda env create -f environment.yml
    (base) conda activate rove
+   (rove) 
 
 Step 3. Prepare GTFS Data
 ------------
 Navigate to ``rove\data\``, then create a folder named ``<agency>`` without space or special characters, 
 e.g. ``KCM`` for King County Metro. Then in the ``rove\data\<agency>`` directory, create a folder named ``gtfs``, 
 then paste in a zip file of static GTFS data to this directory. The name of the GTFS file should be ``GTFS_<AGENCY>_<MONTH>_<YEAR>.zip``.
+
+The zip file of GTFS data should conform with the :ref:`specification <intput_data_spec>`.
 
 Below is an example of the folder structure after adding GTFS files to the relevant directory.
 
