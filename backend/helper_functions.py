@@ -24,6 +24,8 @@ def string_is_date(date_str:str):
         isdate = True
     except ValueError:
         isdate = False
+    except TypeError:
+        isdate = False
     return isdate
 
 def string_is_month(month_str:str):
@@ -96,7 +98,7 @@ def check_parent_dir(path):
     if os.path.isdir(parent):
         logger.debug(f'Parent directory already exists: {parent}.')
     else:
-        os.mkdir(parent)
+        os.makedirs(parent)
         logger.debug(f'Created parent directory: {parent}.')
     return path
 
