@@ -1,5 +1,6 @@
 Quick Start
-=====
+#####################
+
 Using ROVE for the First Time
 ============
 
@@ -65,7 +66,7 @@ data validation, shape generation, and metric calculation and aggregation.
 Step 5. Spin up the Frontend
 ------------
 
-Set the APP and ENV variables for Flask as follows. By default, the app is run on port 5000 on localhost. 
+Set the APP and ENV variables for Flask as follows. By default, the app is run on port 5000 at localhost. 
 Spin up the Flask web app by copying and pasting the default url in the browser ``http://127.0.0.1:5000/``.
 
 (Windows Powershell)
