@@ -14,7 +14,7 @@ Check out the :doc:`install` section for further information.
 
 .. .. note::
 
-..    This project is under active development. The full code package for ROVE is expected to be available to the public in mid-2022. In the meantime, please contact Nick Caros (caros@mit.edu) with any inquiries.
+   This project is under active development. The full code package for ROVE is expected to be available to the public in mid-2022. In the meantime, please contact Nick Caros (caros@mit.edu) with any inquiries.
 
 Contents
 --------

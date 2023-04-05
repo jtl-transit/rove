@@ -39,7 +39,7 @@ intersphinx_mapping = {
 }
 intersphinx_disabled_domains = ['std']
 
-templates_path = ['_templates']
+# templates_path = ['_templates']
 
 # -- Options for HTML output
 
