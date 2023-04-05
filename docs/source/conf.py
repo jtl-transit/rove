@@ -25,6 +25,15 @@ version = '0.1.0'
 
 # -- General configuration
 
+html_context = {
+    "display_github": True, # Integrate GitHub
+    "github_url": 'https://github.com/jtl-transit/rove'
+    # "github_user": "MyUserName", # Username
+    # "github_repo": "rove", # Repo name
+    # "github_version": "master", # Version
+    # "conf_py_path": "/source/", # Path in the checkout to the docs root
+}
+
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
