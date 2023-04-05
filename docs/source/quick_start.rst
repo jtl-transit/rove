@@ -1,23 +1,42 @@
 Quick Start
 =====
-Step 1. Clone Repository from Github
+Step 1. Download the ROVE Source Code
 ------------
 Visit the `ROVE repo on Github <https://github.com/jtl-transit/rove>`_ to download the source code.
 
-Step 2. Download Miniconda
+Step 2. Set up Conda Environment
 ------------
 If you don't have conda or miniconda already, you can `download miniconda here <https://docs.conda.io/en/latest/miniconda.html>`_. 
-You might need to have admin rights for this installation.
+Run the executable after it's downloaded. You might need to have admin rights for this installation.
 
-Install and activate the ROVE virtual environment, then import dependencies via ``requirements.txt``.
+In miniconda, change directory to the ROVE folder, where the source code is located (e.g. the Downloads folder). 
+Then create the virtual environment for ROVE.
 
 .. code-block:: console
    
-   conda create --name @ENV_NAME python=3.7
-   conda activate @ENV_NAME
-   (.venv) cd @Directory_of_tool
-   (.venv) pip install -r requirements_back.txt
+   (base) cd C:/Users/Name/Downloads/rove
+   (base) conda env create -f environment.yml
+   (base) conda activate rove
 
+Step 3. Prepare GTFS Data
+------------
+Navigate to ``rove\data\``, then create a folder named ``<agency>`` without space or special characters, 
+e.g. ``KCM`` for King County Metro. Then in the ``rove\data\<agency>`` directory, create a folder named ``gtfs``, 
+then paste in a zip file of static GTFS data to this directory. The name of the GTFS file should be ``GTFS_<AGENCY>_<MONTH>_<YEAR>.zip``.
+
+Below is an example of the folder structure after adding GTFS files to the relevant directory.
+
+::
+
+   rove
+   ├── backend
+   ├── data
+   │   └── KCM
+   |       └── gtfs
+   |           ├── GTFS_KCM_12_2022.zip
+   |           ├── GTFS_KCM_04_2023.zip
+   |           └── GTFS_KCM_Q1_2023.zip
+   └── frontend
 
 
 Set APP and ENV variables and spin up the Flask web app. 
