@@ -14,7 +14,7 @@ autodoc_default_options = {
 
 autodoc_mock_imports = ["workalendar", "pandas", "numpy", 
                         "scipy", "tqdm", "partridge", "geopy", 
-                        "pycountry", "backend"]
+                        "pycountry"]
 
 project = 'Rove'
 copyright = '2023, MIT Transit Lab'
