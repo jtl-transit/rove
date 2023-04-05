@@ -14,12 +14,14 @@ Check out the :doc:`install` section for further information.
 
 .. .. note::
 
-   This project is under active development. The full code package for ROVE is expected to be available to the public in mid-2022. In the meantime, please contact Nick Caros (caros@mit.edu) with any inquiries.
+   The current implementation of ROVE provides stable support for static GTFS data only. 
+   Users wishing to display observed metrics calculated with AVL data may do so at your own discretion. 
 
 Contents
 --------
 
 .. toctree::
+   :maxdepth: 2
 
    install
    backend
