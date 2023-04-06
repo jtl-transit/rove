@@ -10,7 +10,9 @@ on the data available from the agency. It can be used for service planning, sche
 planning and many other applications. It is *browser-based*, and therefore does not require any special 
 software or advanced technical knowledge on the part of the end user.
 
-Check out the :doc:`install` section for further information.
+Visit the `ROVE repo on Github <https://github.com/jtl-transit/rove>`_ to download the source code.
+
+Check out the :doc:`quick_start` section for instructions on how to get started.
 
 .. note::
 
@@ -33,7 +35,7 @@ Contents
 Contributors
 --------
 
-Initially developed by Ru Mehendale. 
+The project was initially developed by Ru Mehendale. 
 
 Past contributors whose contributions were instrumental in making this project possible are 
 Nick Caros (caros@mit.edu) and Xiaotong Guo (xtguo@mit.edu).
