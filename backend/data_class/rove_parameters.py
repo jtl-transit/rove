@@ -123,7 +123,7 @@ class ROVE_params(object, metaclass=ABCMeta):
             sample_stop_lat = stops.loc[0, 'stop_lat']
             sample_stop_lon = stops.loc[0, 'stop_lon']
             geolocator = Nominatim(user_agent="geoapiExercises")
-            loc = geolocator.reverse(str(sample_stop_lat) + "," + str(sample_stop_lon))
+            loc = geolocator.reverse(str(sample_stop_lat) + "," + str(sample_stop_lon), timeout=10)
             add = loc.raw['address']
             country_code = add.get('country_code').upper()
             iso_key_name = [k for k in add.keys() if 'ISO3166' in k]

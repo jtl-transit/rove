@@ -12,9 +12,9 @@ import sys
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "KCM" # CTA, MBTA, WMATA
+AGENCY = "WMATA" # CTA, MBTA, WMATA
 MONTH = "04" # MM in string format
-YEAR = "2022" # YYYY in string format
+YEAR = "2023" # YYYY in string format
 START_DATE = '' # YYYY-MM-DD
 END_DATE = '' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday

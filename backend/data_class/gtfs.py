@@ -91,9 +91,14 @@ class GTFS():
         self.records:pd.DataFrame = self.get_gtfs_records()
 
         # make sure the 'timepoint' column is valid in the stop_times table
-        if 'timepoints' not in self.records.columns:
-            logger.warning(f"GTFS stop_times table does not contain column 'timepoints'.")
+        TIMEPOINT_COLS_CANDIDATE = ['timepoints', 'timepoint', 'checkpoint']
+        if ~self.records.columns.isin(TIMEPOINT_COLS_CANDIDATE).any():
+            logger.warning(f"GTFS stop_times table does not contain column named any of {TIMEPOINT_COLS_CANDIDATE}.")
             self.add_timepoints()
+        elif 'timepoints' in self.records.columns:
+            self.records['timepoint'] = self.records['timepoints']
+        elif 'checkpoint' in self.records.columns:
+            self.records['timepoint'] = self.records['checkpoint']
         check_dataframe_column(self.records, 'timepoint', '0or1')
 
         # make sure the 'branchpoint' column is valid in the stop_times table
