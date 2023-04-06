@@ -24,8 +24,11 @@ backend_main_test.py
 *.xlsx
 test.py
 
+data/CTA/*
+data/MBTA/*
+data/WMATA/*
+
 frontend/input/*
-data/
 logs/
 *.p
 .DS_Store
