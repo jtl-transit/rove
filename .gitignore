@@ -21,6 +21,7 @@ backend_main_test.py
 *.iml
 *.json
 *.ipynb
+*.xlsx
 test.py
 
 frontend/input/*
