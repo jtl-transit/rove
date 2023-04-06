@@ -1225,19 +1225,20 @@ function sortRoutes(routeList){
 	var sortedList = numericalRoutes.sort((a, b) => a - b);
 
 	// For trailing char routeIDs, strip trailing chars then insert at appropriate position in sortedList
-	for(var i in trailingCharRoutes){
-		var origRouteID = trailingCharRoutes[i];
-		var numRouteID = origRouteID;
-		while(Number.isNaN(Number(numRouteID))){
-			numRouteID = numRouteID.slice(0, -1);
-		}
-		var closestValue = closest(numRouteID, sortedList);
-		var closestIndex = sortedList.indexOf(closestValue) + 1; // insert after closest value
-		sortedList.splice(closestIndex, 0, origRouteID);
-	}
+	// for(var i in trailingCharRoutes){
+	// 	var origRouteID = trailingCharRoutes[i];
+	// 	var numRouteID = origRouteID;
+	// 	while(Number.isNaN(Number(numRouteID))){
+	// 		numRouteID = numRouteID.slice(0, -1);
+	// 	}
+	// 	var closestValue = closest(numRouteID, sortedList);
+	// 	var closestIndex = sortedList.indexOf(closestValue) + 1; // insert after closest value
+	// 	sortedList.splice(closestIndex, 0, origRouteID);
+	// }
 
 	// Append leading char routes to the end of the list
 	sortedList.push(...leadingCharRoutes.sort());
+	sortedList.push(...trailingCharRoutes.sort());
 	return sortedList
 }
 

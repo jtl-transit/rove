@@ -22,6 +22,7 @@ backend_main_test.py
 *.json
 *.ipynb
 *.xlsx
+*.zip
 test.py
 
 data/CTA/*
