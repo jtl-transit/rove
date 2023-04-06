@@ -14,8 +14,11 @@ Check out the :doc:`install` section for further information.
 
 .. note::
 
-   The current implementation of ROVE provides stable support for static GTFS data only. 
-   Users wishing to display observed metrics calculated with AVL data may do so at your own discretion. 
+   The current implementation of ROVE provides stable support for static GTFS data only. Although ROVE 
+   has the capability to support AVL data, we cannot guarantee that your data will work perfectly in ROVE, due to 
+   the lack of standardization for AVL data. Users wishing to display observed metrics calculated with AVL 
+   data may do so at your own discretion. More information will be provided in the future on advanced topics such as 
+   working with AVL data, adding customized metric calculations, editing configuration files, etc.
 
 Contents
 --------
@@ -27,8 +30,18 @@ Contents
    backend
    frontend
 
-Contact Us
+Contributors
 --------
 
-Initially developed by Ru Mehendale. The current contributors are Xiaotong Guo (xtguo@mit.edu), 
-Nick Caros (caros@mit.edu), Yuzhu Huang (yuzhuh@mit.edu) and Anson Stewart (ansons@mit.edu).
+Initially developed by Ru Mehendale. 
+
+Past contributors whose contributions were instrumental in making this project possible are 
+Nick Caros (caros@mit.edu) and Xiaotong Guo (xtguo@mit.edu).
+
+
+Contact Us
+--------
+Currently, the project is being actively maintained and improved by 
+Yuzhu Huang (yuzhuh@mit.edu) and Yen-Chu Wu (yenchuwu@mit.edu).
+
+For inquiries related to copyright or research collaborations, please reach out to Anson Stewart (ansons@mit.edu).
