@@ -37,28 +37,35 @@ function updateMetrics(){
 // Function to update the filters if the statistic is changed
 function updateMetricFilters(){
 
+	const units_reordered = {}
+	for (var m in units) {
+		units_reordered[units[m]['order']] = m
+	}
+
 	// Update filters
 	var count = 0
 	for (var i in metrics){
+		if (i in units_reordered) {
+			// var metricVal = metrics[i];
+			var metricVal = units_reordered[i];
+			var filterNum = count;
+			var filterLevel = $( "#level-sel" + filterNum ).val();
 
-		var metricVal = metrics[i];
-		var filterNum = count;
-		var filterLevel = $( "#level-sel" + filterNum ).val();
+			var metricRange = [];
+			routesGeojson.eachLayer(function(layer) {
+				metricRange.push(layer.options[filterLevel + '-' + metricVal])
+			});
 
-		var metricRange = [];
-		routesGeojson.eachLayer(function(layer) {
-			metricRange.push(layer.options[filterLevel + '-' + metricVal])
-		});
-
-		var metricMin = Math.floor(d3.min(metricRange))
-		var metricMax = Math.ceil(d3.max(metricRange))
-		var step = getStep(metricMin, metricMax)
-
-		$( "#metric-slider"+filterNum ).slider('setAttribute', 'max', metricMax);
-		$( "#metric-slider"+filterNum ).slider('setAttribute', 'min', metricMin);
-		$( "#metric-slider"+filterNum ).slider('setAttribute', 'step', step);
-		$( "#metric-slider"+filterNum ).slider('refresh');
-		$( "#metric-slider"+filterNum ).slider("setValue", [ metricMin, metricMax ])
+			var metricMin = Math.floor(d3.min(metricRange))
+			var metricMax = Math.ceil(d3.max(metricRange))
+			var step = getStep(metricMin, metricMax)
+			// console.log(i, metricVal, units_reordered[i], filterLevel, metricMin, metricMax)
+			$( "#metric-slider"+filterNum ).slider('setAttribute', 'max', metricMax);
+			$( "#metric-slider"+filterNum ).slider('setAttribute', 'min', metricMin);
+			$( "#metric-slider"+filterNum ).slider('setAttribute', 'step', step);
+			$( "#metric-slider"+filterNum ).slider('refresh');
+			$( "#metric-slider"+filterNum ).slider("setValue", [ metricMin, metricMax ])
+		}
 		
 		count += 1;
 	}
@@ -532,15 +539,17 @@ function updateFiltersTable(){
 	$('.range-slider').each(function(){
 		var metricMin = $(this).val()[0];
 		var metricMax = $(this).val()[1];
-		var metricName = units[metrics[count]]["label"]; // Get metric name w/ index
+		if (metrics[count] in units) {
+			var metricName = units[metrics[count]]["label"]; // Get metric name w/ index
 
-		if( isNaN(metricMin) ) { metricMin = 0; }
-		if( isNaN(metricMax) ) { metricMax = 0;	}
-
-		infoText = infoText + "<tr><td style='width: 150px;''>"
-			+ metricName + "</td><td>"
-			+ Number(metricMin).toFixed(0) + " - " + Number(metricMax).toFixed(0)
-			+"</td></tr>";
+			if( isNaN(metricMin) ) { metricMin = 0; }
+			if( isNaN(metricMax) ) { metricMax = 0;	}
+	
+			infoText = infoText + "<tr><td style='width: 150px;''>"
+				+ metricName + "</td><td>"
+				+ Number(metricMin).toFixed(0) + " - " + Number(metricMax).toFixed(0)
+				+"</td></tr>";
+		}
 
 		count += 1;
 	});

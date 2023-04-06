@@ -78,6 +78,7 @@ class Metric_Aggregation():
         :type percentile: int
         """
         # not time-dependent (use non time-filtered data)
+        self.sample_size()
         self.stop_spacing()
         self.service_start_end()
         self.revenue_hour()
@@ -290,6 +291,16 @@ class Metric_Aggregation():
         routes = records.groupby(self.ROUTE_MULTIINDEX)['trip_id'].agg('nunique').to_frame(name = 'sample_size')
         return routes
 
+    def sample_size(self):
+
+        sig_fig = 0
+
+        self.segments['sample_size'] = self.gtfs_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].nunique().round(sig_fig)
+        self.corridors['sample_size'] = self.gtfs_stop_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].nunique().round(sig_fig)
+        self.tpbp_segments['sample_size'] = self.gtfs_tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['trip_id'].nunique().round(sig_fig)
+        self.tpbp_corridors['sample_size'] = self.gtfs_tpbp_metrics_time_filtered.groupby(self.CORRIDOR_MULTIINDEX)['trip_id'].nunique().round(sig_fig)
+        self.routes['sample_size'] = self.gtfs_route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['trip_id'].nunique().round(sig_fig)
+
     def stop_spacing(self):
         """Aggregated stop spacing in ft. This metric is not time-dependent, so use non-time-filtered metrics for calculations.
             
@@ -300,11 +311,11 @@ class Metric_Aggregation():
 
         sig_fig = 0
 
-        self.segments['stop_spacing'] = self.gtfs_stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
-        self.corridors['stop_spacing'] = self.gtfs_stop_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
-        self.routes['stop_spacing'] = self.gtfs_route_metrics.groupby(self.ROUTE_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
-        self.tpbp_segments['stop_spacing'] = self.gtfs_tpbp_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
-        self.tpbp_corridors['stop_spacing'] = self.gtfs_tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig)
+        self.segments['stop_spacing'] = self.gtfs_stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig).fillna(0).astype(int)
+        self.corridors['stop_spacing'] = self.gtfs_stop_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig).fillna(0).astype(int)
+        self.routes['stop_spacing'] = self.gtfs_route_metrics.groupby(self.ROUTE_MULTIINDEX)['stop_spacing'].mean().round(sig_fig).fillna(0).astype(int)
+        self.tpbp_segments['stop_spacing'] = self.gtfs_tpbp_metrics.groupby(self.SEGMENT_MULTIINDEX)['stop_spacing'].mean().round(sig_fig).fillna(0).astype(int)
+        self.tpbp_corridors['stop_spacing'] = self.gtfs_tpbp_metrics.groupby(self.CORRIDOR_MULTIINDEX)['stop_spacing'].mean().round(sig_fig).fillna(0).astype(int)
         
         self.metrics_names['stop_spacing'] = 'Stop Spacing (ft)'
 
@@ -407,7 +418,7 @@ class Metric_Aggregation():
         self.tpbp_segments[f'{data_type}_frequency'] = (60 / self.tpbp_segments[f'{data_type}_headway']).round(sig_fig)
         self.tpbp_corridors[f'{data_type}_frequency'] = (60 / self.tpbp_corridors[f'{data_type}_headway']).round(sig_fig)
 
-        self.metrics_names[f'{data_type}_frequency'] = f'{data_type} Freq. (/hr)'
+        self.metrics_names[f'{data_type}_frequency'] = f'{data_type.capitalize()} Freq. (/hr)'
 
     def running_time(self, percentile:int, data_type:str):
         """Aggregated scheduled or observed running time in minutes. 

@@ -99,7 +99,7 @@ Note that to run the Flask app on a specific host and port, one can use the hand
 You should now see the ROVE app loaded in the broswer.
 
 Quick Guide to the UI
-------------
+============
 
 .. _advanced_usage:
 

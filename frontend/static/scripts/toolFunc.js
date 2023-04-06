@@ -80,7 +80,7 @@ function populateFilters(){
 		$('#metric').empty();
 		for(var i in currentMetrics){
 			if (currentMetrics[i] != 'route_id') {
-				console.log(currentMetrics[i])
+				// console.log(currentMetrics[i])
 				$('#metric').append($("<option></option>").attr("value", currentMetrics[i]).text(units[currentMetrics[i]]["label"]));
 			}
 		}
@@ -103,10 +103,12 @@ function populateFilters(){
 		// Populate individual metric filters
 		$("#range-filters").replaceWith('<div id="range-filters"></div>');
 		
+
 		for (var i in metrics){
 			var metricVal = metrics[i];
 			var metricName = units[metricVal]["label"]
-			var filterNum = $('.filter').length;
+			// var filterNum = $('.filter').length;
+			var filterNum = units[metricVal]["order"];
 
 			var metricRange = [];
 			routesGeojson.eachLayer(function(layer) {
@@ -115,7 +117,7 @@ function populateFilters(){
 			var metricMin = d3.min(metricRange)
 			var metricMax = d3.max(metricRange)
 			var step = getStep(metricMin, metricMax)
-
+			// console.log(i, metricVal, filterNum, metricName, metricMin, metricMax)
 			var rangeFilterText = `<div id = "jfilter${filterNum}" class = "filter">
 				<div class="filt-title">
 						<div> <span id="js${filterNum}" style="font-weight:bold"> ${metricName} </span> </div>
@@ -244,11 +246,11 @@ function populateFilters(){
 }
 
 function populateEquityBackgroundFilters(){
-	console.log(backgroundLayer)
+	// console.log(backgroundLayer)
 	var firstKey = Object.keys(backgroundLayer._layers)[0]
 	var firstObjProperties = Object.keys(backgroundLayer._layers[firstKey].feature.properties)
-	console.log(firstKey)
-	console.log(firstObjProperties)
+	// console.log(firstKey)
+	// console.log(firstObjProperties)
 	$("#range-toggle-bkgrd").show()
 	$("#bkgrd-select").show()
 	$("#range-filters-bkgrd").replaceWith('<div id="range-filters-bkgrd"></div>');
@@ -258,7 +260,7 @@ function populateEquityBackgroundFilters(){
 	const includeall = bkgrd_metrics.every(value => {
 		return firstObjProperties.includes(value);
 	});
-	console.log('includeall ' + includeall)
+	// console.log('includeall ' + includeall)
 	if (includeall){
 
 		$('#bkgrd-filter').empty();
@@ -272,7 +274,7 @@ function populateEquityBackgroundFilters(){
 		// Defines action for direction dropdown
 		$( '#bkgrd-filter' ).change(function() {
 			var selected = parseInt($("#bkgrd-filter option:selected").val())
-			console.log(selected)
+			// console.log(selected)
 
 			var colorQuantile = d3.scaleQuantile()
             	.domain([0, 1])
@@ -491,6 +493,7 @@ function addEventHandlers(){
 				maxMinute = 59;
 			} ;
 			updateTime([minHour, minMinute], [maxHour, maxMinute]);
+			// updateFiltersTable();
 		});
 
 		// Range filter event handle
@@ -499,6 +502,7 @@ function addEventHandlers(){
 				var filterNum = this.id.substring(this.id.length - 1, this.id.length);
 				// Get metric value and add to active filters
 				var metricName = metrics[filterNum]; 
+				// console.log(filterNum, metricName)
 				if (!activeFilters.includes(metricName)){
 					activeFilters.push(metricName);
 				}
@@ -1088,8 +1092,8 @@ function setPopup(layer){
 		if(comparisonIndicator === 0){
 			for(var m in levelMetrics[level]){
 				var metricValue = levelMetrics[level][m];
-				// console.log(metricValue)
-				if (metricValue != 'route_id') {
+				if ((metricValue != 'route_id') && (metricValue in units)) {
+					// console.log(metricValue)
 					var metricName = units[metricValue]["label"];
 					var layerValue = layer.options[level + '-' + metricValue];
 				}
@@ -1155,8 +1159,10 @@ function setPopup(layer){
 					continue
 				}
 				try{
+					diffValue = compValue - baseValue
+					diffValue = Math.round(diffValue * 100) / 100
 					// If reasonably small number and not already an integer, include one decimal place
-					if ((Math.abs(diffValue) < 100) && (diffValue % 1 > 0)){
+					if ((Math.abs(diffValue) < 100) && (Math.abs(diffValue) % 1 > 0)){
 						diffValue = diffValue.toFixed(1);
 					} else {
 						diffValue = diffValue.toFixed(0);

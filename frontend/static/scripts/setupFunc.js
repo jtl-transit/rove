@@ -324,7 +324,7 @@ function initializeDataPanel(){
 	
 	$('.range-slider-bkgrd').each(function(){
 		$(this).slider().on('slideStop', function(){
-			console.log(this)
+			// console.log(this)
 		});
 	});
 
