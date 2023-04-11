@@ -12,11 +12,11 @@ import sys
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MBTA" # CTA, MBTA, WMATA
-MONTH = "04" # MM in string format
-YEAR = "2023" # YYYY in string format
-START_DATE = '' # YYYY-MM-DD
-END_DATE = '' # YYYY-MM-DD
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "06" # MM in string format
+YEAR = "2022" # YYYY in string format
+START_DATE = '2022-06-01' # YYYY-MM-DD
+END_DATE = '2022-06-05' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
 DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
 
@@ -121,7 +121,8 @@ def __main__(args):
             'shapes': f'frontend/static/inputs/{agency}/shapes/bus-shapes{suffix}.json',
             'signals': f'frontend/static/inputs/{agency}/backgroundlayers/{agency.lower()}_traffic_signals.geojson',
             'timepoint': f'data/{agency}/agency-specific/timepoints{suffix}.csv', 
-            'fsn':  f'data/{agency}/agency-specific/dim_fsn_routes.csv'
+            'fsn':  f'data/{agency}/agency-specific/dim_fsn_routes.csv',
+            'efbl': f'data/{agency}/agency-specific/equity_focus_bus_lines.csv'
         }
     
     output_paths = {
