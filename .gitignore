@@ -16,7 +16,7 @@ build/
 
 backend_main_test.py
 
-*.log
+backend/logs/*.log
 *.xml
 *.csv
 *.iml
