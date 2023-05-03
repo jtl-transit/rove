@@ -70,7 +70,7 @@ class AVL():
             except FileNotFoundError as e:
                 logger.error(e)
                 logger.debug(f'loading AVL by months instead.')
-        
+
         if load_by_month:
             for m in months:
                 suffix:str = f'_{self.rove_params.agency}_{m:02}_{self.rove_params.year}'
@@ -84,7 +84,7 @@ class AVL():
 
         # Raw data read from the given path, see :py:meth:`.AVL.load_data` for details.
         self.raw_data:pd.DataFrame = raw_avl
-                                                                                                      
+
         logger.info(f'validating {alias} data')
         #: Validated data, see :py:meth:`.AVL.validate_data` for details.
         self.validated_data:pd.DataFrame = self.validate_data()
@@ -124,7 +124,7 @@ class AVL():
 
         return raw_avl
 
- 
+
     def validate_data(self) -> pd.DataFrame:
         """Clean up raw data by converting column types to those listed in the spec. Convert dwell_time and stop_time columns 
         to integer seconds if necessary. Filter to keep only AVL records of dates in the date_list in ROVE_params.
@@ -136,7 +136,7 @@ class AVL():
         data:pd.DataFrame = deepcopy(self.raw_data)
 
         data['dwell_time'] = self.convert_dwell_time(data['dwell_time'])
-        
+
         data['stop_time'], data['svc_date'] = self.convert_stop_time(data['stop_time'])
 
         data = deepcopy(data[data['svc_date'].isin(self.rove_params.date_list)])

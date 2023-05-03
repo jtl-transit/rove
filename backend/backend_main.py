@@ -8,17 +8,16 @@ from data_class.rove_parameters import ROVE_params
 from helper_functions import read_shapes, write_to_frontend_config, string_is_date, string_is_month
 import argparse
 import sys
-
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MBTA" # CTA, MBTA, WMATA
-MONTH = "04" # MM in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "Q1" # MM in string format
 YEAR = "2023" # YYYY in string format
-START_DATE = '' # YYYY-MM-DD
-END_DATE = '' # YYYY-MM-DD
+START_DATE = '2023-01-01' # YYYY-MM-DD
+END_DATE = '2023-03-31' # YYYY-MM-DD
 DATE_TYPE = "Workday" # Workday, Saturday, Sunday
-DATA_OPTION = 'GTFS' # GTFS, GTFS-AVL
+DATA_OPTION = 'GTFS-AVL' # GTFS, GTFS-AVL
 
 SHAPE_GENERATION = True # True/False: whether to generate shapes
 METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggregation
@@ -26,6 +25,7 @@ METRIC_CAL_AGG = True # True/False: whether to run metric calculation and aggreg
 # --------------------------------END PARAMETERS--------------------------------------
 
 logger = getLogger('backendLogger')
+
 
 def __main__(args):
     """Main method of ROVE backend - run this file to generate shapes and metrics in the backend. If the file is run in the command line, 

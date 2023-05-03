@@ -133,6 +133,9 @@ class GTFS():
         # Retrieve GTFS data
         try:
             service_ids_by_date = ptg.read_service_ids_by_date(path)
+            min_date = min(service_ids_by_date.keys())
+            max_date = max(service_ids_by_date.keys())
+            logger.info(f'Valid GTFS date range: {min_date} - {max_date}.')
             not_available_dates = set(rove_params.date_list) - set(service_ids_by_date)
             available_dates = set(rove_params.date_list) - not_available_dates
             service_id_list = list(set([service_ids_by_date[day] for day in available_dates]))

@@ -29,15 +29,15 @@ class Metric_Aggregation():
     def __init__(self, metrics:Metric_Calculation, params:ROVE_params):
         
         logger.info(f'Aggregating metrics...')
-        self.gtfs_stop_metrics = deepcopy(metrics.gtfs_stop_metrics)
-        self.gtfs_route_metrics = deepcopy(metrics.gtfs_route_metrics) 
-        self.gtfs_tpbp_metrics = deepcopy(metrics.gtfs_tpbp_metrics)
+        self.gtfs_stop_metrics = metrics.gtfs_stop_metrics
+        self.gtfs_route_metrics = metrics.gtfs_route_metrics
+        self.gtfs_tpbp_metrics = metrics.gtfs_tpbp_metrics
 
         self.data_option = params.data_option
         if 'AVL' in self.data_option:
-            self.avl_stop_metrics = deepcopy(metrics.avl_stop_metrics)
-            self.avl_route_metrics = deepcopy(metrics.avl_route_metrics) 
-            self.avl_tpbp_metrics = deepcopy(metrics.avl_tpbp_metrics)
+            self.avl_stop_metrics = metrics.avl_stop_metrics
+            self.avl_route_metrics = metrics.avl_route_metrics
+            self.avl_tpbp_metrics = metrics.avl_tpbp_metrics
 
         self.SEGMENT_MULTIINDEX = ['route_id', 'stop_pair']
         self.CORRIDOR_MULTIINDEX = ['stop_pair']
