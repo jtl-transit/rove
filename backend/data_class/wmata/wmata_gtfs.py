@@ -1,7 +1,7 @@
 from numpy import dtype
 from ..gtfs import GTFS
 import pandas as pd
-from backend.helper_functions import convert_stop_ids, load_csv_to_dataframe
+from backend.helper_functions import convert_stop_ids, load_csv_to_dataframe, check_is_file
 import json
 import logging
 
@@ -12,6 +12,7 @@ class WMATA_GTFS(GTFS):
         super().__init__(rove_params, mode, shape_gen)
 
         self.generate_route_types_by_fsn()
+        self.add_route_types_by_efbl()
 
     def validate_data(self):
         data = super().validate_data()
@@ -37,6 +38,12 @@ class WMATA_GTFS(GTFS):
         #     f.seek(0)        # <--- should reset file position to the beginning.
         #     json.dump(data, f)
         #     f.truncate()     # remove remaining part
+
+    def add_route_types_by_efbl(self):
+        efbl_inpath = self.rove_params.input_paths['efbl']
+        efbl_list = list(pd.read_csv(efbl_inpath).loc[:,'Equity_Focus_Bus_Lines'])
+        self.rove_params.frontend_config['routeTypes'][' Equity Focus Bus Lines'] = efbl_list
+        self.rove_params.frontend_config['routeTypes'][' '] = []
 
     def add_timepoints(self):
         logger.info(f'adding timepoint to GTFS records')
