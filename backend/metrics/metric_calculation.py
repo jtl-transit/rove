@@ -363,12 +363,12 @@ class Metric_Calculation():
         
         logger.info(f'calculating congestion delay')
 
-        self.avl_stop_metrics['free_flow_speed'] = self.avl_stop_metrics.groupby(['stop_pair'])['observed_speed_without_dwell'].quantile(0.9)\
+        self.avl_stop_metrics['free_flow_speed'] = self.avl_stop_metrics.groupby(['stop_pair'])['observed_speed_without_dwell'].transform(lambda x: x.quantile(0.9))\
                                                     .clip(upper=MAX_SPEED_MPH).fillna(MEAN_SPEED_MPH)
         self.avl_stop_metrics['free_flow_travel_time'] = self.avl_stop_metrics['stop_spacing'] / (self.avl_stop_metrics['free_flow_speed'] / FT_PER_MIN_TO_MPH)
         self.avl_stop_metrics['observed_travel_time'] = self.avl_stop_metrics['stop_spacing'] / (self.avl_stop_metrics['observed_speed_without_dwell'] / FT_PER_MIN_TO_MPH)
 
-        self.avl_stop_metrics['vehicle_congestion_delay'] = (self.avl_stop_metrics['observed_travel_time'] - self.avl_stop_metrics['free_flow_travel_time']) \
+        self.avl_stop_metrics['vehicle_congestion_delay'] = (self.avl_stop_metrics['observed_travel_time'] - self.avl_stop_metrics['free_flow_travel_time']).apply(lambda x: max(0, x)) \
                                                 / (self.avl_stop_metrics['stop_spacing'] * FEET_TO_MILES)
         
         self.avl_stop_metrics['passenger_congestion_delay'] = self.avl_stop_metrics['vehicle_congestion_delay'] * self.avl_stop_metrics['passenger_load']

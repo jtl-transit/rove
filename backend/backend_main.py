@@ -11,8 +11,8 @@ import sys
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
-AGENCY = "MBTA" # CTA, MBTA, WMATA
-MONTH = "04" # MM in string format
+AGENCY = "WMATA" # CTA, MBTA, WMATA
+MONTH = "01" # MM in string format
 YEAR = "2023" # YYYY in string format
 START_DATE = '' # YYYY-MM-DD
 END_DATE = '' # YYYY-MM-DD
