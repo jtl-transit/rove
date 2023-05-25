@@ -58,4 +58,4 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
         route_by_trips = __ssi_calculation(self.avl_route_metrics_time_filtered, ['trip_id', 'route_id', 'direction_id'])         
         self.routes['ssi'] = route_by_trips.groupby(self.ROUTE_MULTIINDEX)['weighted_cov'].sum().round(sig_fig)
 
-        self.metrics_names['ssi'] = 'Schedule Sufficiency Index'
+        self.metrics_names['ssi'] = 'Run Time Variability'
