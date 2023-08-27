@@ -24,10 +24,12 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
 
         sig_fig = 0
 
-        self.segments['on_time_performance_sec'] = self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+        # self.segments['on_time_performance_perc'] = self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
+        self.segments['on_time_performance_stop_tpbp'] = (self.avl_stop_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['is_on_time'].mean() * 100).round(sig_fig)
+        self.tpbp_segments['on_time_performance_stop_tpbp'] = (self.avl_tpbp_metrics_time_filtered.groupby(self.SEGMENT_MULTIINDEX)['is_on_time'].mean() * 100).round(sig_fig)
         self.routes['on_time_performance_perc'] = self.avl_route_metrics_time_filtered.groupby(self.ROUTE_MULTIINDEX)['on_time_performance'].mean().round(sig_fig)
 
-        self.metrics_names['on_time_performance_sec'] = 'On Time Performance (sec)'
+        self.metrics_names['on_time_performance_stop_tpbp'] = 'Schedule Deviation (% of trips on time)'
         self.metrics_names['on_time_performance_perc'] = 'On Time Performance (% of timepoints)'
 
 
