@@ -239,7 +239,7 @@ function initializeDataPanel(){
 								'speed': {title: 'Speed', unit: 'mph'}, 
 								'crowding': {title: 'Crowding', unit: '% of seated capacity'}, 
 								'boardings': {title: 'Boardings', unit: 'pax'},
-								'sch-dev': {title: 'Schedule Deviation', unit:'% of trips on time'}
+								'on-time-perf': {title: 'On Time Performance', unit:'% of trips on time'}
 							}
 							if(selectedBackground === '2'){
 								if(!backgroundDataCacheInside.hasOwnProperty('speed')) {
@@ -252,8 +252,8 @@ function initializeDataPanel(){
 									}
 									
 									var turfPolyMerged = turf.multiPolygon([test])
-									var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'sch-dev': []}
-									var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'sch-dev': []}
+									var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
+									var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
 									Object.values(routesGeojson._layers).forEach(segment => {
 										var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
 										var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
@@ -965,7 +965,7 @@ function fillCalculationObject(obj, segment){
 	obj['speed'] = obj['speed'].concat(segment.options['seg-observed_speed_without_dwell'])
 	obj['boardings'] = obj['boardings'].concat(segment.options['seg-boardings'])
 	obj['crowding'] = obj['crowding'].concat(segment.options['seg-crowding'])
-	obj['sch-dev'] = obj['sch-dev'].concat(segment.options['seg-on_time_performance_stop_tpbp'])
+	obj['on-time-perf'] = obj['on-time-perf'].concat(segment.options['seg-on_time_performance_stop_tpbp'])
 }
 
 function findIntersectingRoutes(polygon){
@@ -984,7 +984,7 @@ function findIntersectingRoutes(polygon){
 	}
 	var turfPoly = turf.multiPolygon([[polygons]])
 
-	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'sch-dev': []}
+	var matchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
 	Object.values(routesGeojson._layers).forEach(segment => {
 		var turfLine = turf.lineString(makeLatLongArray(segment._latlngs)) 
 		if (turf.booleanIntersects(turfLine, turfPoly)) fillCalculationObject(matchingSegments, segment);
@@ -1004,12 +1004,12 @@ function calculateIntersectedAverage(segments){
 	var speed = removeNulls(segments['speed']);
 	var boardings = removeNulls(segments['boardings']);
 	var crowding = removeNulls(segments['crowding']);
-	var perf = removeNulls(segments['sch-dev']);
+	var perf = removeNulls(segments['on-time-perf']);
 
 	return {
 		'speed' : getAverage(speed),
 		'boardings' : getAverage(boardings),
 		'crowding' : getAverage(crowding),
-		'sch-dev': getAverage(perf)
+		'on-time-perf': getAverage(perf)
 	}
 }
