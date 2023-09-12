@@ -634,7 +634,8 @@
 		}).addTo(map);
 
 		// Define color schemes for legend, geometry
-		var rangeGreen = ["#d7191c",'#fdae61','#ffffbf','#abd9e9','#2c7bb6'];
+		// var rangeGreen = ["#d7191c",'#fdae61','#ffffbf','#abd9e9','#2c7bb6'];
+		var rangeGreen = ['#E65C02','#F4B183','#FFFFFF','#0A95D4','#2C4E8C']; // colorblind-friendly
 		var rangeBlue = rangeGreen.slice(0).reverse();
 		var rangeRed = ['#fef0d9','#fdcc8a','#fc8d59','#e34a33','#b30000'];
 		var legendDef = d3.scaleQuantile().range(rangeGreen); // object for scale for criteria coloring, scale generated using color brewer
