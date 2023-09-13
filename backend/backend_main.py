@@ -122,7 +122,8 @@ def __main__(args):
             'signals': f'frontend/static/inputs/{agency}/backgroundlayers/{agency.lower()}_traffic_signals.geojson',
             'timepoint': f'data/{agency}/agency-specific/timepoints{suffix}.csv', 
             'fsn':  f'data/{agency}/agency-specific/dim_fsn_routes.csv',
-            'efbl': f'data/{agency}/agency-specific/equity_focus_bus_lines.csv'
+            'efbl': f'data/{agency}/agency-specific/equity_focus_bus_lines.csv',
+            'efc_merged': f'frontend/static/inputs/{agency}/backgroundlayers/efc_merged.geojson'
         }
     
     output_paths = {
@@ -168,7 +169,7 @@ def __main__(args):
             avl_records = None
 
         if agency == 'WMATA':
-            metrics = WMATA_Metric_Calculation(shapes, gtfs_records, avl_records, params)
+            metrics = WMATA_Metric_Calculation(shapes, gtfs_records, avl_records, params, bus_gtfs.raw_data['stops'])
             agg = WMATA_Metric_Aggregation(metrics, params)
         else:
             metrics = Metric_Calculation(shapes, gtfs_records, avl_records, params)

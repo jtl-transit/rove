@@ -12,6 +12,8 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
     def aggregate_metrics(self, percentile:int):
         super().aggregate_metrics(percentile)
 
+        self.in_efc()
+
         if 'AVL' in self.data_option:
             self.schedule_sufficiency_index()
 
@@ -32,6 +34,9 @@ class WMATA_Metric_Aggregation(Metric_Aggregation):
         self.metrics_names['on_time_performance_stop_tpbp'] = 'On Time Performance (% of trips on time)'
         self.metrics_names['on_time_performance_perc'] = 'On Time Performance (% of timepoints)'
 
+    def in_efc(self):
+        self.segments['in_efc'] = self.gtfs_stop_metrics.groupby(self.SEGMENT_MULTIINDEX)['in_efc'].max()
+        self.metrics_names['in_efc'] = 'Inside EFC (1: in, 0: out)'
 
     def schedule_sufficiency_index(self):
         """Weighted coefficient of standard deviation of running time.
