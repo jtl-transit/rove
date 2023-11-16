@@ -1,0 +1,12 @@
+fare_id,agency_id,fare_period_id,price,descriptions,currency_type,payment_method,transfers,transfer_duration
+300,"1",1,0,"KCM Regular Free","USD",0,,5400
+100,"1",1,0,"KCM Regular Free","USD",0,,5400
+101,"1",1,2.75,"KCM Regular 1 Zone","USD",0,,5400
+110,"1",2,2.75,"KCM Peak 1 Zone","USD",0,,5400
+305,"1",1,4.75,"Custom High","USD",0,0,0
+501,"40",1,3.25,"ST Regular 1 Zone","USD",0,0,0
+502,"40",1,3.75,"ST Regular 2 Zone","USD",0,0,0
+700,"1",1,4.75,"Water Taxi","USD",0,0,0
+701,"1",1,5.5,"Vashon Water Taxi","USD",0,0,0
+900,"1",1,2.5,"DART","USD",0,,5400
+915,"23",1,2.25,"Stcr Regular","USD",1,,0

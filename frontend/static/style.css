@@ -1,0 +1,544 @@
+/* THIS CSS FILE CONTAINS ALL OF THE CUSTOM SCRIPTS FOR THE ROVE MAP
+
+Initially developed by Ru Mehendale of the MIT Transit Lab.
+
+*/
+
+<style>
+	body {
+	    height: 100%;
+	    margin: 0;
+	    padding: 0;
+	    width: 100%;
+	    overflow: auto;
+	   	align-content: center; 
+	   	background-color:black !important;
+  	}
+
+	html {
+	    height: 100%;
+	    width: 100%;
+	   	background-color:black !important;
+  	}
+
+	select {
+		margin-top: 5px;
+	}
+
+	/* NAVIGATION BAR */
+
+	.top-bar{
+		width: 80.5%;
+		height: 5%;
+		position: fixed;
+		background-color: #37474F;
+		color: white;
+	}
+
+	/* Header Buttons Container */
+	.nav-button-container{
+  		position: fixed;
+  		left: 80.5%;
+  		height: 5%;
+    	width: 19.5%;
+		margin: auto;
+		background-color: #37474F;
+		border-bottom-color: white;
+		border-bottom-style: solid;
+		border-width:2px;
+	}
+	
+	/* Header Buttons Container */
+	.nav-button-flex{
+		display: flex;
+  		justify-content: flex-start;
+	}
+
+	/* Header Buttons Container */
+	.button-nav-div{
+		height: 100%;
+  		z-index: 6;
+	}
+
+	/* Header Buttons Container - click behavior */
+	.button-nav-div-click{
+		height: 100%;
+		background-color: #546E7A;
+  		border-width: 2px 2px 3px 2px !important;
+  		border-top-left-radius: 5px !important;
+  		border-top-right-radius: 5px !important;
+  		border-color: white !important;
+  		border-bottom-color: #546E7A !important;
+  		color: white !important;
+  		border-style: solid;
+  		padding-right: 5px;
+  		z-index: 6;
+	}
+
+	/* Styles buttons in the header */
+	.tab, .tab-click{
+		float: left;
+		position: relative;
+		background-color: transparent !important;
+		margin: 2px !important;
+		padding: 1px !important;
+  		color: #BDBDBD; /* White text */
+  		height: 100% !important;
+  		width: 30px !important; 
+	}
+
+	/* Styles buttons in the header */
+	.tab:hover, .tab-click {
+		color: white !important;
+	}
+
+	/* Title Text */
+	.center-text{
+		margin: auto;
+		position: fixed; top: 1%; left: 1%;
+	}
+
+	/* Header Buttons Text */
+	.center-text-right{
+			float: left;
+			height: 100%;
+			font-size: 10pt;
+			margin: auto;
+			position: relative; top: 5pt;
+			padding-right: 5px;
+	}
+
+	/* VISUALIZATION WINDOW */
+
+	/* Map Container */
+	#leaflet-map {
+	  	z-index: 0;
+	  	height: 90%;
+	  	width: 57.5%;
+		position: absolute; left: 20%; top:7.25%;
+		border-style : solid;
+		border-width: 1px;
+		border-color: white;
+	}
+
+	/* Used to style box displayed upon hovering over routes */
+	.info-box {
+	  	z-index:10;
+	  	width: 250px;
+	  	position: absolute;
+	  	margin:0px;
+	    background-color: rgba(255,255,255, 0.9);
+	    color: rgb(100,100,100);
+	    text-align: left;
+	    opacity: 0.95;	
+	}
+	
+	/* Not used? */
+	.bus-route {
+    	stroke-width: 2;
+    	vector-effect: "non-scaling-stroke";
+	}
+	
+	/* Styles Legend */
+	#legend-svg {
+	    height: 100%;
+	    width: 100%;
+	}
+
+	.label{
+		font-size: 9pt !important;
+    	font-weight: 500 !important;
+	}
+
+	/* Styles Legend */
+	#map-info {
+		color: white;
+		position: relative;
+		overflow-y: auto;
+		height: 100vh;
+	}
+
+	/* Used in toolFunc.js for dynamic legend */
+	.attr-table, .attr-table2{
+		width:100%;
+		margin: 1px;
+    	border-collapse: collapse;
+		padding: 0px;
+		overflow-y: auto;
+	}
+
+	.attr-table2{
+		margin:0px;
+		margin-top: 5px;
+		margin-bottom: 55px;
+	}
+
+	/* RIGHT PANEL */
+
+	/* Container for entire LH panel */	
+	.container-parent{ 
+    	max-height: 85%;
+    	width: 18.5%;  	
+    	position: fixed; top:5%;
+		padding-left: 1.5%; 
+	}
+
+	/* Container for each of the three individual menus */	
+    .container-parent-right{
+    	height: 95%;
+    	width: 20%;
+    	position: fixed; left: 80.5%; top:5%;
+		float: left;
+		overflow-y: scroll;
+	}
+
+	/* FILTERS */
+
+	/* Used for all of the subpanels in the RH menus */
+    .filter-container { 
+	  	z-index: 2;
+		overflow-y: auto;	
+		overflow-x: hidden;
+	}
+
+	/* Used for the route multiselector in the View menu */
+	.select-filter{
+		z-index:3;
+	  	position: relative; 
+	    padding: 10px;
+	   	padding-top: 10px;
+	    background-color: white;
+	    text-align: left;
+	    font-size: 9pt;
+	}
+
+	/* Used for multiselector selector */
+	.choose-routes{
+		float: right;
+		width: 60 px;
+		position: relative;
+		background-color: white;
+	    text-align: left;
+	    font-size: 9pt;
+	}
+
+	/* Used for all of the subpanels in the RH menus */
+	.metric-filter-container { 
+		height: 50vh;
+		z-index: 2;
+		overflow-y: auto;	
+		overflow-x: hidden;
+	}
+
+	/* Filter used for dynamic range filters (toolFunc.js).
+		 Filter2 used for the menu subpanels*/
+	.filter, .filter2 , .filter3 {
+		height: auto;
+	  	z-index:3;
+	  	position: relative; 
+	    padding: 5px;
+	    background-color: white;
+	    text-align: left;
+	    align-content: left;
+	    font-size: 9pt;
+	}
+
+	.filter {
+		padding-top: 2px;
+		padding-bottom: 20px;
+	    text-align: center;
+	    align-content: center;
+	    border-color: rgb(100,100,100);
+	    border-width: 2px;
+	    border-bottom-style: solid;
+	}
+
+	.filter3 {
+		text-align: center;
+		align-content: center;
+		padding-top: 5px;
+		padding-bottom: 20px;
+	}
+
+	/* Filt-title used in toolFunc.js for the dynamic filters*/
+	.filt-title{
+		display: flex;
+  		justify-content: space-around;
+		padding-bottom: 10px;
+		text-align: left;
+		width: 100%;
+	}
+
+	/* DROPDOWN MENU */
+	.dropdown-container { 
+		z-index: 2;
+		overflow-y: visible;	
+		overflow-x: hidden;
+		background-color: white;
+	}
+
+	.select-dropdown{
+		z-index:3;
+	  	position: relative; 
+	    padding: 5px;
+	   	padding-bottom: 0px;
+	    background-color: white;
+	    text-align: left;
+	    font-size: 9pt;
+	}
+
+	.dropdown-title{
+  		float: left;
+		z-index:3;
+	    text-align: left;
+		font-size: 9pt;
+		font-weight: bold;
+		padding-right: 10px;
+	}
+
+	.view-dropdown{
+  		float: right;
+	    background-color: white;
+	    text-align: left;
+	    font-size: 9pt;
+	}
+
+	.custom-multiselect{ 
+		position: relative;
+		padding-left: 10px
+	}
+
+	.radio-label{
+	  float: none;
+	  font-size: 11px !important;
+	  margin-bottom: 0px !important;
+  	}
+
+	/* BUTTONS */
+
+	/* Used for all of the subpanel headers */
+	.toggle, .toggle2 {
+		height: auto;
+	  	z-index:3;
+	  	position: relative; 
+	    padding: 3px;
+	    background-color: #546E7A;
+	    color: white;
+	    text-align: left;
+	    align-content: center;
+	    border-bottom-color: rgba(200,200,200);
+	    border-bottom-width: 0.5px;
+	    border-bottom-style: solid;
+	    font-size: 9pt;
+	    border-left-width: 2px;
+    	border-left-style: solid;
+    	border-left-color: white;
+	}
+
+	/* Icon for the up/down button for the subpanel headers */
+	.arrow-up, .arrow-down {
+	  width: 0; 
+	  height: 0;
+	  float: right;
+	  position: relative;
+	  top: 50%; right: 10px;
+	  border: 5px solid transparent;
+	}
+
+	.arrow-up{
+		border-bottom: 5px solid white;
+	}
+
+	.arrow-down {
+	  border-left: 5px solid white;
+	}
+
+	/* RH panel button text */
+	.button-text{
+		background-color: #424242;
+		margin: 2px;
+		padding: 5px 5px !important;
+  		color: #BDBDBD; /* White text */
+  		font-size: 9pt !important
+	}
+
+	.button-text:hover, .button-text:focus{
+		color: white !important;
+	}
+
+	/* RH panel button style */
+	.util{
+		position: relative;
+		background-color: #424242;
+		margin: 2px !important;
+		padding: 1px !important;
+
+  		color: #BDBDBD;
+  		height: 28px !important;
+  		width: 28px !important; 
+	}
+
+	.util:hover, .util:focus {
+  		color:white !important;
+	}
+
+	/* "Development" button style and text */
+	.dev-text, .dev-text:hover, .dev-text:focus{
+		background-color: #999999;
+		margin: 2px !important;
+		padding: 5px 5px !important;
+  		color: #BDBDBD !important; /* White text */
+  		font-size: 9pt !important;
+  		text-decoration: line-through !important;
+	}
+
+	.dev-util, .dev-util:hover, .dev-util:focus{
+		position: relative;
+		background-color: #999999;
+		margin: 2px !important;
+		padding: 1px !important;
+
+  		color: #BDBDBD;
+  		height: 28px !important;
+  		width: 28px !important; 
+	}	
+
+	.radio-button{
+		padding: 10px !important;
+		margin-left: 10px !important;
+	}
+
+	/* Container for the map control buttons */
+	.button-container{
+		display: flex;
+  		justify-content: space-around;
+	}
+
+	/* SLIDERS */
+
+	/* Styling for sliders and action */
+
+	.time-slider{
+		padding-top: 20px;
+		align-content: center;
+		text-align: center;
+  	}	
+
+	.slider.slider-horizontal{
+	  	width: 75% !important;
+	}
+
+	.slider-handle {
+		background:#424242!important ;
+		height: 10px !important;
+		width: 10px !important;
+		top: 2.5px !important;
+		margin-left: -5px !important;
+	}
+
+	.slider-track-low, .slider-track-high{
+		height: 3px !important;
+		top: 1px !important;
+		background: #BDBDBD !important;
+	}
+
+	.slider-track{
+		height: 3px !important;
+		background: transparent !important;
+	}
+
+	.slider-selection{
+		height: 4px !important;
+		top: 1px !important;
+		background: #546E7A !important ;
+	}
+
+	/* Styling for tooltip and action */
+	.tooltip.bottom{
+		top: 10px !important;	
+	}
+
+	.tooltip-inner{
+		font-size: 8pt;
+		background-color: #424242 !important ;
+	}
+
+	.tooltip.bottom .tooltip-arrow{
+		border-bottom-color: #424242 !important;
+	}
+
+	.tooltip.top .tooltip-arrow{
+		border-top-color: #424242 !important;
+	}
+	.tooltip.top{
+		top: 5px !important;
+	}
+
+
+	.progress-container {
+		width: 100%;
+		background-color: grey;
+	  }
+	  
+	.progress-bar {
+		width: 1%;
+		height: 30px;
+		background-color: green;
+	}
+
+	.loader {
+		border: 12px solid #f3f3f3; /* Light grey */
+		border-top: 12px solid #3498db; /* Blue */
+		border-radius: 50%;
+		width: 50px;
+		height: 50px;
+		animation: spin 6s linear infinite;
+	  }
+	  
+	  @keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	  }
+
+	/* MODIFYING OTHER LIBRARIES */
+
+	.ui-widget-header {
+	    border: rgba(100,100,100, 1) !important;
+	    background-color: #9ec1bd !important;
+	    color: rgb(100,100,100) !important;
+	    font-weight: bold;
+	}
+
+	.ui-dialog {
+	    padding: 0 !important;
+	    outline: 0;
+	}
+
+	.modal-content {
+		position: absolute;
+		left: 0%;
+		top: 50%;
+		transform: translate(0%, 70%);
+	  }
+	
+	#loader {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		z-index: 1;
+		width: 120px;
+		height: 120px;
+		margin: -76px 0 0 -76px;
+		border: 16px solid #f3f3f3;
+		border-radius: 50%;
+		border-top: 16px solid #3498db;
+		-webkit-animation: spin 2s linear infinite;
+		animation: spin 2s linear infinite;
+	}
+	
+	@-webkit-keyframes spin {
+		0% { -webkit-transform: rotate(0deg); }
+		100% { -webkit-transform: rotate(360deg); }
+	}
+
+</style>

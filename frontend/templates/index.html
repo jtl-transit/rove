@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"content="width=device-width, initial-scale=1.0">
+	<meta name="viewport"content="height=device-height, initial-scale=1.0">
+
+	<!-- Window Label and Icon -->
+   	<title>Bus Network Visualization Dashboard</title>
+   	<link rel="shortcut icon" href="../static/images/favicon.ico">
+
+	<!-- CSS Links -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-multiselect.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='jquery-ui.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.0/css/bootstrap-slider.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin="">
+	
+	<!-- External JS Links -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.0/bootstrap-slider.min.js"></script> 
+	<script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js" integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og==" crossorigin=""></script>
+	<script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.js"></script>
+	<script src="https://unpkg.com/leaflet-image@latest/leaflet-image.js"></script>
+	<script src="https://unpkg.com/leaflet-lasso@2.2.4/dist/leaflet-lasso.umd.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+	<!-- Internal JS Links -->
+	<script src="{{ url_for('static', filename='scripts/setupFunc.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/toolFunc.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/updateFunc.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/requestFunc.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/selectLinkFunc.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/jquery-ui.min.js') }}"></script> 
+	<script src="{{ url_for('static', filename='scripts/leaflet.polylineoffset.js') }}"></script>
+	<script src="{{ url_for('static', filename='scripts/Polyline.encoded.js') }}"></script>
+	
+	<!-- Store configuration data passed in from server  -->
+	<script> 
+		var transitFiles = JSON.parse('{{ transit_files|tojson|safe }}')
+		var backgroundLayers = JSON.parse('{{ background_layers|tojson|safe }}')
+		var vizFiles = JSON.parse('{{ viz_files|tojson|safe }}')
+		var units = JSON.parse('{{ units|tojson|safe }}')
+		var redValues = JSON.parse('{{ red_values|tojson|safe }}')
+		var directionLabels = JSON.parse('{{ direction_labels|tojson|safe }}')
+		var timePeriods = JSON.parse('{{ time_periods|tojson|safe }}')
+		var periodNames = JSON.parse('{{ period_names|tojson|safe }}')
+		var periodRanges = JSON.parse('{{ period_ranges|tojson|safe }}')
+		var altRouteIDs = JSON.parse('{{ alt_route_ids|tojson|safe }}')
+		var garageAssignments = JSON.parse('{{ garage_assignments|tojson|safe }}')
+		var routeTypes = JSON.parse('{{ route_types|tojson|safe }}')
+		var presets = JSON.parse('{{ presets|tojson|safe }}')
+
+		var transitFileDescription = []
+		for(i = 0; i < Object.keys(transitFiles).length; i++)
+			transitFileDescription.push(transitFiles[i]["name"])
+		
+		var backgroundFileDescription = []
+		for(i = 0; i < Object.keys(backgroundLayers).length; i++)
+			backgroundFileDescription.push(backgroundLayers[i]["name"])
+
+		var vizFileDescription = []
+		for(i = 0; i < Object.keys(vizFiles).length; i++)
+			vizFileDescription.push(vizFiles[i]["name"])
+
+	</script>
+
+</head>
+
+<body>
+	<!-- Title Bar -->
+    <div id="title-bar" class="top-bar"> 
+		<div id="title-text" class = "center-text"> BUS NETWORK VISUALIZATION DASHBOARD V 7.1.1</div>	
+	</div>
+	<div id="loader" style="display: none;"></div>
+	<!-- Header Buttons -->
+	<div class="nav-button-container">
+		<div class="nav-button-flex">
+
+			<!-- Options Button -->
+			<div id= "button-options-div" class = 'button-nav-div'>
+				<button id="button-options" class = "btn tab" title="options"><i class="material-icons">menu</i></button>
+				<div id="options-text" class = "center-text-right" style="display: none"> OPTIONS </div>
+			</div>
+
+			<!-- Tools Button -->
+			<div id= "button-tool-div" class = 'button-nav-div'>
+				<button id="button-tool" class = "btn tab" title="tool"><i class="material-icons">edit</i> </button>
+				<div id="tool-text" class = "center-text-right"> TOOLS </div>
+			</div>
+
+			<!-- Settings Button -->
+			<div id= "button-settings-div" class = 'metrics-element button-nav-div'>
+				<button id="button-settings" class = "btn tab" title="settings"><i class="material-icons">settings</i></button>
+				<div id="settings-text" class = "center-text-right" style="display: none"> SETTINGS</div>
+			</div>
+			
+			<!-- About Button -->
+			<div id= "button-about-div" class = 'button-nav-div'>
+				<button id="button-about" class = "btn tab" title="help"><i class="material-icons">help</i></button>
+				<div id="about-text" class = "center-text-right" style="display: none"> HELP</div>
+			</div>
+
+
+
+		</div>
+	</div>
+
+	<!-- About Panel -->
+	<div id='about-panel' class='container-parent-right' style="display: none">
+		<div id="info-toggle" class="toggle2"> ABOUT THIS TOOL <div id = "info-arrow" style="float:right;" class="arrow-up"></div></div>
+		<div id="info-panel" class="filter-container">
+			<div id="info-inner" class="filter2">
+				
+				<b> Version 7.1.1 </b> <br>
+				<br>
+				This tool is a bus network visualization dashboard developed by the MIT Transit Lab. <br><br>The main utility of the tool lies in the edit panel, which allows users to choose the metric visualized on the network, and filter out routes/segments by changing the range of each calculated metric. Any combination of filters may be used at the same time. <br><br>The data panel allows the user to bring in external data or to change the time period of route data currently visualized by the tool.<br><br>
+
+				<b> Basic Tool Operation: </b> <br>
+				<ul style="PADDING-LEFT: 12px">
+				<li>Click arrows to minimize menus.</li>
+				<li>Double click to zoom, drag to pan.</li>
+				<li>Use CTRL or SHIFT to select multiple routes.</li>
+				<li>Move filter handles to update range of metrics visualized.</li>
+				<li>For segmented data, choose whether to filter by route, corridor or segment level metrics by choosing the corresponding option in the dropdown menu in each filter. </li>
+				<li>Click on routes or buttons to view more information. </li><br>
+				</ul>
+				
+				<b>Hot Keys:</b><br/>
+				Shift + z = Zoom to extents<br/>
+				Shift + c = Center<br/>
+				<br>
+
+				<b>Feedback / Bug Reporting:</b><br/>
+				Please report any issues or feature requests using the form at the link below.
+				<br>
+				<br>
+				<a href="https://forms.gle/DoGiMAmmX1JfEAzH8" target="_blank">Feedback Form</a>
+
+	    	</div>
+		</div>
+	</div>
+	
+	<!-- Options Panel -->
+	<div id="options-panel" class="container-parent-right" style="display: none">
+		
+		<!-- Data Subpanel Header -->
+		<div id="data-toggle" class="toggle2"> DATA <div id = "data-arrow" style="float:right;" class="arrow-up"></div></div>
+		
+		<!-- Data Subpanel Content -->
+		<div id="data-panel" class="filter-container">
+			<div id="data-ctrl" class="filter2">
+
+				<!-- Metrics - Single Period Button: load dialog box, present data selection options, load selected data-->
+				<button class="btn button-text" id="button-load" data-toggle="modal" data-target="#modal-snap"> Metrics - Single Period </button><br/>
+
+				<!-- Metrics - Comparison Button: allows comparison of two time periods - add after id to activate: data-toggle="modal" data-target="#modal-compare" -->
+				<button class="btn button-text" id="button-compare" data-toggle="modal" data-target="#modal-compare"> Metrics - Compare Periods </button><br/>
+
+				<!-- Journey Visualization - Single Period Button: launches ODX Select Link mode for one period -->
+				<button class="btn button-text" id="button-viz" data-toggle="modal" data-target="#modal-viz"> Journey Visualization - Single Period </button><br/>
+
+				<!-- Journey Visualization  - Comparison Button: launches ODX Select Link mode for difference between periods -->
+				<button class="btn button-text" id="button-viz-compare" data-toggle="modal" data-target="#modal-viz-compare"> Journey Visualization - Compare Periods </button><br/>
+	    	</div>
+		</div>
+
+		<!-- Import/Export Subpanel Header -->
+		<div id="impexp-toggle" class="toggle2"> IMPORT/EXPORT  <div id = "impexp-arrow" style="float:right;" class="arrow-up"></div></div>
+		
+		<!-- Import/Export Subpanel Content -->
+		<div id="impexp-panel" class="filter-container">
+			<div id="impexpctrl" class="filter2">
+				
+				<span style="font-weight:bold;"> Background Layers: </span><br/>
+
+				<!-- Import Geometry Button: Used to upload SED cloropleths -->
+				<button class="btn button-text" id="upload-geom-btn" data-toggle="modal" data-target="#modal-background">Import Background Layer</button> <br/>
+
+				<!-- Clear Geometry Button: Clear SED cloropleths -->
+				<button class="btn button-text" id="clear-geom-btn">Clear Background Layer</button> <br/><br/>
+				
+				<span style="font-weight:bold;"> ROVE Snapshots: </span><br/>
+
+				<!-- Export Tool View: Export current view data to file -->
+				<button class="btn button-text" id="export-btn">Export ROVE Data</button> <br/>	
+
+				<!-- Export Tool View: Export current view data to file -->
+				<button class="btn button-text" id="export-img-btn">Export ROVE Image</button> <br/>	
+
+			</div>
+		</div>
+
+		<!-- Preset Subpanel Header -->
+		<div id="preset-toggle" class="metrics-element toggle2"> PRESET SCENARIOS <div id = "preset-arrow" style="float:right;" class="arrow-up"></div></div>
+		
+		<!-- Preset Subpanel Content -->
+		<div id="preset-panel" class="metrics-element filter-container">
+			<div id="preset-ctrl" class="filter2">
+
+				<!-- Preset Button #1-->
+				<button class="btn button-text" id="button-preset-0"> Preset Scenario #1 </button><br/>
+
+				<!-- Clear Data Button: Calls load.clear_data() -->
+		  		<button class="btn button-text" id="button-preset-1"> Preset Scenario #2 </button><br/>
+
+				<!-- Comparison Button: allows comparison of two time periods - add after id to activate: data-toggle="modal" data-target="#modal-compare" -->
+				<button class="btn button-text" id="button-preset-2"> Preset Scenario #3 </button><br/>
+
+	    	</div>
+		</div>
+	</div>
+
+	<!-- Tool Panel -->
+	<div id="tool-panel" class="container-parent-right">
+
+		<!-- Controls Subpanel Header -->
+		<div id="ctrl-toggle" class="toggle2"> CONTROLS 
+			<div id = "ctrl-arrow" style="float:right;" class="arrow-up"></div>
+		</div>
+
+		<!-- Controls Subpanel Content -->
+		<div id="ctrl-panel" class="filter-container" style="height: 38px; overflow: hidden; padding: 0px">
+			<div id="map-ctrl" class="filter2" style='text-align: center; padding: 3px; height: 38px; '>
+
+				<!-- Map Controls Buttons: Fairly convenient actions that might be worth keeping, but will be linked to built-in Leaflet functions -->
+				<div class = "button-container" style='padding: 0px'>
+
+					<!-- Centers on predefined CBD coordinates - see zoomFunc.js -->
+					<button id="button-center" class = "btn util" title="Recenter"><i class="material-icons">home</i></button>
+
+					<!-- Zooms to extents of the uploaded data - see zoomFunc.js-->
+					<button id="button-extent" class = "btn util" title="Zoom to Extents"><i class="material-icons">zoom_out_map</i></button>
+				</div>
+			</div>
+		</div>
+
+		<!-- View Subpanel Header -->
+		<div id="select-toggle" class="toggle2"> VIEW  <div id = "select-arrow" class="arrow-up"></div></div>
+		
+		<!-- View Subpanel Content: Route Multiselector. Actions defined in toolFunc.js-->
+		<div id="select-panel" class='filter-container'>
+			
+			<div id="route-panel" class="dropdown-container">
+				<div class = "select-dropdown">
+					<span class = "dropdown-title"> Choose Routes or Route Groups: </span>
+					<br>
+					<div class = "custom-multiselect">
+						<select id='choose-groups' class="choose-routes" multiple size='5'></select>
+					</div>
+
+					<div class = "custom-multiselect">
+						<select id='choose-routes' class="choose-routes" multiple size='5'></select><br> 
+					</div>
+				</div>
+			</div>
+
+			<!-- View Subpanel Content: Metric Selector. Actions defined in toolFunc.js-->
+			<div id="metric-select" class="metrics-element dropdown-container">
+				<div class = "select-dropdown" >
+					<span class="dropdown-title"> Metric: </span>
+					<select name="metric" id="metric" class="view-dropdown">
+					</select><br> 
+				</div>
+			</div>
+
+			<div id="radio-container" class="metrics-element dropdown-container">
+			</div>
+
+			<!-- View Subpanel Content: "Level" Selector. Actions defined in toolFunc.js-->
+			<div id="selmode-select" class="journey-element dropdown-container">
+				<div class = "select-dropdown" >
+					<span class="dropdown-title"> Selection Mode: </span>
+					<select name="selmode" id="selmode" class="view-dropdown">
+					</select><br> 
+				</div>
+			</div>
+
+			<!-- View Subpanel Content: "Level" Selector. Actions defined in toolFunc.js-->
+			<div id="level-select" class="dropdown-container">
+				<div class = "select-dropdown" >
+					<span class="dropdown-title"> Level: </span>
+					<select name="level" id="level" class="view-dropdown">
+					</select><br> 
+				</div>
+			</div>
+
+			<!-- View Subpanel Content: Statistic Selector. Actions defined in toolFunc.js-->
+			<div id="stat-select" class="metrics-element dropdown-container">
+				<div class = "select-dropdown" >
+					<span class="dropdown-title"> Statistic: </span>
+					<select name="statistic" id="statistic" class="view-dropdown">
+					</select><br> 
+				</div>
+			</div>
+
+			<!-- View Subpanel Content: Direction Selector. Actions defined in toolFunc.js-->
+			<div id="dir-select" class="dropdown-container">
+				<div class= "select-dropdown" >
+					<span class="dropdown-title"> Direction: </span>
+					<select name="direction" id="direction" class="view-dropdown">
+					</select><br> 
+				</div>
+			</div>
+
+			<!-- View Subpanel Content: Time Range Filter. Actions defined in toolFunc.js-->
+			<div id="time-select" class="metrics-element dropdown-container">
+				<div class = "select-dropdown">
+					<span class="dropdown-title"> Time Period: </span>
+					<select name="time-period" id="time-period" class="view-dropdown">
+					</select> <br/> 
+				</div>
+			</div>
+
+			<!-- Buttons for journey visualization mode -->
+			<div id="lasso-button" class="journey-element filter2 nav-b-flex" style="background-color: rgb(255,255,255);">
+				<div> 
+					<br/> <button class="journey-element btn button-text" id="toggle-lasso">Use Lasso Tool</button> 
+				</div>
+				<div>
+					<button class="journey-element btn button-text" id="load-period-data">Load Before/After Data</button> 
+				</div>
+				<div>
+					<button class="journey-element btn button-text" id="clear-selection">Clear Selection</button> <br/><br/>
+				</div>
+			</div>
+
+			<!-- <div id="time-filter" class="metrics-element filter-container">
+				<div class = "metrics-element filter3" >
+					<span class="metrics-element dropdown-title" style='padding-bottom: 35px'> Custom Period: </span>
+					<div id= "metrics-element time-slider" class= "time-slider">
+					</div> <br/> 
+				</div>
+			</div> -->
+
+			<!-- Reset filter button: Action defined in toolFunc.js -->
+			<!-- <div id="load-time" class="metrics-element filter2 nav-b-flex" style="background-color: rgb(255,255,255);">
+				<div><button id="time-calc" class = "btn util" title="Calculate"><i class="material-icons">forward</i></button> <b>Load Custom Time Period Data</b></div>
+			</div> -->
+
+		</div>		
+		<!-- Filters Subpanel Header -->
+		<div id="range-toggle" class="metrics-element toggle"> FILTERS  <span id="range-panel-more"></span><div id = "range-arrow" class="arrow-up"></div></div>
+		
+		<!-- View Subpanel Content: Add / Reset Filter Buttons-->
+		<div id="range-panel" class="metrics-element metric-filter-container">
+			<div id="filter-options" class="filter2 nav-button-flex" style="background-color: rgb(225,225,225); padding: 3px">
+
+				<!-- Reset filter button: Action defined in toolFunc.js -->
+				<div><button id="button-reset" class = "btn util" title="Reset Filters"><i class="material-icons">refresh</i></button> <b>Reset Filters</b></div>
+			</div>
+
+			<div id="range-filters"></div>
+		</div>
+
+		<!-- Filters Subpanel Header -->
+		<div id="range-toggle-bkgrd" style="display:none" class="metrics-element2 toggle"> BACKGROUND FILTERS  <span id="range-panel-more-bkgrd"></span><div id = "range-arrow-bkgrd" class="arrow-up"></div></div>
+		
+		<!-- View Subpanel Content: Background Filter Selector. Actions defined in toolFunc.js-->
+		<div id="bkgrd-select" style="display:none" class="dropdown-container">
+			<div class= "select-dropdown" >
+				<span class="dropdown-title"> Equity Metric: </span>
+				<select name="bkgrd-filter" id="bkgrd-filter" class="view-dropdown">
+				</select><br> 
+			</div>
+		</div>
+	</div>
+
+	<!-- Settings Panel -->
+	<div id="settings-panel" class="metrics-element container-parent-right" style="display: none">
+
+		<!-- Legend Bins Subpanel Header -->
+		<div id="legend-toggle" class="toggle2"> LEGEND BINS <div id = "legend-arrow" style="float:right;" class="arrow-up"></div></div>
+		
+		<!-- Legend Bins Subpanel Content -->
+		<div id="legend-panel" class="filter-container">
+			<div id="legend-ctrl" class="filter2">
+
+				<label for="first-bin-input">Lowest Bin Upper Bound</label> <br>
+				<input type="text" id="first-bin-input" class="form-control-sm" style="width: 100px;"> <br>
+
+				<label for="second-bin-input">Second Bin Upper Bound</label> <br>
+				<input type="text" id="second-bin-input" class="form-control-sm" style="width: 100px;"> <br>
+
+				<label for="third-bin-input">Third Bin Upper Bound</label> <br>
+				<input type="text" id="third-bin-input" class="form-control-sm" style="width: 100px;"> <br>
+
+				<label for="fourth-bin-input">Fourth Bin Upper Bound</label> <br>
+				<input type="text" id="fourth-bin-input" class="form-control-sm" style="width: 100px;"> <br>
+				
+				<!-- Buttons to either update or reset legens based on selection -->
+				<button class="btn button-text" id="button-legend-update", style="margin-top: 10px;"> Update Legend </button>
+				<button class="btn button-text" id="button-legend-reset", style="margin-top: 10px;"> Reset Legend </button><br/>
+	    	</div>
+		</div>
+
+		<!-- Filter Steps Subpanel Header -->
+		<div id="filter-toggle" class="metrics-element toggle2"> FILTER STEPS  <div id = "filter-arrow" style="float:right;" class="arrow-up"></div></div>
+		
+		<!-- Filter Steps Subpanel Content -->
+		<div id="filter-panel" class="filter-container">
+			<div id="filter-ctrl" class="metrics-element filter2"></div>
+			
+			<div id="filter-button-container" class="metrics-element filter2">
+				<!-- Button to update filters or reset to default  -->
+				<button class="metrics-element btn button-text" id="button-filter-update">Update Filters</button>
+				<button class="metrics-element btn button-text" id="button-filter-reset">Reset Filters</button> <br/>
+			</div>
+
+		</div>
+	</div>
+
+	<!-- Center pane where map is located -->
+	<div id="leaflet-map"></div>
+
+	<!-- Right pane where Data/Tool/About panels are located -->
+	<div id="right-panel-parent" class="container-parent">
+
+		<!-- Placeholder pane for network-wide metrics -->	
+		<div id="network-metrics" class="map-info">
+		</div>
+
+		<!-- Left pane where map information is located -->	
+		<div id="map-info" class="map-info">
+			<div id="segment-info" class="map-info"></div>
+			<div id="legends" class= "leaflet_legend">
+				<svg id="legend-svg"> </svg>
+			</div>
+			<div id="legends-2" style="display:none" class= "leaflet_legend">
+				<svg id="legend-svg-bkgrd"> </svg>
+			</div>
+			<div id="selection-table" class="map-info"></div>
+		</div>
+
+	</div>
+
+	<!-- Popup Dialog Box for Select Data Button -->
+	<div id="modal-snap" title="Choose Data" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="snap-label" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<span style="font-weight:bold;" class="modal-title" id="snap-label"> Load Data </span>	
+					<!-- Close popup box button -->
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<span> Bus Performance Metrics Data Source: </span><br><br>
+					<div> 
+						<!-- Selection options -->
+						<select id="select-transit" class="sel-mode dropbtn"> </select>
+					</div> <br>
+					<button id="select-transit-button" class="btn btn-primary" data-toggle="modal" data-target="#modal-snap"> Visualize </button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Popup Dialog Box for Loading -->
+	<div id="modal-load" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="load-label" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content">
+				<div class="modal-body">
+					<span> Loading... Please Wait </span></br>
+					<div class="loader"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Popup Dialog Box for Upload Background Layer Button -->
+	<div id="modal-background" title="Choose Background Layer" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="snap-label" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<span style="font-weight:bold;" class="modal-title" id="snap-label"> Choose Background Layer </span>	
+					<!-- Close popup box button -->
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<span> Background Layer Source: </span><br><br>
+					<div> 
+						<!-- Selection options -->
+						<select id="select-background" class="sel-mode dropbtn"> </select>
+					</div> <br>
+					<button id="select-background-button" class="btn btn-primary" data-toggle="modal" data-target="#modal-background"> Add to Map </button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Popup Dialog Box for Period Comparison Button -->
+	<div id="modal-compare" title="Choose Comparison Periods" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="snap-label" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<span style="font-weight:bold;" class="modal-title" id="compare-label"> Compare Two Periods </span>	
+					<!-- Close popup box button -->
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<span> Baseline Data Source: </span><br><br>
+					<div> 
+						<!-- Baseline selection options -->
+						<select id="select-baseline" class="sel-mode dropbtn"> </select>
+					</div> <br>
+
+					<span> Comparison Data Source: </span><br><br>
+					<div> 
+						<!-- Comparison selection options -->
+						<select id="select-comparison" class="sel-mode dropbtn"> </select>
+					</div> <br>
+
+					<button id="comparison-button" class="btn btn-primary" data-toggle="modal" data-target="#modal-compare"> Visualize </button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Popup Dialog Box for Journey Visualization Single Period Button -->
+	<div id="modal-viz" title="Choose Period" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="snap-label" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<span style="font-weight:bold;" class="modal-title" id="viz-label"> Load Data </span>	
+					<!-- Close popup box button -->
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<span> Journey Visualization Data Source: </span><br><br>
+					<div> 
+						<!-- Selection options -->
+						<select id="select-viz" class="sel-mode dropbtn"> </select>
+					</div> <br>
+					<button id="select-viz-button" class="btn btn-primary" data-toggle="modal" data-target="#modal-viz"> Visualize </button>
+				</div>
+				<div class="modal-body">
+					<span> Note: Based on ODX trips with inferred origins and destinations. Only trips with at least 1 journey per day are shown. </span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Popup Dialog Box for Period Comparison Button -->
+	<div id="modal-viz-compare" title="Choose Comparison Periods" class="modal fade" tabindex="-1" data-backdrop="false" role="dialog" aria-labelledby="snap-label" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<span style="font-weight:bold;" class="modal-title" id="compare-label"> Compare Two Periods </span>	
+					<!-- Close popup box button -->
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<span> Baseline Data Source: </span><br><br>
+					<div> 
+						<!-- Baseline selection options -->
+						<select id="viz-baseline" class="sel-mode dropbtn"> </select>
+					</div> <br>
+
+					<span> Comparison Data Source: </span><br><br>
+					<div> 
+						<!-- Comparison selection options -->
+						<select id="viz-comparison" class="sel-mode dropbtn"> </select>
+					</div> <br>
+
+					<button id="viz-comparison-button" class="btn btn-primary" data-toggle="modal" data-target="#modal-viz-compare"> Visualize </button>
+				</div>
+
+				<div class="modal-body">
+					<br><span> Note: Only trips with at least 1 journey per day are shown. </span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// Populate dropdown for transit file selector and comparison file selectors							
+		for (i = 0; i < transitFileDescription.length; i++){
+				$('#select-transit').append($("<option></option>").attr("value",i).text(transitFileDescription[i]));
+				$('#select-baseline').append($("<option></option>").attr("value",i).text(transitFileDescription[i]));
+				$('#select-comparison').append($("<option></option>").attr("value",i).text(transitFileDescription[i]));
+			}
+
+		for (i = 0; i < vizFileDescription.length; i++){
+			$('#select-viz').append($("<option></option>").attr("value",i).text(vizFileDescription[i]));
+			$('#viz-baseline').append($("<option></option>").attr("value",i).text(vizFileDescription[i]));
+			$('#viz-comparison').append($("<option></option>").attr("value",i).text(vizFileDescription[i]));
+		}
+
+		// Populate dropdown for background file selector if exists
+		if(backgroundFileDescription.length === 0){
+			$('#select-background').append($("<option></option>").attr("value", "None").text("No Background Layers Available"));
+		} else {
+			for (i = 0; i <  backgroundFileDescription.length; i++){
+				$('#select-background').append($("<option></option>").attr("value",i).text(backgroundFileDescription[i]));
+			}
+		}
+
+		// Init Leaflet Map
+		var map = L.map('leaflet-map', {preferCanvas: true}).setView([42.358411, -71.095545], 16);
+			
+		// Add Mapbox background tile layer
+		L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+			attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+			tileSize: 512,
+			maxZoom: 18,
+			minZoom: 10,
+			zoomOffset: -1,
+			id: 'mapbox/dark-v10',
+			accessToken: 'pk.eyJ1IjoibmNhcm9zIiwiYSI6ImNrMmt6MGJqdTAxbmUzbXF4YjN0MmJreWcifQ.PVPE7jUrIYbeCNxUCdgCIw'
+		}).addTo(map);
+
+		// Define color schemes for legend, geometry
+		// var rangeGreen = ["#d7191c",'#fdae61','#ffffbf','#abd9e9','#2c7bb6'];
+		var rangeGreen = ['#E65C02','#F4B183','#FFFFFF','#0A95D4','#2C4E8C']; // colorblind-friendly
+		var rangeBlue = rangeGreen.slice(0).reverse();
+		var rangeRed = ['#fef0d9','#fdcc8a','#fc8d59','#e34a33','#b30000'];
+		var legendDef = d3.scaleQuantile().range(rangeGreen); // object for scale for criteria coloring, scale generated using color brewer
+
+		// Declare global variables for storing global data
+		var medianData = [];
+		var ninetyData = [];
+		var metrics = [];
+		var segmentData = [];
+		var selectedSegment = null; // just layer index(es)
+		var selectedLayer = null; // actual layer data
+		var levelMetrics = {};
+		var routesGeojson = [];
+		var stopsGeojson = [];
+		var backgroundLayer = [];
+		var lassoControl = [];
+		var exportData = [];
+		var mapCenter = [];
+		var minTime = 0;
+		var maxTime = 24;
+		var selectedFile = null;
+		var selectedRoutes = [];
+		var comparisonIndicator = 0;
+		var selectLinkIndicator = 0;
+		var selectionIndicator = 0;
+		var corridorRoutes = {};
+		var peakDirections = null;
+		var timepointLookup = {};
+		var routeList = [];
+		var journeyElements = ['#selmode-select', '#lasso-button', '#toggle-lasso', '#clear-selection', '#load-period-data'];
+		var metricsElements = ['#button-settings-div', '#preset-panel', '#preset-toggle', '#metric-select', '#stat-select', '#time-filter', 
+							   '#filter-options', '#range-toggle', '#range-panel', '#settings-panel', '#time-select'];
+		const activeFilters = [];
+
+		// Calls function in setupFunc.js that gets data characteristics and uses it to populate data panel options -- see documentation therein
+		initializeDataPanel();
+
+	</script>
+</body>
+</html>

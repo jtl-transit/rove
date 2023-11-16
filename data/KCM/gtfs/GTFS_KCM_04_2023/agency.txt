@@ -1,0 +1,4 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url
+40,Sound Transit,http://www.soundtransit.org/,America/Los_Angeles,EN,1-888-889-6368,http://www.soundtransit.org/Fares-and-Passes.xml
+1,Metro Transit,http://metro.kingcounty.gov,America/Los_Angeles,EN,206-553-3000,http://metro.kingcounty.gov/tops/bus/fare/fare-info.html#fare_matrix
+23,City of Seattle,https://www.seattle.gov/transportation/getting-around/transit/streetcar,America/Los_Angeles,EN,206-684-7623,https://www.seattle.gov/transportation/getting-around/transit/streetcar/fares-and-orca-card

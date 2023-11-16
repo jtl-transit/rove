@@ -1,0 +1,10 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "backend"
+authors = [{name = "Nick Caros", email = "caros@mit.edu"},
+            {name = "Xiaotong Guo", email = "xtguo@mit.edu"},
+            {name = "Yuzhu Huang", email = "yuzhuh@mit.edu"}]
+dynamic = ["version", "description"]
