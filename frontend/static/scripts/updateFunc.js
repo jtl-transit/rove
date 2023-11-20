@@ -60,6 +60,9 @@ function updateMetricFilters(){
 			var metricMax = Math.ceil(d3.max(metricRange))
 			var step = getStep(metricMin, metricMax)
 
+			// Set the domain of your scale to be [min, max]
+			legendDef.domain([metricMin, metricMax]);
+
 			// console.log(i, metricVal, units_reordered[i], filterLevel, metricMin, metricMax)
 			$( "#metric-slider"+filterNum ).slider('setAttribute', 'max', metricMax);
 			$( "#metric-slider"+filterNum ).slider('setAttribute', 'min', metricMin);
@@ -287,7 +290,18 @@ function updateLegend(){
 
 	var legendSVG = d3.select("#legend-svg");
 
-	legendDef.domain(newRange)
+	// Add new metric range to color scale
+	legendDef = d3.scaleQuantile().range(rangeGreen)
+
+	if (newMetric == "boardings") {
+
+		// Calculate min and max of newRange
+		var min = d3.min(newRange);
+		var max = d3.max(newRange);
+	
+		// Set the domain of your scale to be [min, max]
+		legendDef.domain([min, max]);
+	} else {legendDef.domain(newRange)}
 
 	legendSVG.append("g")
 		.attr("id", "bus-legend")
@@ -349,7 +363,14 @@ function redrawShapes(domain = 0){
 			legendDef.range(rangeBlue);
 		} 
 
-		legendDef.domain(domain);
+		if (newMetric == "boardings") {
+			// Calculate min and max of newRange
+			var min = d3.min(domain);
+			var max = d3.max(domain);
+	
+			// Set the domain of your scale to be [min, max]
+			legendDef.domain([min, max]);
+		} else {legendDef.domain(domain)} 
 	}	
 
 	// Get selected time period (for peak direction filtering)
@@ -471,15 +492,12 @@ function redrawShapes(domain = 0){
 					restyleShapeTransparentAndSendBack(layer);
 				} else {
 					// Color according to selection
-					console.log("These are the new colors:", newColor);
 					layer.setStyle({
 						weight: 2.5,
 						opacity: 1,
 						interactive: true,
 						color: legendDef(newColor)
 					});
-
-					// console.log(legendDef(newColor).domain());
 
 					if(layerDirection === 0){
 						layer.bringToFront();
