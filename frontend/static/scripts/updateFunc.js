@@ -59,6 +59,10 @@ function updateMetricFilters(){
 			var metricMin = Math.floor(d3.min(metricRange))
 			var metricMax = Math.ceil(d3.max(metricRange))
 			var step = getStep(metricMin, metricMax)
+
+			// Set the domain of your scale to be [min, max]
+			legendDef.domain([metricMin, metricMax]);
+
 			// console.log(i, metricVal, units_reordered[i], filterLevel, metricMin, metricMax)
 			$( "#metric-slider"+filterNum ).slider('setAttribute', 'max', metricMax);
 			$( "#metric-slider"+filterNum ).slider('setAttribute', 'min', metricMin);
@@ -285,7 +289,19 @@ function updateLegend(){
 	};
 
 	var legendSVG = d3.select("#legend-svg");
-	legendDef.domain(newRange)
+
+	// Add new metric range to color scale
+	legendDef = d3.scaleQuantile().range(rangeGreen)
+
+	if (newMetric == "boardings") {
+
+		// Calculate min and max of newRange
+		var min = d3.min(newRange);
+		var max = d3.max(newRange);
+	
+		// Set the domain of your scale to be [min, max]
+		legendDef.domain([min, max]);
+	} else {legendDef.domain(newRange)}
 
 	legendSVG.append("g")
 		.attr("id", "bus-legend")
@@ -347,7 +363,14 @@ function redrawShapes(domain = 0){
 			legendDef.range(rangeBlue);
 		} 
 
-		legendDef.domain(domain);
+		if (newMetric == "boardings") {
+			// Calculate min and max of newRange
+			var min = d3.min(domain);
+			var max = d3.max(domain);
+	
+			// Set the domain of your scale to be [min, max]
+			legendDef.domain([min, max]);
+		} else {legendDef.domain(domain)} 
 	}	
 
 	// Get selected time period (for peak direction filtering)
@@ -438,6 +461,7 @@ function redrawShapes(domain = 0){
 		} 
 		// (4) Check if layer is outside current filter ranges
 		if (layerInFilter == true){
+			
 			for(var filter in filterID){
 
 				var layerValue = layer.options[filterLevel[filter] + '-' + filterID[filter]]
@@ -461,7 +485,6 @@ function redrawShapes(domain = 0){
 		// Draw either color or transparent shape
 		if(layerInFilter == true){
 			var newColor = layer.options[newLevel + '-' + newMetric];
-
 			// Catch null values
 			if (layer.options['newSeg'] === true) {
 
@@ -484,7 +507,6 @@ function redrawShapes(domain = 0){
 
 			// If corridor level selected, don't write duplicate rows for corridors or route-directions
 			if (!(newLevel === 'cor' && corridorList.includes(layer.options.corIndex)) && !(newLevel === 'rte' && newRouteList.includes(layer.options.rteIndex))){
-				
 				// Add identifying information to the columns of the export data				
 				var layerData = [layer.options.routeID, directionLabels[layer.options.directionID]];
 				if (!(newLevel === 'rte')){ // If not route level, add information about the stops too

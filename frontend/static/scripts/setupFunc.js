@@ -12,6 +12,41 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 
 */
 
+// Function to update the visibility of the bus routes when polygons are selected 
+function updateBusRoutesVisibility(selectedPolygons) {
+	// Iterate through each polygon 
+    routesGeojson.eachLayer(function(layer) {
+        var layerGeoJSON = layer.toGeoJSON(); // Obtain the coordinates/properties for a polygon 
+        var intersects = false; // Flag to track if the bus route intersects with any polygon
+
+		// Check if the selectedPolygons array is empty
+		if (selectedPolygons.length === 0) {
+			layer.setStyle({ opacity: 1 }); // Show all bus routes
+			return; // Exit the function
+		}
+
+        // Iterate through each selected polygon
+        for (var i = 0; i < selectedPolygons.length; i++) {
+            var polygon = selectedPolygons[i];
+            var eGeoJSON = polygon.toGeoJSON();
+
+            if (layerGeoJSON && eGeoJSON) {
+                if (turf.booleanIntersects(layerGeoJSON, eGeoJSON)) {
+                    intersects = true; // Set the flag to true if the bus route intersects with the polygon
+                    break; // Break the loop as soon as an intersection is found
+                }
+            }
+        }
+
+        // If the bus route does not intersect with any of the polygons, hide it
+        if (!intersects) {
+            layer.setStyle({ opacity: 0 });
+        } else {
+            layer.setStyle({ opacity: 1 });
+        }
+    });
+}
+
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
 // Adds static elements to the map that are not dependent on any metric data being loaded.
 function initializeDataPanel(){
@@ -67,6 +102,197 @@ function initializeDataPanel(){
 		$("#button-tool").trigger("click");
 		$( ".time-slider" ).slider('setValue', [0, 24]);
 	});
+
+			// Defines action when "Import Background Layer" button is clicked
+			$('#select-background-button').click(function(e){
+			
+				var selectedBackground = $('#select-background').val();
+				var backgroundDataCache = {};
+				var backgroundDataCacheInside = {};
+				var backgroundDataCacheOutside = {};
+		
+				// Add new background layer if none exists
+				if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
+					$.ajax({
+						type: "PUT",
+						url: '/load/load_sublayer',
+						contentType: 'application/json; charset=UTF-8',
+						dataType: 'json',
+						data: JSON.stringify(selectedBackground, null, '\t'),
+						success: function(data) {
+							
+							// Add to map
+							var polyStyle = {
+								"color": "#ff00ff", // pick a color not part of metrics color scheme
+								"weight": 1,
+								"opacity": 0.7,
+								"fillOpacity" : 0.3
+							};
+	
+							var markerStyle = {
+								"radius": 5,
+								"fillColor": "#265c3f",
+								"color": "#ca8aff",
+								"weight": 1.5,
+								"opacity": 0.5,
+								"fillOpacity": 0
+							};
+	
+							backgroundLayer = L.geoJSON(data, {
+								pointToLayer: function (feature, latlng) {
+									if(feature.geometry.type == 'Point'){
+									marker = L.circleMarker(latlng, markerStyle);
+									return marker
+									}
+								},
+								onEachFeature: function (features, layer){
+									if(layer.feature.geometry.type != 'Point'){                                            
+										layer.setStyle(polyStyle)
+									}
+								}
+							}).addTo(map);
+	
+							backgroundLayer.bringToBack();
+	
+							backgroundLayer.eachLayer(function(layer) {
+								var popText = '<p>'
+								popText += `<div id="EFC-data-div-${layer._leaflet_id}"> </div>`
+								popText += `<div id="EFC-data-div-ALLEFCs"> </div>`
+								var layerProps = Object.keys(layer.feature.properties)
+								for(property in layerProps){
+									popText += '<b> '
+									popText += layerProps[property]
+									popText += ':</b> '
+									popText += layer.feature.properties[layerProps[property]]
+									popText += '</br>'
+								}
+								popText += '</p>'
+								layer.bindPopup(popText, {minWidth: 200})
+							});
+
+							var selectedPolygons = [] // Array to keep track of selected polygons
+	
+							backgroundLayer.on('click', function(e) {
+								// check if route data exists
+								if(routesGeojson._layers){
+									// ensures findIntersections isn't run on merged polygon. Merged EFC is under '2' in the selectedBackground object
+									var EFCUnits = {
+										'speed': {title: 'Speed', unit: 'mph'}, 
+										'crowding': {title: 'Crowding', unit: '% of seated capacity'}, 
+										'boardings': {title: 'Boardings', unit: 'pax'},
+										'on-time-perf': {title: 'On Time Performance', unit:'% of trips on time'}
+									}
+									if(selectedBackground === '2'){
+										if(!backgroundDataCacheInside.hasOwnProperty('speed')) {
+											var test = []
+											const latlngs = Object.values(backgroundLayer._layers)[0]._latlngs
+											for (var i = 0; i < latlngs.length; i++){
+												for(var j = 0; j< latlngs[i].length ; j++){
+														test = test.concat([makeLatLongArray(latlngs[i][j])])
+												}
+											}
+											
+											var turfPolyMerged = turf.multiPolygon([test])
+	
+											var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
+											var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
+											Object.values(routesGeojson._layers).forEach(segment => {
+												var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
+												var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
+												turf.booleanPointInPolygon(max, turfPolyMerged) || turf.booleanPointInPolygon(min, turfPolyMerged) ? 
+													fillCalculationObject(insideMatchingSegments, segment) : 
+													fillCalculationObject(outsideMatchingSegments, segment);
+											})
+	
+											backgroundDataCacheInside = calculateIntersectedAverage(insideMatchingSegments);
+											backgroundDataCacheOutside = calculateIntersectedAverage(outsideMatchingSegments);
+										}
+	
+										// Display statistics for the selected layer (you can customize this part)
+										var marker = e.layer._leaflet_id;
+										var matches = {};
+	
+										var EFCText = `<p><b>Inside EFC (2)</b><br/>`
+										var EFCkeys = Object.keys(backgroundDataCacheInside)
+										EFCkeys.forEach(property =>{
+											EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+												${backgroundDataCacheInside[property]} (${EFCUnits[property].unit}) 
+												</br>`
+	
+										}) 
+										EFCText += '</p>'
+										EFCText += `<p><b>Outside EFC</b><br/>`
+										EFCkeys.forEach(property =>{
+											EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+												${backgroundDataCacheOutside[property]} (${EFCUnits[property].unit}) 
+												</br>`
+	
+										}) 
+										EFCText += '</p>'
+										document.getElementById(`EFC-data-div-ALLEFCs`).innerHTML = EFCText
+									} else {
+										var marker = e.layer._leaflet_id;
+										var matches = {};
+	
+										// Change the color of the selected polygon
+										e.layer.setStyle({
+											fillColor: 'blue', 
+											fillOpacity: 0.5 
+										});
+	
+										// pull from cache or find intersections & add them to the cache
+										if(backgroundDataCache[marker]){
+											matches = backgroundDataCache[marker]
+										} else{
+											matches = findIntersectingRoutes(backgroundLayer._layers[marker])
+											backgroundDataCache[marker] = matches
+										}
+	
+	
+										// checks for matches and adds them to popup
+										if(matches){
+											var EFCData = calculateIntersectedAverage(matches);
+	
+											var EFCText = `<p>`
+											var EFCkeys = Object.keys(EFCData)
+											EFCkeys.forEach(property =>{
+												EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
+													${EFCData[property]} (${EFCUnits[property].unit}) 
+													</br>`
+	
+											}) 
+											EFCText += '</p>'
+											document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
+										}
+											// Deselects a polygon 
+											if (selectedPolygons.includes(e.layer)) {
+												// Change the color of the selected polygon
+												e.layer.setStyle({
+													fillColor: '#ff00ff', 
+													weight: 1,
+													opacity: 0.7,
+													fillOpacity : 0.3
+												});
+												// Remove the polygon from the selectedPolygons array
+												const index = selectedPolygons.indexOf(e.layer);
+												selectedPolygons.splice(index, 1);
+											}
+											// Selects a polygon 
+											else {																	    
+												// Add the selected polygon to the array
+												selectedPolygons.push(e.layer);
+											}
+											// Update the visibility of the bus routes
+											updateBusRoutesVisibility(selectedPolygons);
+									}
+								}
+							});
+							populateEquityBackgroundFilters();
+						}
+					});
+				}
+	
+			});
 
 	// Defines action when journey visualization button is clicked
 	$('#select-viz-button').click(function(){
@@ -164,163 +390,6 @@ function initializeDataPanel(){
 
 	// Defines which of the 3 panels is shown upon loading
 	$("#button-options").trigger("click");
-
-	// Defines action when "Import Background Layer" button is clicked
-	$('#select-background-button').click(function(){
-		
-		var selectedBackground = $('#select-background').val();
-		var backgroundDataCache = {};
-		var backgroundDataCacheInside = {};
-		var backgroundDataCacheOutside = {};
-
-		// Add new background layer if none exists
-		if (!map.hasLayer(backgroundLayer) && selectedBackground != "None"){
-			$.ajax({
-				type: "PUT",
-				url: '/load/load_sublayer',
-				contentType: 'application/json; charset=UTF-8',
-				dataType: 'json',
-				data: JSON.stringify(selectedBackground, null, '\t'),
-				success: function(data) {
-					
-					// Add to map
-					var polyStyle = {
-						"color": "#ff00ff", // pick a color not part of metrics color scheme
-						"weight": 1,
-						"opacity": 0.7,
-						"fillOpacity" : 0.3
-					};
-
-					var markerStyle = {
-						"radius": 5,
-						"fillColor": "#265c3f",
-						"color": "#ca8aff",
-						"weight": 1.5,
-						"opacity": 0.5,
-						"fillOpacity": 0
-					};
-
-					backgroundLayer = L.geoJSON(data, {
-						pointToLayer: function (feature, latlng) {
-							if(feature.geometry.type == 'Point'){
-							  marker = L.circleMarker(latlng, markerStyle);
-							  return marker
-							}
-						  },
-						onEachFeature: function (features, layer){
-							if(layer.feature.geometry.type != 'Point'){                                            
-								layer.setStyle(polyStyle)
-							}
-						}
-					}).addTo(map);
-
-					backgroundLayer.bringToBack();
-
-					backgroundLayer.eachLayer(function(layer) {
-						var popText = '<p>'
-						popText += `<div id="EFC-data-div-${layer._leaflet_id}"> </div>`
-						popText += `<div id="EFC-data-div-ALLEFCs"> </div>`
-						var layerProps = Object.keys(layer.feature.properties)
-						for(property in layerProps){
-							popText += '<b> '
-							popText += layerProps[property]
-							popText += ':</b> '
-							popText += layer.feature.properties[layerProps[property]]
-							popText += '</br>'
-						}
-						popText += '</p>'
-						layer.bindPopup(popText, {minWidth: 200})
-					});
-					backgroundLayer.on('click', function(e) {
-						// check if route data exists
-						if(routesGeojson._layers){
-							// ensures findIntersections isn't run on merged polygon. Merged EFC is under '2' in the selectedBackground object
-							var EFCUnits = {
-								'speed': {title: 'Speed', unit: 'mph'}, 
-								'crowding': {title: 'Crowding', unit: '% of seated capacity'}, 
-								'boardings': {title: 'Boardings', unit: 'pax'},
-								'on-time-perf': {title: 'On Time Performance', unit:'% of trips on time'}
-							}
-							if(selectedBackground === '2'){
-								if(!backgroundDataCacheInside.hasOwnProperty('speed')) {
-									var test = []
-									const latlngs = Object.values(backgroundLayer._layers)[0]._latlngs
-									for (var i = 0; i < latlngs.length; i++){
-										for(var j = 0; j< latlngs[i].length ; j++){
-												test = test.concat([makeLatLongArray(latlngs[i][j])])
-										}
-									}
-									
-									var turfPolyMerged = turf.multiPolygon([test])
-									var insideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
-									var outsideMatchingSegments = {'speed': [], 'boardings': [], 'crowding': [], 'on-time-perf': []}
-									Object.values(routesGeojson._layers).forEach(segment => {
-										var max = [segment._bounds._southWest.lat, segment._bounds._southWest.lng];
-										var min = [segment._bounds._northEast.lat, segment._bounds._northEast.lng];
-										turf.booleanPointInPolygon(max, turfPolyMerged) || turf.booleanPointInPolygon(min, turfPolyMerged) ? 
-											fillCalculationObject(insideMatchingSegments, segment) : 
-											fillCalculationObject(outsideMatchingSegments, segment);
-									})
-
-									backgroundDataCacheInside = calculateIntersectedAverage(insideMatchingSegments);
-									backgroundDataCacheOutside = calculateIntersectedAverage(outsideMatchingSegments);
-								}
-
-								var EFCText = `<p><b>Inside EFC</b><br/>`
-								var EFCkeys = Object.keys(backgroundDataCacheInside)
-								EFCkeys.forEach(property =>{
-									EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
-										${backgroundDataCacheInside[property]} (${EFCUnits[property].unit}) 
-										</br>`
-
-								}) 
-								EFCText += '</p>'
-								EFCText += `<p><b>Outside EFC</b><br/>`
-								EFCkeys.forEach(property =>{
-									EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
-										${backgroundDataCacheOutside[property]} (${EFCUnits[property].unit}) 
-										</br>`
-
-								}) 
-								EFCText += '</p>'
-								document.getElementById(`EFC-data-div-ALLEFCs`).innerHTML = EFCText
-							} else {
-								var marker = e.layer._leaflet_id;
-								var matches = {};
-
-								// pull from cache or find intersections & add them to the cache
-								if(backgroundDataCache[marker]){
-									matches = backgroundDataCache[marker]
-								} else{
-									matches = findIntersectingRoutes(backgroundLayer._layers[marker])
-									backgroundDataCache[marker] = matches
-								}
-
-
-								// checks for matches and adds them to popup
-								if(matches){
-									var EFCData = calculateIntersectedAverage(matches);
-
-									var EFCText = `<p>`
-									var EFCkeys = Object.keys(EFCData)
-									EFCkeys.forEach(property =>{
-										EFCText += `<b> Average ${EFCUnits[property].title}: </b> 
-											${EFCData[property]} (${EFCUnits[property].unit}) 
-											</br>`
-
-									}) 
-									EFCText += '</p>'
-									document.getElementById(`EFC-data-div-${marker}`).innerHTML = EFCText
-								}
-							}
-						}
-					});
-					populateEquityBackgroundFilters();
-				}
-			});
-		}
-
-	});
 	
 	$('.range-slider-bkgrd').each(function(){
 		$(this).slider().on('slideStop', function(){
@@ -546,7 +615,8 @@ function createMap(){
 		stopsGeojson.eachLayer(function(layer){
 			clearStopGeometry(layer);
 		});
-	
+		
+
 		// Add shapes to map and store parameters
 		routesGeojson.addTo(map);
 		stopsGeojson.addTo(map);
@@ -615,6 +685,7 @@ function createMap(){
 			};
 
 			var coords =  L.PolylineUtil.decode(busShapes[i].geometry, 6);
+			//console.log(coords); 
 			var newLine = new customPolyline(coords, {
 				segIndex: segIndex,
 				rteIndex: rteIndex,

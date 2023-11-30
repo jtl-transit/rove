@@ -102,7 +102,6 @@ function populateFilters(){
 		
 		// Populate individual metric filters
 		$("#range-filters").replaceWith('<div id="range-filters"></div>');
-		
 
 		for (var i in metrics){
 			var metricVal = metrics[i];
@@ -112,8 +111,13 @@ function populateFilters(){
 
 			var metricRange = [];
 			routesGeojson.eachLayer(function(layer) {
-				metricRange.push(layer.options['seg-' + metricVal])
+				if (metricVal == "on_time_performance_perc") {
+					metricRange.push(layer.options['rte-' + metricVal]);
+				} else {
+				metricRange.push(layer.options['seg-' + metricVal]);
+				}
 			});
+
 			var metricMin = d3.min(metricRange)
 			var metricMax = d3.max(metricRange)
 			var step = getStep(metricMin, metricMax)
@@ -918,7 +922,11 @@ function createLegend(){
 
 		var metricRange = [];
 		routesGeojson.eachLayer(function(layer) {
+			if (metricValue == "on_time_performance_perc") {
+				metricRange.push(layer.options['rte-' + metricValue]);
+			} else {
 			metricRange.push(layer.options['seg-' + metricValue]);
+			}
 		});
 
 		var metricMin = d3.min(metricRange);
