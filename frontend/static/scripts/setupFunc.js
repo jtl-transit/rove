@@ -278,7 +278,8 @@ function initializeDataPanel(){
 												selectedPolygons.splice(index, 1);
 											}
 											// Selects a polygon 
-											else {																	    // Add the selected polygon to the array
+											else {																	    
+												// Add the selected polygon to the array
 												selectedPolygons.push(e.layer);
 											}
 											// Update the visibility of the bus routes
