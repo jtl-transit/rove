@@ -695,6 +695,7 @@ function addEventHandlers(){
 				return 0;
 			}
 			var sortedData = exportData.sort(Comparator);
+			console.log("Data:", sortedData)
 
 			if(selectLinkIndicator === 1){
 				// Get GTFS lookup table for stop names and municipalities (if available)

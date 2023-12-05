@@ -14,10 +14,12 @@ createMap() is called when 'visualize' button is clicked -- this action defined 
 
 // Function to update the visibility of the bus routes when polygons are selected 
 function updateBusRoutesVisibility(selectedPolygons) {
+	exportData = [];
+
 	// Iterate through each polygon 
-    routesGeojson.eachLayer(function(layer) {
-        var layerGeoJSON = layer.toGeoJSON(); // Obtain the coordinates/properties for a polygon 
-        var intersects = false; // Flag to track if the bus route intersects with any polygon
+	routesGeojson.eachLayer(function(layer) {
+		var layerGeoJSON = layer.toGeoJSON(); // Obtain the coordinates/properties for a polygon 
+		var intersects = false; // Flag to track if the bus route intersects with any polygon
 
 		// Check if the selectedPolygons array is empty
 		if (selectedPolygons.length === 0) {
@@ -25,26 +27,43 @@ function updateBusRoutesVisibility(selectedPolygons) {
 			return; // Exit the function
 		}
 
-        // Iterate through each selected polygon
-        for (var i = 0; i < selectedPolygons.length; i++) {
-            var polygon = selectedPolygons[i];
-            var eGeoJSON = polygon.toGeoJSON();
+		// Iterate through each selected polygon
+		for (var i = 0; i < selectedPolygons.length; i++) {
+			var polygon = selectedPolygons[i];
+			var eGeoJSON = polygon.toGeoJSON();
 
-            if (layerGeoJSON && eGeoJSON) {
-                if (turf.booleanIntersects(layerGeoJSON, eGeoJSON)) {
-                    intersects = true; // Set the flag to true if the bus route intersects with the polygon
-                    break; // Break the loop as soon as an intersection is found
-                }
-            }
-        }
+			if (layerGeoJSON && eGeoJSON) {
+				if (turf.booleanIntersects(layerGeoJSON, eGeoJSON)) {
+					var layerData = [layer.options.routeID, directionLabels[layer.options.directionID], layer.options.mode, layer.options.startStop, layer.options.endStop, layer.options.traversals, "No"]
+					
+					for(var index in levelMetrics['seg']){
+						layerData.push(layer.options['seg-' + levelMetrics['seg'][index]]);
+					}
+					// In comparison mode, add baseline and comparison metrics
+					if(comparisonIndicator === 1){
+						for(var index in levelMetrics['seg']){
+							layerData.push(layer.options['base-seg-' + levelMetrics['seg'][index]]);
+						}
+						for(var index in levelMetrics['seg']){
+							layerData.push(layer.options['comp-seg-' + levelMetrics['seg'][index]]);
+						}
+					}
 
-        // If the bus route does not intersect with any of the polygons, hide it
-        if (!intersects) {
-            layer.setStyle({ opacity: 0 });
-        } else {
-            layer.setStyle({ opacity: 1 });
-        }
-    });
+					exportData.push(layerData);
+
+					intersects = true; // Set the flag to true if the bus route intersects with the polygon
+					break; // Break the loop as soon as an intersection is found
+				}
+			}
+		}
+
+		// If the bus route does not intersect with any of the polygons, hide it
+		if (!intersects) {
+			layer.setStyle({ opacity: 0 });
+		} else {
+			layer.setStyle({ opacity: 1 });
+		}
+	});
 }
 
 // Main function called in index.html to set up right hand side panel. Is called when dashboard is first initialized.
@@ -936,7 +955,6 @@ function appendMetricsToLine(inputData, newLine, prefix = ''){
 }
 
 function displaySegments(e) {
-
 	// Only display new segments if no segments currently selected
 	if(selectionIndicator === 0){
 
@@ -981,6 +999,7 @@ function displaySegments(e) {
 
 			updateSelectLinkLegend(min, max, layerRange);
 			updateSegText(e.layer);
+
 			routesGeojson.eachLayer(function(drawLayer){
 
 				var travSegmentIndex = drawLayer.options[index];

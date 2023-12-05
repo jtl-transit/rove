@@ -259,6 +259,7 @@ function updateLegend(){
 
 	// Get metric filter value and text, level filter value
 	var newMetric = $( "#metric" ).val()
+	var newScheme = redValues[newMetric];
 	if(comparisonIndicator === 1){
 		var newValue = $("input[name='comp-radio']:checked").val()
 		if(newValue === 'absolute'){
@@ -290,8 +291,8 @@ function updateLegend(){
 
 	var legendSVG = d3.select("#legend-svg");
 
-	// Add new metric range to color scale
-	legendDef = d3.scaleQuantile().range(rangeGreen)
+	// // Add new metric range to color scale
+	// legendDef = d3.scaleQuantile().range(rangeGreen)
 
 	if (newMetric == "boardings") {
 
@@ -302,6 +303,17 @@ function updateLegend(){
 		// Set the domain of your scale to be [min, max]
 		legendDef.domain([min, max]);
 	} else {legendDef.domain(newRange)}
+
+	if(newScheme == "High"){
+		legendDef.range(rangeBlue)
+	} else{
+		legendDef.range(rangeGreen)
+	};
+
+	// Always show low values as red in comparison
+	if(comparisonIndicator === 1){
+		legendDef.range(rangeGreen)
+	}
 
 	legendSVG.append("g")
 		.attr("id", "bus-legend")
