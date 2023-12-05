@@ -2415,3 +2415,401 @@ dtype: int64
 09/26/2023 12:50:25 AM -0400 - backendLogger - DEBUG - Parent directory already exists: data\WMATA\metrics.
 09/26/2023 12:50:38 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA.
 09/26/2023 12:50:38 AM -0400 - backendLogger - INFO - ROVE backend process completed
+10/02/2023 12:40:38 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 06-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 12:40:38 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 12:40:39 PM -0400 - backendLogger - DEBUG - date list generated: 17 Workday days in 06-2023.
+10/02/2023 12:40:39 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 12:40:39 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 12:40:40 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-23 - 2023-06-24.
+10/02/2023 12:40:40 PM -0400 - backendLogger - INFO - loaded GTFS data for 17 days
+10/02/2023 12:41:37 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 12:41:38 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9361
+10/02/2023 12:41:38 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9361
+10/02/2023 12:41:38 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 12:41:38 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 12:41:38 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1804841
+10/02/2023 12:41:40 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1804841
+10/02/2023 12:41:40 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 12:41:40 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 12:41:44 PM -0400 - backendLogger - DEBUG - number of timepoint: 271839
+10/02/2023 12:41:44 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 12:42:38 PM -0400 - backendLogger - DEBUG - number of branchpoint: 387440
+10/02/2023 12:42:38 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 12:42:45 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     40812
+stop_ids      605
+hash          605
+dtype: int64
+10/02/2023 12:42:56 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 12:43:19 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 12:43:20 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 12:43:21 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 12:43:23 PM -0400 - backendLogger - DEBUG - total number of patterns: 657
+10/02/2023 12:50:38 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 12:50:43 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 657. Number of patterns skipped: 0
+10/02/2023 12:50:44 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 12:50:49 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 12:52:01 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 12:52:57 PM -0400 - backendLogger - INFO - loaded AVL data for 17 days
+10/02/2023 12:53:12 PM -0400 - backendLogger - INFO - AVL service date range: 2023-06-01 to 2023-06-23, 17 days in total
+10/02/2023 12:53:13 PM -0400 - backendLogger - DEBUG - total number of avl records: 8457599
+10/02/2023 12:53:20 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 8455855
+10/02/2023 12:53:26 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 8455855
+10/02/2023 12:53:28 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 12:53:32 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 12:54:03 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9361, trip IDs: 40812.
+10/02/2023 12:54:03 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9354, trip IDs: 46684.
+10/02/2023 12:54:03 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9354, matching trip IDs: 35605.
+10/02/2023 01:03:23 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 06-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 01:03:23 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 01:03:23 PM -0400 - backendLogger - DEBUG - date list generated: 13 Workday days in 06-2023.
+10/02/2023 01:03:23 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 01:03:23 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 01:03:25 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-23 - 2023-06-24.
+10/02/2023 01:03:25 PM -0400 - backendLogger - INFO - loaded GTFS data for 13 days
+10/02/2023 01:04:20 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 01:04:20 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9361
+10/02/2023 01:04:20 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9361
+10/02/2023 01:04:20 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 01:04:20 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:04:20 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1638349
+10/02/2023 01:04:22 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1638349
+10/02/2023 01:04:22 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 01:04:22 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:04:25 PM -0400 - backendLogger - DEBUG - number of timepoint: 259959
+10/02/2023 01:04:25 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 01:05:10 PM -0400 - backendLogger - DEBUG - number of branchpoint: 349107
+10/02/2023 01:05:10 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 01:05:18 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     36742
+stop_ids      551
+hash          551
+dtype: int64
+10/02/2023 01:05:28 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 01:05:53 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 01:05:54 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 01:05:55 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 01:05:58 PM -0400 - backendLogger - DEBUG - total number of patterns: 602
+10/02/2023 01:12:32 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:12:37 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 602. Number of patterns skipped: 0
+10/02/2023 01:12:38 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:12:43 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 01:14:06 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 01:15:07 PM -0400 - backendLogger - INFO - loaded AVL data for 13 days
+10/02/2023 01:15:20 PM -0400 - backendLogger - INFO - AVL service date range: 2023-06-01 to 2023-06-19, 13 days in total
+10/02/2023 01:15:21 PM -0400 - backendLogger - DEBUG - total number of avl records: 6480812
+10/02/2023 01:15:26 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 6479460
+10/02/2023 01:15:32 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 6479460
+10/02/2023 01:15:33 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 01:15:37 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 01:16:04 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9361, trip IDs: 36742.
+10/02/2023 01:16:04 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9353, trip IDs: 35356.
+10/02/2023 01:16:04 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9353, matching trip IDs: 35345.
+10/02/2023 01:28:52 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 02-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 01:28:52 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 01:28:52 PM -0400 - backendLogger - DEBUG - date list generated: 12 Workday days in 02-2023.
+10/02/2023 01:28:52 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 01:28:52 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 01:28:54 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-11 - 2023-06-24.
+10/02/2023 01:28:54 PM -0400 - backendLogger - INFO - loaded GTFS data for 12 days
+10/02/2023 01:29:52 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 01:29:53 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9359
+10/02/2023 01:29:53 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9359
+10/02/2023 01:29:53 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 01:29:53 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:29:53 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1185022
+10/02/2023 01:29:54 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1185022
+10/02/2023 01:29:54 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 01:29:54 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:29:56 PM -0400 - backendLogger - DEBUG - number of timepoint: 187397
+10/02/2023 01:29:56 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 01:30:29 PM -0400 - backendLogger - DEBUG - number of branchpoint: 252785
+10/02/2023 01:30:29 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 01:30:34 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     26801
+stop_ids      529
+hash          529
+dtype: int64
+10/02/2023 01:30:42 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 01:31:03 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 01:31:04 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 01:31:05 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 01:31:07 PM -0400 - backendLogger - DEBUG - total number of patterns: 573
+10/02/2023 01:37:12 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:37:17 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 573. Number of patterns skipped: 0
+10/02/2023 01:37:18 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:37:23 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 01:37:33 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 01:37:40 PM -0400 - backendLogger - INFO - loaded AVL data for 12 days
+10/02/2023 01:37:41 PM -0400 - backendLogger - INFO - AVL service date range: 2023-02-01 to 2023-02-16, 12 days in total
+10/02/2023 01:37:41 PM -0400 - backendLogger - DEBUG - total number of avl records: 746977
+10/02/2023 01:37:42 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 746716
+10/02/2023 01:37:42 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 746716
+10/02/2023 01:37:42 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 01:37:43 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 01:37:46 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9359, trip IDs: 26801.
+10/02/2023 01:37:46 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 8761, trip IDs: 3338.
+10/02/2023 01:37:46 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 8761, matching trip IDs: 3311.
+10/02/2023 01:38:51 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 08-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 01:38:51 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 01:38:51 PM -0400 - backendLogger - DEBUG - date list generated: 23 Workday days in 08-2023.
+10/02/2023 01:38:51 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 01:38:51 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 01:38:53 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2023-06-25 - 2023-09-23.
+10/02/2023 01:38:53 PM -0400 - backendLogger - INFO - loaded GTFS data for 23 days
+10/02/2023 01:39:40 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 01:39:42 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9346
+10/02/2023 01:39:42 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9346
+10/02/2023 01:39:42 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 01:39:42 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:39:42 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1795953
+10/02/2023 01:39:43 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1795953
+10/02/2023 01:39:43 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 01:39:44 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:39:47 PM -0400 - backendLogger - DEBUG - number of timepoint: 280671
+10/02/2023 01:39:47 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 01:40:38 PM -0400 - backendLogger - DEBUG - number of branchpoint: 383969
+10/02/2023 01:40:38 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 01:40:46 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     40370
+stop_ids      532
+hash          532
+dtype: int64
+10/02/2023 01:40:57 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 01:41:20 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 01:41:20 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 01:41:21 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 01:41:23 PM -0400 - backendLogger - DEBUG - total number of patterns: 577
+10/02/2023 01:47:19 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:47:24 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 577. Number of patterns skipped: 0
+10/02/2023 01:47:24 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 01:47:29 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 01:48:50 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 01:49:53 PM -0400 - backendLogger - INFO - loaded AVL data for 23 days
+10/02/2023 01:50:15 PM -0400 - backendLogger - INFO - AVL service date range: 2023-08-01 to 2023-08-31, 23 days in total
+10/02/2023 01:50:16 PM -0400 - backendLogger - DEBUG - total number of avl records: 11729729
+10/02/2023 01:50:25 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 11726706
+10/02/2023 01:50:35 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 11726706
+10/02/2023 01:50:37 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 01:50:42 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 01:51:29 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9346, trip IDs: 40370.
+10/02/2023 01:51:29 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9335, trip IDs: 41171.
+10/02/2023 01:51:29 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9335, matching trip IDs: 40256.
+10/02/2023 01:54:09 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 07-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 01:54:09 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 01:54:09 PM -0400 - backendLogger - DEBUG - date list generated: 16 Workday days in 07-2023.
+10/02/2023 01:54:09 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 01:54:09 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 01:54:11 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2023-06-25 - 2023-09-23.
+10/02/2023 01:54:11 PM -0400 - backendLogger - INFO - loaded GTFS data for 16 days
+10/02/2023 01:54:56 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 01:54:56 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9310
+10/02/2023 01:54:56 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9310
+10/02/2023 01:54:56 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 01:54:56 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:54:56 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1196859
+10/02/2023 01:54:57 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1196859
+10/02/2023 01:54:57 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 01:54:57 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 01:55:00 PM -0400 - backendLogger - DEBUG - number of timepoint: 187291
+10/02/2023 01:55:00 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 01:55:32 PM -0400 - backendLogger - DEBUG - number of branchpoint: 243813
+10/02/2023 01:55:32 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 01:55:37 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     27046
+stop_ids      492
+hash          492
+dtype: int64
+10/02/2023 01:55:45 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 01:56:03 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 01:56:04 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 01:56:04 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 01:56:07 PM -0400 - backendLogger - DEBUG - total number of patterns: 527
+10/02/2023 02:01:42 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 02:01:46 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 527. Number of patterns skipped: 0
+10/02/2023 02:01:47 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 02:01:52 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 02:03:07 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 02:04:03 PM -0400 - backendLogger - INFO - loaded AVL data for 16 days
+10/02/2023 02:04:18 PM -0400 - backendLogger - INFO - AVL service date range: 2023-07-03 to 2023-07-25, 16 days in total
+10/02/2023 02:04:18 PM -0400 - backendLogger - DEBUG - total number of avl records: 8071213
+10/02/2023 02:04:24 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 8070466
+10/02/2023 02:04:29 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 8070466
+10/02/2023 02:04:31 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 02:04:34 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 02:05:04 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9310, trip IDs: 27046.
+10/02/2023 02:05:04 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9305, trip IDs: 28359.
+10/02/2023 02:05:04 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9305, matching trip IDs: 26961.
+10/02/2023 07:56:47 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 05-2022, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 07:56:47 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 07:56:48 PM -0400 - backendLogger - DEBUG - date list generated: 15 Workday days in 05-2022.
+10/02/2023 07:56:48 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 07:56:48 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 07:56:53 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2021-12-27 - 2022-06-25.
+10/02/2023 07:56:53 PM -0400 - backendLogger - INFO - loaded GTFS data for 15 days
+10/02/2023 07:59:34 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 07:59:36 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9362
+10/02/2023 07:59:36 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9362
+10/02/2023 07:59:36 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 07:59:36 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 07:59:36 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1186132
+10/02/2023 07:59:38 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1186132
+10/02/2023 07:59:38 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 07:59:39 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 07:59:45 PM -0400 - backendLogger - DEBUG - number of timepoint: 186309
+10/02/2023 07:59:45 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 08:00:19 PM -0400 - backendLogger - DEBUG - number of branchpoint: 249535
+10/02/2023 08:00:19 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 08:00:24 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     26481
+stop_ids      521
+hash          521
+dtype: int64
+10/02/2023 08:00:30 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 08:00:47 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 08:00:48 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 08:00:48 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 08:00:50 PM -0400 - backendLogger - DEBUG - total number of patterns: 566
+10/02/2023 08:06:24 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 08:06:28 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 566. Number of patterns skipped: 0
+10/02/2023 08:06:29 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 08:06:33 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 08:07:43 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 08:08:35 PM -0400 - backendLogger - INFO - loaded AVL data for 15 days
+10/02/2023 08:08:48 PM -0400 - backendLogger - INFO - AVL service date range: 2022-05-02 to 2022-05-20, 15 days in total
+10/02/2023 08:08:49 PM -0400 - backendLogger - DEBUG - total number of avl records: 7278837
+10/02/2023 08:08:54 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 7277340
+10/02/2023 08:08:59 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 7277340
+10/02/2023 08:09:00 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 08:09:04 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 08:09:31 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9362, trip IDs: 26481.
+10/02/2023 08:09:31 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9359, trip IDs: 26390.
+10/02/2023 08:09:31 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9359, matching trip IDs: 26308.
+10/02/2023 09:24:59 PM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 12-2022, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/02/2023 09:24:59 PM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/02/2023 09:24:59 PM -0400 - backendLogger - DEBUG - date list generated: 14 Workday days in 12-2022.
+10/02/2023 09:24:59 PM -0400 - backendLogger - INFO - Processing GTFS data...
+10/02/2023 09:24:59 PM -0400 - backendLogger - INFO - loading gtfs data
+10/02/2023 09:25:01 PM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-11 - 2023-06-24.
+10/02/2023 09:25:01 PM -0400 - backendLogger - INFO - loaded GTFS data for 14 days
+10/02/2023 09:25:57 PM -0400 - backendLogger - INFO - validating gtfs data
+10/02/2023 09:25:58 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9359
+10/02/2023 09:25:59 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9359
+10/02/2023 09:25:59 PM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/02/2023 09:25:59 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 09:25:59 PM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 2366538
+10/02/2023 09:26:00 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 2366538
+10/02/2023 09:26:00 PM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/02/2023 09:26:01 PM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/02/2023 09:26:06 PM -0400 - backendLogger - DEBUG - number of timepoint: 374254
+10/02/2023 09:26:06 PM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/02/2023 09:27:12 PM -0400 - backendLogger - DEBUG - number of branchpoint: 504460
+10/02/2023 09:27:12 PM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/02/2023 09:27:21 PM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     53464
+stop_ids      529
+hash          529
+dtype: int64
+10/02/2023 09:27:36 PM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/02/2023 09:28:02 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/02/2023 09:28:03 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/02/2023 09:28:03 PM -0400 - backendLogger - INFO - Generating shapes...
+10/02/2023 09:28:05 PM -0400 - backendLogger - DEBUG - total number of patterns: 573
+10/02/2023 09:34:11 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 09:34:16 PM -0400 - backendLogger - DEBUG - Number of patterns matched: 573. Number of patterns skipped: 0
+10/02/2023 09:34:16 PM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/02/2023 09:34:22 PM -0400 - backendLogger - INFO - loading avl data
+10/02/2023 09:35:44 PM -0400 - backendLogger - INFO - validating avl data
+10/02/2023 09:36:44 PM -0400 - backendLogger - INFO - loaded AVL data for 14 days
+10/02/2023 09:36:58 PM -0400 - backendLogger - INFO - AVL service date range: 2022-12-12 to 2022-12-30, 14 days in total
+10/02/2023 09:36:58 PM -0400 - backendLogger - DEBUG - total number of avl records: 6847239
+10/02/2023 09:37:04 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 6845828
+10/02/2023 09:37:10 PM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 6845828
+10/02/2023 09:37:12 PM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/02/2023 09:37:16 PM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/02/2023 09:37:44 PM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9359, trip IDs: 53464.
+10/02/2023 09:37:44 PM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9352, trip IDs: 52236.
+10/02/2023 09:37:44 PM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9352, matching trip IDs: 51227.
+10/04/2023 12:17:13 AM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 05-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/04/2023 12:17:13 AM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/04/2023 12:17:13 AM -0400 - backendLogger - DEBUG - date list generated: 22 Workday days in 05-2023.
+10/04/2023 12:17:13 AM -0400 - backendLogger - INFO - Processing GTFS data...
+10/04/2023 12:17:13 AM -0400 - backendLogger - INFO - loading gtfs data
+10/04/2023 12:17:15 AM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-23 - 2023-06-24.
+10/04/2023 12:17:15 AM -0400 - backendLogger - INFO - loaded GTFS data for 22 days
+10/04/2023 12:18:08 AM -0400 - backendLogger - INFO - validating gtfs data
+10/04/2023 12:18:09 AM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9361
+10/04/2023 12:18:09 AM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9361
+10/04/2023 12:18:09 AM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/04/2023 12:18:09 AM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/04/2023 12:18:09 AM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1191848
+10/04/2023 12:18:10 AM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1191848
+10/04/2023 12:18:10 AM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/04/2023 12:18:10 AM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/04/2023 12:18:13 AM -0400 - backendLogger - DEBUG - number of timepoint: 189467
+10/04/2023 12:18:13 AM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/04/2023 12:18:43 AM -0400 - backendLogger - DEBUG - number of branchpoint: 253437
+10/04/2023 12:18:43 AM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/04/2023 12:18:48 AM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     26967
+stop_ids      535
+hash          535
+dtype: int64
+10/04/2023 12:18:55 AM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/04/2023 12:19:13 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/04/2023 12:19:13 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/04/2023 12:19:14 AM -0400 - backendLogger - INFO - Generating shapes...
+10/04/2023 12:19:16 AM -0400 - backendLogger - DEBUG - total number of patterns: 580
+10/04/2023 12:25:02 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/04/2023 12:25:07 AM -0400 - backendLogger - DEBUG - Number of patterns matched: 580. Number of patterns skipped: 0
+10/04/2023 12:25:07 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/04/2023 12:25:12 AM -0400 - backendLogger - INFO - loading avl data
+10/04/2023 12:25:12 AM -0400 - backendLogger - ERROR - Invalid file: data/WMATA/avl/AVL_WMATA_05_2023.csv. Please double check a valid file is located at the specified location.
+10/04/2023 12:25:12 AM -0400 - backendLogger - DEBUG - loading AVL by months instead.
+10/04/2023 12:25:12 AM -0400 - backendLogger - ERROR - Invalid file: data/WMATA/avl/AVL_WMATA_05_2023.csv. Please double check a valid file is located at the specified location.
+10/04/2023 12:25:12 AM -0400 - backendLogger - INFO - validating avl data
+10/04/2023 12:25:55 AM -0400 - backendLogger - INFO - Starting ROVE backend processes for WMATA, 05-2023, Workday, GTFS-AVL mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+10/04/2023 12:25:55 AM -0400 - backendLogger - INFO - Generating ROVE parameters...
+10/04/2023 12:25:55 AM -0400 - backendLogger - DEBUG - date list generated: 22 Workday days in 05-2023.
+10/04/2023 12:25:55 AM -0400 - backendLogger - INFO - Processing GTFS data...
+10/04/2023 12:25:55 AM -0400 - backendLogger - INFO - loading gtfs data
+10/04/2023 12:25:57 AM -0400 - backendLogger - INFO - Valid GTFS date range: 2022-12-23 - 2023-06-24.
+10/04/2023 12:25:57 AM -0400 - backendLogger - INFO - loaded GTFS data for 22 days
+10/04/2023 12:26:50 AM -0400 - backendLogger - INFO - validating gtfs data
+10/04/2023 12:26:50 AM -0400 - backendLogger - DEBUG - total number of validated GTFS stops records: 9361
+10/04/2023 12:26:50 AM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_id: 9361
+10/04/2023 12:26:50 AM -0400 - backendLogger - DEBUG - count of validated GTFS stops records with matched gtfs stop_code: 0
+10/04/2023 12:26:50 AM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stops records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/04/2023 12:26:50 AM -0400 - backendLogger - DEBUG - total number of validated GTFS stop_times records: 1191848
+10/04/2023 12:26:51 AM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_id: 1191848
+10/04/2023 12:26:51 AM -0400 - backendLogger - DEBUG - count of validated GTFS stop_times records with matched gtfs stop_code: 0
+10/04/2023 12:26:52 AM -0400 - backendLogger - DEBUG - stop_id in validated GTFS stop_times records matches with GTFS stop_id, replaced with matching GTFS stop_code
+10/04/2023 12:26:54 AM -0400 - backendLogger - DEBUG - number of timepoint: 189467
+10/04/2023 12:26:54 AM -0400 - backendLogger - DEBUG - adding branchpoints to GTFS data
+10/04/2023 12:27:25 AM -0400 - backendLogger - DEBUG - number of branchpoint: 253437
+10/04/2023 12:27:25 AM -0400 - backendLogger - INFO - generating patterns from GTFS stop coordinates
+10/04/2023 12:27:29 AM -0400 - backendLogger - DEBUG - Summary of unique trip hashes: 
+trip_id     26967
+stop_ids      535
+hash          535
+dtype: int64
+10/04/2023 12:27:36 AM -0400 - backendLogger - INFO - improving patterns with GTFS shapes
+10/04/2023 12:27:54 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\timepoints.
+10/04/2023 12:27:55 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\lookup.
+10/04/2023 12:27:55 AM -0400 - backendLogger - INFO - Generating shapes...
+10/04/2023 12:27:57 AM -0400 - backendLogger - DEBUG - total number of patterns: 580
+10/04/2023 12:33:38 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/04/2023 12:33:43 AM -0400 - backendLogger - DEBUG - Number of patterns matched: 580. Number of patterns skipped: 0
+10/04/2023 12:33:43 AM -0400 - backendLogger - DEBUG - Parent directory already exists: frontend\static\inputs\WMATA\shapes.
+10/04/2023 12:33:48 AM -0400 - backendLogger - INFO - loading avl data
+10/04/2023 12:35:04 AM -0400 - backendLogger - INFO - validating avl data
+10/04/2023 12:36:03 AM -0400 - backendLogger - INFO - loaded AVL data for 22 days
+10/04/2023 12:36:23 AM -0400 - backendLogger - INFO - AVL service date range: 2023-05-01 to 2023-05-31, 22 days in total
+10/04/2023 12:36:24 AM -0400 - backendLogger - DEBUG - total number of avl records: 11242091
+10/04/2023 12:36:32 AM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_id: 11240053
+10/04/2023 12:36:40 AM -0400 - backendLogger - DEBUG - count of avl records with matched gtfs stop_code: 11240053
+10/04/2023 12:36:42 AM -0400 - backendLogger - DEBUG - stop_id in avl records matches with GTFS stop_code, replaced with matching GTFS stop_id
+10/04/2023 12:36:47 AM -0400 - backendLogger - DEBUG - checking consistency of AVL and GTFS IDs
+10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9361, trip IDs: 26967.
+10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9354, trip IDs: 26689.
+10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9354, matching trip IDs: 26632.
