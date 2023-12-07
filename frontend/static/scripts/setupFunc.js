@@ -34,19 +34,29 @@ function updateBusRoutesVisibility(selectedPolygons) {
 
 			if (layerGeoJSON && eGeoJSON) {
 				if (turf.booleanIntersects(layerGeoJSON, eGeoJSON)) {
-					var layerData = [layer.options.routeID, directionLabels[layer.options.directionID], layer.options.mode, layer.options.startStop, layer.options.endStop, layer.options.traversals, "No"]
+					// Get metric, level and route filter values
+					var newMetric = $( "#metric" ).val();
+					var newLevel = $( "#level" ).val();
+
+					// Add identifying information to the columns of the export data				
+					var layerData = [layer.options.routeID, directionLabels[layer.options.directionID]];
+					if (!(newLevel === 'rte')){ // If not route level, add information about the stops too
+						layerData.push(layer.options.startStop);
+						layerData.push(layer.options.endStop);
+						layerData.push(layer.options.signal);
+					};
 					
-					for(var index in levelMetrics['seg']){
-						layerData.push(layer.options['seg-' + levelMetrics['seg'][index]]);
-					}
+					for(var index in levelMetrics[newLevel]){
+						layerData.push(layer.options[newLevel + '-' + levelMetrics[newLevel][index]]);
+					};
 					// In comparison mode, add baseline and comparison metrics
 					if(comparisonIndicator === 1){
-						for(var index in levelMetrics['seg']){
-							layerData.push(layer.options['base-seg-' + levelMetrics['seg'][index]]);
-						}
-						for(var index in levelMetrics['seg']){
-							layerData.push(layer.options['comp-seg-' + levelMetrics['seg'][index]]);
-						}
+						for(var index in levelMetrics[newLevel]){
+							layerData.push(layer.options['base-' + newLevel + '-' + levelMetrics[newLevel][index]]);
+						};
+						for(var index in levelMetrics[newLevel]){
+							layerData.push(layer.options['comp-' + newLevel + '-' + levelMetrics[newLevel][index]]);
+						};
 					}
 
 					exportData.push(layerData);
