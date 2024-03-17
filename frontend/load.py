@@ -1,17 +1,23 @@
-from flask import (Blueprint, redirect, request, url_for, jsonify, session, Response)
+from flask import (Blueprint, redirect, request, url_for, jsonify, session, Response, Flask)
 from frontend.auxiliary_functions.dynamic_filter import dynamic_filter_process
 from frontend.auxiliary_functions.calculate_difference import paxflow_difference
 import json
 import pandas as pd
+import cProfile
+import pstats
+import io
 
 bp = Blueprint('load', __name__, url_prefix='/load')
 
-# route for performance metrics data request
+# route for performance metrics data request (MOST LIKELY THIS FUNCTION)
 @bp.route("/load_data", methods = ["GET", "POST", "PUT"])
 def load_tables():
 
 	# This is used to update data based on time filter
     if request.method == 'PUT':
+
+        profiler = cProfile.Profile()
+        profiler.enable()
 
         # Get agency from session variable
         transit_files = session['transit_files']
@@ -62,6 +68,14 @@ def load_tables():
             response['tp_cor_median'] = metrics[str(period_id)+'-corridor-timepoints-median']
             response['tp_cor_ninety'] = metrics[str(period_id)+'-corridor-timepoints-90']
             response['timepoint_lookup'] = tp_lookup
+        
+        profiler.disable()  # Stop profiling after the function logic
+        s = io.StringIO()
+        ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+        # ps.print_stats()
+        # print(s.getvalue())  # You can also write this to a file instead of printing
+        # print ("Completed Table!")
+
 
         return jsonify(response)
 
@@ -120,6 +134,9 @@ def load_sublayer():
 
     if request.method == 'PUT':
 
+        profiler = cProfile.Profile()
+        profiler.enable()
+
         layer_num = request.json
         filepaths = session['background_files']
         filename = filepaths[layer_num]['filename']
@@ -143,8 +160,19 @@ def load_shapes():
         filename = file_info[layer_num]['shapes_file']
         path = 'frontend/static/inputs/' + str(filename)
 
+        profiler = cProfile.Profile()
+        profiler.enable()
+
         with open(path) as f:
             layer = json.load(f)
+        
+        profiler.disable()  # Stop profiling after the function logic
+        s = io.StringIO()
+        ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+
+        # ps.print_stats()
+        # print(s.getvalue())  # You can also write this to a file instead of printing
+        # print ("Completed Shapes!")
 
         return jsonify(layer)
 
@@ -201,6 +229,9 @@ def load_peak():
 
     if request.method == 'PUT':
 
+        profiler = cProfile.Profile()
+        profiler.enable()
+
         layer_num = request.json
         # When comparing two time periods, load the peak direction of the second time period
         if len(layer_num) > 1:
@@ -212,10 +243,20 @@ def load_peak():
             path = 'frontend/static/inputs/' + str(filename)
             with open(path) as data_file:
                 data = data_file.read()
+                print ("Data Read")
                 peak_directions = json.loads(data)
+            
             return jsonify(peak_directions)
 
         except:
+            profiler.disable()  # Stop profiling after the function logic
+            s = io.StringIO()
+            ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+
+            # ps.print_stats()
+            # print(s.getvalue())  # You can also write this to a file instead of printing
+            # print ("Completed Peaks!")
+
             return '0'
 
     return redirect(url_for("index"))

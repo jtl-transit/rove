@@ -2,12 +2,18 @@ import os
 import json
 from flask import Flask, render_template, session
 from . import load
+import cProfile
+import pstats
+import io
 
 def create_app(agency, test_config=None):
 
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(SECRET_KEY='dev')
+
+    profiler = cProfile.Profile()
+    profiler.enable()
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -32,6 +38,7 @@ def create_app(agency, test_config=None):
         with open(r'frontend/static/inputs/'+agency+'/presets.json') as data_file:
             data = data_file.read()
             presets = json.loads(data)
+
     except:
         presets = 0
 
@@ -53,13 +60,11 @@ def create_app(agency, test_config=None):
     # Initialize the map
     @app.route(url_prefix + "/")
     def index():
-
         # Add some information as a session variable for use in other routes
         session['viz_files'] = viz_files
         session['background_files'] = background_files
         session['agency'] = agency
         session['transit_files'] = transit_files
-
         # Initialize the map
         return render_template("index.html",
                                transit_files = transit_files,

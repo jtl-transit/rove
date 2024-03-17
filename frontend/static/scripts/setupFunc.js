@@ -483,416 +483,424 @@ function createMap(){
 	document.getElementById("loader").style.display = "block";
 
 	requestAnimationFrame(() =>
-    requestAnimationFrame(function(){
+		requestAnimationFrame(function(){
 
-	// Create new custom polyline - needed for decoding.
-	customPolyline = L.Polyline.extend({});
+		// Create new custom polyline - needed for decoding.
+		customPolyline = L.Polyline.extend({});
 
-	// Get shapes data
-	if (selectLinkIndicator === 0){
-		if (comparisonIndicator === 1){
-			var baselineFile = $('#select-baseline').val();
-			var comparisonFile = $('#select-comparison').val();
-			var busShapes = getShapesFile(comparisonFile)
-			var oldShapes = getShapesFile(baselineFile)
-		} else {
-			var busShapes = getShapesFile(selectedFile);
-		}
-	} else {
-		var selectedLevel = $("#level option:selected").val();
-		if (selectedLevel == null){
-			selectedLevel = 'stop';
-		} 
-		
-		if (comparisonIndicator === 1){
-			var busShapes = getShapesFile({'file': selectedFile[1], 'level': selectedLevel});
-		} else {
-			var busShapes = getShapesFile({'file': selectedFile, 'level': selectedLevel});
-		}
-	} 
+		let shapePromises = [];
+        let busShapes, oldShapes, busStops;
 
-	// Get peak directions
-	peakDirections = getPeakDirections(selectedFile);
-
-	// Loop to create geoJSON linestring from each encoded polyline in shape file and append properties from server data
-	var lineFeatures = [];
-	
-	if(selectLinkIndicator === 1){
-		for (var i in busShapes){
-			// Get shape information from shapes file
-			var routeID = busShapes[i].route_id
-	
-			// If config file specifies an alternative route id, use it
-			if (routeID in altRouteIDs) {
-				routeID = altRouteIDs[routeID]
+		// Determine which shapes to load based on various conditions
+		if (selectLinkIndicator === 0) {
+			if (comparisonIndicator === 1) {
+				let baselineFile = $('#select-baseline').val();
+				let comparisonFile = $('#select-comparison').val();
+				shapePromises.push(getShapesFile(comparisonFile));
+				shapePromises.push(getShapesFile(baselineFile));
+			} else {
+				shapePromises.push(getShapesFile(selectedFile));
 			}
-	
-			if (!(routeList.includes(routeID))){
-				routeList.push(routeID)
-			}
-	
-			var startStop = busShapes[i].stop_pair[0];
-			var endStop = busShapes[i].stop_pair[1];
-			var segIndex = startStop + '-' + endStop
-			var tpIndex = busShapes[i].timepoint_index;
-			var coords =  L.PolylineUtil.decode(busShapes[i].geometry, 6);
-	
-			var newLine = new customPolyline(coords, {
-				segIndex: segIndex,
-				tpIndex: tpIndex,
-				routeID: routeID,
-				directionID: busShapes[i].direction,
-				startStop: startStop,
-				endStop: endStop,
-				mode: busShapes[i].mode,
-				traversals: 0,
-			});
-	
-			lineFeatures.push(newLine);
-		}
-	
-		// Combine all linestrings into Leaflet FeatureGroup and define popups
-		routesGeojson = L.featureGroup(lineFeatures);
-	
-		// Zoom map to extents of geojson and restrict map bounds to transit service region w/ some padding
-		map.fitBounds(routesGeojson.getBounds());
-		map.setZoom(11);
-		map.setMaxBounds(routesGeojson.getBounds().pad(0.5));
-
-		var selectedLevel = $("#level option:selected").val();
-		if(selectedLevel == null){
-			selectedLevel = 'stop';
-		}
-
-		if(comparisonIndicator === 1){
-			var busStops = getShapesFile({'file': selectedFile[1], 'level': selectedLevel}, true);
 		} else {
-			var busStops = getShapesFile({'file': selectedFile, 'level': selectedLevel}, true);
+			let selectedLevel = $("#level option:selected").val() || 'stop';
+			let fileData = comparisonIndicator === 1 ? {'file': selectedFile[1], 'level': selectedLevel} : {'file': selectedFile, 'level': selectedLevel};
+			shapePromises.push(getShapesFile(fileData));
+			shapePromises.push(getShapesFile(fileData, true)); // For busStops
 		}
+
+		// Get peak directions
+		peakDirections = getPeakDirections(selectedFile);
 
 		// Loop to create geoJSON linestring from each encoded polyline in shape file and append properties from server data
-		var stopList = [];
-		for (var i in busStops){
+		var lineFeatures = [];
+
+		Promise.all(shapePromises).then(values => { 
 			
-			var stopID = busStops[i].stop_id;
-			var stopName = busStops[i].stop_name;
-			var coords =  [busStops[i].stop_lat, busStops[i].stop_lon];
+		busShapes = values[0]; 
+		oldShapes = values[1]; 
+		busStops = values[2];
 	
-			var newStop = L.circle(coords, {
-				stopID: stopID,
-				stopName: stopName
-			});
-			stopList.push(newStop);
-		}
+		if(selectLinkIndicator === 1){
+			for (var i in busShapes){
+				// Get shape information from shapes file
+				var routeID = busShapes[i].route_id
+		
+				// If config file specifies an alternative route id, use it
+				if (routeID in altRouteIDs) {
+					routeID = altRouteIDs[routeID]
+				}
+		
+				if (!(routeList.includes(routeID))){
+					routeList.push(routeID)
+				}
+		
+				var startStop = busShapes[i].stop_pair[0];
+				var endStop = busShapes[i].stop_pair[1];
+				var segIndex = startStop + '-' + endStop
+				var tpIndex = busShapes[i].timepoint_index;
+				var coords =  L.PolylineUtil.decode(busShapes[i].geometry, 6);
+		
+				var newLine = new customPolyline(coords, {
+					segIndex: segIndex,
+					tpIndex: tpIndex,
+					routeID: routeID,
+					directionID: busShapes[i].direction,
+					startStop: startStop,
+					endStop: endStop,
+					mode: busShapes[i].mode,
+					traversals: 0,
+				});
+		
+			lineFeatures.push(newLine);
+			}
 	
-		// Combine all linestrings into Leaflet FeatureGroup and define popups
-		stopsGeojson = L.featureGroup(stopList);
+			// Combine all linestrings into Leaflet FeatureGroup and define popups
+			routesGeojson = L.featureGroup(lineFeatures);
 	
-		map.on('mousedown', () => {
-			resetSelectedState();
-		});
-	
-		map.on('lasso.finished', event => {
-			setSelectedLayers(event.layers);
-		});
-		map.on('lasso.enabled', () => {
-			resetSelectedState();
-		});
-	
-		function resetSelectedState() {
-			var lassoResult = '';
-		}
-		function setSelectedLayers(layers) {
+			// Zoom map to extents of geojson and restrict map bounds to transit service region w/ some padding
+			map.fitBounds(routesGeojson.getBounds());
+			map.setZoom(11);
+			map.setMaxBounds(routesGeojson.getBounds().pad(0.5));
 
 			var selectedLevel = $("#level option:selected").val();
 			if(selectedLevel == null){
 				selectedLevel = 'stop';
 			}
-			if(selectedLevel === 'stop'){
-				var selectedIndex = 'segIndex';
-			} else {
-				var selectedIndex = 'tpIndex';
-			}
 
-			resetSelectedState();
-			if(layers.length > 0){
-				selectionIndicator = 1;
-				var lassoResult = [];
-				var layerIndices = [];
-				for(var layer in layers){
-					// Use opacity to filter out transit stops and include only line segments
-					if(layers[layer].options.opacity === 1){
-						lassoResult.push(layers[layer]);
-						layerIndices.push(layers[layer].options[selectedIndex]);
+			// if(comparisonIndicator === 1){
+			// 	var busStops = getShapesFile({'file': selectedFile[1], 'level': selectedLevel}, true);
+			// } else {
+			// 	var busStops = getShapesFile({'file': selectedFile, 'level': selectedLevel}, true);
+			// }
+
+			// Loop to create geoJSON linestring from each encoded polyline in shape file and append properties from server data
+			var stopList = [];
+			for (var i in busStops){
+				
+				var stopID = busStops[i].stop_id;
+				var stopName = busStops[i].stop_name;
+				var coords =  [busStops[i].stop_lat, busStops[i].stop_lon];
+		
+				var newStop = L.circle(coords, {
+					stopID: stopID,
+					stopName: stopName
+				});
+				stopList.push(newStop);
+			}
+	
+			// Combine all linestrings into Leaflet FeatureGroup and define popups
+			stopsGeojson = L.featureGroup(stopList);
+		
+			map.on('mousedown', () => {
+				resetSelectedState();
+			});
+		
+			map.on('lasso.finished', event => {
+				setSelectedLayers(event.layers);
+			});
+			map.on('lasso.enabled', () => {
+				resetSelectedState();
+			});
+	
+			function resetSelectedState() {
+				var lassoResult = '';
+			}
+			function setSelectedLayers(layers) {
+
+				var selectedLevel = $("#level option:selected").val();
+				if(selectedLevel == null){
+					selectedLevel = 'stop';
+				}
+				if(selectedLevel === 'stop'){
+					var selectedIndex = 'segIndex';
+				} else {
+					var selectedIndex = 'tpIndex';
+				}
+
+				resetSelectedState();
+				if(layers.length > 0){
+					selectionIndicator = 1;
+					var lassoResult = [];
+					var layerIndices = [];
+					for(var layer in layers){
+						// Use opacity to filter out transit stops and include only line segments
+						if(layers[layer].options.opacity === 1){
+							lassoResult.push(layers[layer]);
+							layerIndices.push(layers[layer].options[selectedIndex]);
+						}
+					}
+					if(lassoResult.length > 0){
+						selectedLayer = lassoResult;
+						selectedSegment = layerIndices;
+						drawLasso(lassoResult);
 					}
 				}
-				if(lassoResult.length > 0){
-					selectedLayer = lassoResult;
-					selectedSegment = layerIndices;
-					drawLasso(lassoResult);
-				}
 			}
-		}
 	
-		// Style shapes with first metric
-		routesGeojson.eachLayer(function(layer){
-			setSelectLinkStyle(layer);
-			setSelectLinkPopup(layer);
-		});
-	
-		// Style stops as transparent to begin
-		stopsGeojson.eachLayer(function(layer){
-			clearStopGeometry(layer);
-		});
+			// Style shapes with first metric
+			routesGeojson.eachLayer(function(layer){
+				setSelectLinkStyle(layer);
+				setSelectLinkPopup(layer);
+			});
+		
+			// Style stops as transparent to begin
+			stopsGeojson.eachLayer(function(layer){
+				clearStopGeometry(layer);
+			});
 		
 
-		// Add shapes to map and store parameters
-		routesGeojson.addTo(map);
-		stopsGeojson.addTo(map);
-		mapCenter = routesGeojson.getBounds().getCenter();
+			// Add shapes to map and store parameters
+			routesGeojson.addTo(map);
+			stopsGeojson.addTo(map);
+			mapCenter = routesGeojson.getBounds().getCenter();
 	
-		// Add lasso control to map (global var)
-		lassoControl = L.control.lasso().addTo(map);
-		$('#toggle-lasso').click(function(){
-			if(lassoControl.enabled()){
-				lassoControl.disable();
-			} else {
-				lassoControl.enable();
-			}
-		});
+			// Add lasso control to map (global var)
+			lassoControl = L.control.lasso().addTo(map);
+			$('#toggle-lasso').click(function(){
+				if(lassoControl.enabled()){
+					lassoControl.disable();
+				} else {
+					lassoControl.enable();
+				}
+			});
 
 		// Set up event handling for clicking on segment
 		routesGeojson.on("click", displaySegments);
 		$('#clear-selection').trigger("click");
 
-	} else {
-		var segmentList = [];
-		legendDef = d3.scaleQuantile().range(rangeGreen);;
+		} else {
+			var segmentList = [];
+			legendDef = d3.scaleQuantile().range(rangeGreen);;
 
-		for (var i in busShapes){
-			// Get shape information from shapes file
-			var routeID = busShapes[i].route_id
+			for (var i in busShapes){
+				// Get shape information from shapes file
+				var routeID = busShapes[i].route_id
 
-			// If config file specifies an alternative route id, use it
-			if (routeID in altRouteIDs) {
-				routeID = altRouteIDs[routeID]
-			}
+				// If config file specifies an alternative route id, use it
+				if (routeID in altRouteIDs) {
+					routeID = altRouteIDs[routeID]
+				}
 
-			var startStop = busShapes[i].stop_pair[0];
-			var endStop = busShapes[i].stop_pair[1];
+				var startStop = busShapes[i].stop_pair[0];
+				var endStop = busShapes[i].stop_pair[1];
 
-			// If geographic comparison with multiple stop pairs
-			if ('base' in busShapes[i].stop_pair) {
-				startStop = busShapes[i].stop_pair['base'];
-			}
+				// If geographic comparison with multiple stop pairs
+				if ('base' in busShapes[i].stop_pair) {
+					startStop = busShapes[i].stop_pair['base'];
+				}
 
-			if ('comp' in busShapes[i].stop_pair) {
-				endStop = busShapes[i].stop_pair['comp'];
-			}
+				if ('comp' in busShapes[i].stop_pair) {
+					endStop = busShapes[i].stop_pair['comp'];
+				}
+				
+				var rteIndex = routeID + '-' + busShapes[i].direction;
+				var segIndex = routeID + '-' + startStop + '-' + endStop;
+
+				if(busShapes[i].cor_id == null){
+					var corIndex = startStop + '-' + endStop;
+				} else { // Handle the geographic decomposition shapes
+					var corIndex = busShapes[i].cor_id;
+					var segIndex = busShapes[i].cor_id;
+				}
 			
-			var rteIndex = routeID + '-' + busShapes[i].direction;
-			var segIndex = routeID + '-' + startStop + '-' + endStop;
+				var tpIndex = timepointLookup[segIndex];
 
-			if(busShapes[i].cor_id == null){
-				var corIndex = startStop + '-' + endStop;
-			} else { // Handle the geographic decomposition shapes
-				var corIndex = busShapes[i].cor_id;
-				var segIndex = busShapes[i].cor_id;
+				if(tpIndex == null){
+					var tpIndex = '0';
+				} else {
+					var tpIndex = routeID + '-' + tpIndex[0] + '-' + tpIndex[1];
+				};
+
+				var signal = busShapes[i].intersect;
+				if(signal == null){
+					signal = 'Unknown';
+				};
+
+				var coords =  L.PolylineUtil.decode(busShapes[i].geometry, 6);
+				//console.log(coords); 
+				var newLine = new customPolyline(coords, {
+					segIndex: segIndex,
+					rteIndex: rteIndex,
+					corIndex: corIndex,
+					tpIndex: tpIndex,
+					routeID: routeID,
+					directionID: busShapes[i].direction,
+					startStop: startStop,
+					endStop: endStop,
+					signal: signal,
+					newSeg: true, // Indicates whether part of comparison period data
+				});
+
+				// Use segment index to get segment metric information from server data -- median is default on loading
+				newLine = appendMetricsToLine(medianData, newLine);
+
+				// If in comparison mode, also add both periods' data to the line properties
+				if(comparisonIndicator === 1){
+					newLine = appendMetricsToLine(compMedianData, newLine, "comp-");
+					newLine = appendMetricsToLine(baseMedianData, newLine, "base-");
+
+					// Set newSeg parameter to false if abandoned segment
+					if(newLine.options['base-rte-sample_size'] > 0 && newLine.options['comp-rte-sample_size'] === 0){
+						newLine.options['newSeg'] = false;
+					} else if(newLine.options['base-rte-sample_size'] > 0 && newLine.options['comp-rte-sample_size'] == null){
+						newLine.options['newSeg'] = false;
+					}
+				};
+
+				if (corIndex in corridorRoutes){
+					existingRoutes = corridorRoutes[corIndex];
+					existingRoutes.push(routeID);
+					corridorRoutes[corIndex] = existingRoutes;
+				} else {
+					corridorRoutes[corIndex] = [routeID];
+				}
+
+				lineFeatures.push(newLine);
+				segmentList.push(segIndex);
 			}
+
+			// Add grey lines for any old segments that are no longer served
+			for (var i in oldShapes){
+				// Get shape information from shapes file
+				var routeID = oldShapes[i].route_id
+
+				// If config file specifies an alternative route id, use it
+				if (routeID in altRouteIDs) {
+					routeID = altRouteIDs[routeID]
+				}
+
+				var startStop = oldShapes[i].stop_pair[0]
+				var endStop = oldShapes[i].stop_pair[1]
+				var segIndex = routeID + '-' + startStop + '-' + endStop
+
+				if(segmentList.includes(segIndex)){
+					continue
+				}
 			
-			var tpIndex = timepointLookup[segIndex];
+				var rteIndex = routeID + '-' + oldShapes[i].direction
+				if(oldShapes[i].cor_id == null){
+					var corIndex = startStop + '-' + endStop;
+				} else {
+					var corIndex = oldShapes[i].cor_id;
+				}
+				var coords =  L.PolylineUtil.decode(oldShapes[i].geometry, 6);
+				var newLine = new customPolyline(coords, {
+					segIndex: segIndex,
+					rteIndex: rteIndex,
+					corIndex: corIndex,
+					routeID: routeID,
+					directionID: oldShapes[i].direction,
+					startStop: startStop,
+					endStop: endStop,
+					newSeg: false,
+				});	
+				
+				newLine = appendMetricsToLine(medianData, newLine);
+				newLine = appendMetricsToLine(baseMedianData, newLine, "base-");
+				lineFeatures.push(newLine);
+			}
 
-			if(tpIndex == null){
-				var tpIndex = '0';
-			} else {
-				var tpIndex = routeID + '-' + tpIndex[0] + '-' + tpIndex[1];
-			};
+			// Combine all linestrings into Leaflet FeatureGroup and define popups
+			routesGeojson = L.featureGroup(lineFeatures);
 
-			var signal = busShapes[i].intersect;
-			if(signal == null){
-				signal = 'Unknown';
-			};
+			// Zoom map to extents of geojson and restrict map bounds to transit service region w/ some padding
+			map.fitBounds(routesGeojson.getBounds());
+			map.setZoom(11);
+			map.setMaxBounds(routesGeojson.getBounds().pad(0.5));
 
-			var coords =  L.PolylineUtil.decode(busShapes[i].geometry, 6);
-			//console.log(coords); 
-			var newLine = new customPolyline(coords, {
-				segIndex: segIndex,
-				rteIndex: rteIndex,
-				corIndex: corIndex,
-				tpIndex: tpIndex,
-				routeID: routeID,
-				directionID: busShapes[i].direction,
-				startStop: startStop,
-				endStop: endStop,
-				signal: signal,
-				newSeg: true, // Indicates whether part of comparison period data
+			// Get the first segment metric to use as default for visualization
+			var initMetric = levelMetrics['seg'][0];
+			var initRange = [];
+			routesGeojson.eachLayer(function(layer) {
+				initRange.push(layer.options['seg-'+initMetric]);
 			});
 
-			// Use segment index to get segment metric information from server data -- median is default on loading
-			newLine = appendMetricsToLine(medianData, newLine);
+			// Add default metric range to color scale
+			legendDef.domain(initRange);
 
-			// If in comparison mode, also add both periods' data to the line properties
+			// Lookup whether that range should have red high or low
+			var initScheme = redValues[initMetric];
+			// Always show low values as red in comparison
 			if(comparisonIndicator === 1){
-				newLine = appendMetricsToLine(compMedianData, newLine, "comp-");
-				newLine = appendMetricsToLine(baseMedianData, newLine, "base-");
-
-				// Set newSeg parameter to false if abandoned segment
-				if(newLine.options['base-rte-sample_size'] > 0 && newLine.options['comp-rte-sample_size'] === 0){
-					newLine.options['newSeg'] = false;
-				} else if(newLine.options['base-rte-sample_size'] > 0 && newLine.options['comp-rte-sample_size'] == null){
-					newLine.options['newSeg'] = false;
-				}
+				legendDef.range(rangeGreen);
+			} else 
+			if (initScheme == "high"){
+				legendDef.range(rangeBlue);
 			};
 
-			if (corIndex in corridorRoutes){
-				existingRoutes = corridorRoutes[corIndex];
-				existingRoutes.push(routeID);
-				corridorRoutes[corIndex] = existingRoutes;
-			} else {
-				corridorRoutes[corIndex] = [routeID];
-			}
-
-			lineFeatures.push(newLine);
-			segmentList.push(segIndex);
-		}
-
-		// Add grey lines for any old segments that are no longer served
-		for (var i in oldShapes){
-			// Get shape information from shapes file
-			var routeID = oldShapes[i].route_id
-
-			// If config file specifies an alternative route id, use it
-			if (routeID in altRouteIDs) {
-				routeID = altRouteIDs[routeID]
-			}
-
-			var startStop = oldShapes[i].stop_pair[0]
-			var endStop = oldShapes[i].stop_pair[1]
-			var segIndex = routeID + '-' + startStop + '-' + endStop
-
-			if(segmentList.includes(segIndex)){
-				continue
-			}
+			// Style shapes with first metric and save data for export
+			routesGeojson.eachLayer(function(layer) {
+				const options = layer.options;
+				const initColor = options['seg-' + initMetric];
 			
-			var rteIndex = routeID + '-' + oldShapes[i].direction
-			if(oldShapes[i].cor_id == null){
-				var corIndex = startStop + '-' + endStop;
-			} else {
-				var corIndex = oldShapes[i].cor_id;
-			}
-			var coords =  L.PolylineUtil.decode(oldShapes[i].geometry, 6);
-			var newLine = new customPolyline(coords, {
-				segIndex: segIndex,
-				rteIndex: rteIndex,
-				corIndex: corIndex,
-				routeID: routeID,
-				directionID: oldShapes[i].direction,
-				startStop: startStop,
-				endStop: endStop,
-				newSeg: false,
-			});	
-			
-			newLine = appendMetricsToLine(medianData, newLine);
-			newLine = appendMetricsToLine(baseMedianData, newLine, "base-");
-			lineFeatures.push(newLine);
-		}
-
-		// Combine all linestrings into Leaflet FeatureGroup and define popups
-		routesGeojson = L.featureGroup(lineFeatures);
-
-		// Zoom map to extents of geojson and restrict map bounds to transit service region w/ some padding
-		map.fitBounds(routesGeojson.getBounds());
-		map.setZoom(11);
-		map.setMaxBounds(routesGeojson.getBounds().pad(0.5));
-
-		// Get the first segment metric to use as default for visualization
-		var initMetric = levelMetrics['seg'][0];
-		var initRange = [];
-		routesGeojson.eachLayer(function(layer) {
-			initRange.push(layer.options['seg-'+initMetric]);
-		});
-
-		// Add default metric range to color scale
-		legendDef.domain(initRange);
-
-		// Lookup whether that range should have red high or low
-		var initScheme = redValues[initMetric];
-		// Always show low values as red in comparison
-		if(comparisonIndicator === 1){
-			legendDef.range(rangeGreen);
-		} else 
-		if (initScheme == "high"){
-			legendDef.range(rangeBlue);
-		};
-
-		// Style shapes with first metric and save data for export
-		routesGeojson.eachLayer(function(layer){
-
-			var initColor = layer.options[ 'seg-' + initMetric ]
-			if (initColor === null && layer.options['newSeg']){
+				if (options['newSeg'] === false) {
+					layer.setStyle({
+						weight: 1,
+						opacity: 1,
+						offset: 3.5,
+						interactive: true,
+						color: "rgb(184, 122, 168)" // Assign pink color if old segment
+					});
+				} else if (initColor === null && options['newSeg']) {
 					restyleShapeTransparentAndSendBack(layer);
-			} else if(layer.options['newSeg'] === false) {
-				layer.setStyle({
-					weight: 1,
-					opacity: 1,
-					offset: 3.5,
-					interactive: true,
-					color: color="rgb(184, 122, 168)" // Assign pink color if old segment
-				});
-			} else {
-				layer.setStyle({
-					weight: 2.5,
-					opacity: 1,
-					offset: 3.5,
-					interactive: true,
-					color: legendDef(initColor)
-				});
-			};
-
-			// Add popup information through function in toolFunc.js
-			setPopup(layer);
-
-			// Add layer data to shape for possible export
-			var layerData = [layer.options.routeID, directionLabels[layer.options.directionID], layer.options.startStop, layer.options.endStop, layer.options.signal]
-			for(var index in levelMetrics['seg']){
-				layerData.push(layer.options['seg-' + levelMetrics['seg'][index]]);
-			}
-			// In comparison mode, add baseline and comparison metrics
-			if(comparisonIndicator === 1){
-				for(var index in levelMetrics['seg']){
-					layerData.push(layer.options['base-seg-' + levelMetrics['seg'][index]]);
+				} else {
+					layer.setStyle({
+						weight: 2.5,
+						opacity: 1,
+						offset: 3.5,
+						interactive: true,
+						color: legendDef(initColor)
+					});
 				}
-				for(var index in levelMetrics['seg']){
-					layerData.push(layer.options['comp-seg-' + levelMetrics['seg'][index]]);
+			
+				// Add popup information through function in toolFunc.js
+				setPopup(layer);
+			
+				// Add layer data to shape for possible export
+				let layerData = [options.routeID, directionLabels[options.directionID], options.startStop, options.endStop, options.signal];
+			
+				for (let index in levelMetrics['seg']) {
+					layerData.push(options['seg-' + levelMetrics['seg'][index]]);
+					if (comparisonIndicator === 1) {
+						layerData.push(options['base-seg-' + levelMetrics['seg'][index]]);
+						layerData.push(options['comp-seg-' + levelMetrics['seg'][index]]);
+					}
 				}
-			}
-			exportData.push(layerData);
-		});
-	}
-
-	// Add shapes to map and store parameters
-	routesGeojson.addTo(map);
-	mapCenter = routesGeojson.getBounds().getCenter();
-
-	routesGeojson.eachLayer(function(layer){
-		if (layer.options['newSeg'] === false){
-			layer.bringToBack();
+			
+				exportData.push(layerData);
+			});			
 		}
-	});
 
-	// Call functions in toolFunc.js
-	populateFilters();
-	addEventHandlers();
-	if(selectLinkIndicator === 1){
-		createSelectLinkLegend();
-	} else {
-		createLegend();
-	}
-	// Defines which of the 3 panels is shown upon loading and hide loading window
-	$("#button-tool").trigger("click");
-			$("#loader").hide()
-			//blocks render
-	}))
+		// Add shapes to map and store parameters
+		routesGeojson.addTo(map);
+		mapCenter = routesGeojson.getBounds().getCenter();
+
+		routesGeojson.eachLayer(function(layer){
+			if (layer.options['newSeg'] === false){
+				layer.bringToBack();
+			}
+		});
+
+		// Call functions in toolFunc.js
+		populateFilters();
+		addEventHandlers();
+		if(selectLinkIndicator === 1){
+			createSelectLinkLegend();
+		} else {
+			createLegend();
+		}
+		// Defines which of the 3 panels is shown upon loading and hide loading window
+		$("#button-tool").trigger("click");
+				$("#loader").hide()
+				//blocks render
+		document.getElementById("loader").style.display = "none";
+            }).catch(error => {
+                console.error("Error loading shape files:", error);
+                // Handle any errors that occurred during loading shape files
+                document.getElementById("loader").style.display = "none";
+            });
+        })
+    );
 }
 
 // Function for exporting map images
@@ -904,65 +912,102 @@ function prepareImage(err, canvas) {
 }
 
 // Takes an input data file and polyline item and returns polyline with metrics appended
-function appendMetricsToLine(inputData, newLine, prefix = ''){
-
-	var segIndex = newLine.options['segIndex'];
-	var rteIndex = newLine.options['rteIndex'];
-	var corIndex = newLine.options['corIndex'];
-	var tpIndex = newLine.options['tpIndex'];
-
-	// Function to append data to a line depending on the level
-	function append(inputData, level, order, index, prefix, newLine){
-		var metricList = levelMetrics[level];
-		if (typeof inputData[order][index] === 'undefined'){
-			for(var j in metricList){
-				var metricName = metricList[j];
-				// Default to segment-level metric value if this segment is not part of a corridor
-				if(level === 'cor'){
-					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'seg-' + metricName];
-				} else if (level === 'tpCor'){
-					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'tpSeg-' + metricName];
-				} else {
-					newLine.options[prefix + level + '-' + metricName] = null;
-				}
-			};
-		} else {
-			for(var j in metricList){
-				var metricName = metricList[j];
-				var metricValue = inputData[order][index][metricName];
-
-				if(metricName === 'scheduled_frequency' && (metricValue > 18 || metricValue < -18)){
-					if(metricValue > 18){
-						metricValue = 18;
-					} else {
-						metricValue = -18;
-					};
-					
-				} else if (metricName === 'observed_frequency' && (metricValue > 18 || metricValue < -18)) {
-					if(metricValue > 18){
-						metricValue = 18;
-					} else {
-						metricValue = -18;
-					};
-				} else if ((metricName === 'passenger_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
-					metricValue = 0;
-				} else if ((metricName === 'vehicle_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
-					metricValue = 0;
-				}
-				newLine.options[prefix + level + '-' + metricName] = metricValue;
-
-			};
-		};
-		return newLine
-	};
-
+function appendMetricsToLine(inputData, newLine, prefix = '') {
+	const { segIndex, rteIndex, corIndex, tpIndex } = newLine.options;
+  
+	function append(inputData, level, order, index, prefix, newLine) {
+	  const metricList = levelMetrics[level];
+	  const data = inputData[order][index];
+  
+	  metricList.forEach(metricName => {
+		let metricValue = data ? data[metricName] : null;
+  
+		if (metricValue !== null) {
+		  if (['scheduled_frequency', 'observed_frequency'].includes(metricName) && Math.abs(metricValue) > 18) {
+			metricValue = metricValue > 18 ? 18 : -18;
+		  } else if (['passenger_congestion_delay', 'vehicle_congestion_delay'].includes(metricName) && metricValue < 0 && comparisonIndicator === 0) {
+			metricValue = 0;
+		  }
+		} else if (level === 'cor') {
+		  metricValue = newLine.options[prefix + 'seg-' + metricName];
+		} else if (level === 'tpCor') {
+		  metricValue = newLine.options[prefix + 'tpSeg-' + metricName];
+		}
+  
+		newLine.options[prefix + level + '-' + metricName] = metricValue;
+	  });
+  
+	  return newLine;
+	}
+  
 	newLine = append(inputData, 'seg', 0, segIndex, prefix, newLine);
 	newLine = append(inputData, 'rte', 1, rteIndex, prefix, newLine);
 	newLine = append(inputData, 'cor', 2, corIndex, prefix, newLine);
 	newLine = append(inputData, 'tpSeg', 3, tpIndex, prefix, newLine);
 	newLine = append(inputData, 'tpCor', 3, tpIndex, prefix, newLine);
-	return newLine
-}
+  
+	return newLine;
+  }  
+
+// function appendMetricsToLine(inputData, newLine, prefix = ''){
+
+// 	var segIndex = newLine.options['segIndex'];
+// 	var rteIndex = newLine.options['rteIndex'];
+// 	var corIndex = newLine.options['corIndex'];
+// 	var tpIndex = newLine.options['tpIndex'];
+
+// 	// Function to append data to a line depending on the level
+// 	function append(inputData, level, order, index, prefix, newLine){
+// 		var metricList = levelMetrics[level];
+// 		if (typeof inputData[order][index] === 'undefined'){
+// 			for(var j in metricList){
+// 				var metricName = metricList[j];
+// 				// Default to segment-level metric value if this segment is not part of a corridor
+// 				if(level === 'cor'){
+// 					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'seg-' + metricName];
+// 				} else if (level === 'tpCor'){
+// 					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'tpSeg-' + metricName];
+// 				} else {
+// 					newLine.options[prefix + level + '-' + metricName] = null;
+// 				}
+// 			};
+// 		} else {
+// 			for(var j in metricList){
+// 				var metricName = metricList[j];
+// 				var metricValue = inputData[order][index][metricName];
+
+// 				if(metricName === 'scheduled_frequency' && (metricValue > 18 || metricValue < -18)){
+// 					if(metricValue > 18){
+// 						metricValue = 18;
+// 					} else {
+// 						metricValue = -18;
+// 					};
+					
+// 				} else if (metricName === 'observed_frequency' && (metricValue > 18 || metricValue < -18)) {
+// 					if(metricValue > 18){
+// 						metricValue = 18;
+// 					} else {
+// 						metricValue = -18;
+// 					};
+// 				} else if ((metricName === 'passenger_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
+// 					metricValue = 0;
+// 				} else if ((metricName === 'vehicle_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
+// 					metricValue = 0;
+// 				}
+// 				newLine.options[prefix + level + '-' + metricName] = metricValue;
+
+// 			};
+// 		};
+// 		return newLine
+// 	};
+
+// 	newLine = append(inputData, 'seg', 0, segIndex, prefix, newLine);
+// 	newLine = append(inputData, 'rte', 1, rteIndex, prefix, newLine);
+// 	newLine = append(inputData, 'cor', 2, corIndex, prefix, newLine);
+// 	newLine = append(inputData, 'tpSeg', 3, tpIndex, prefix, newLine);
+// 	newLine = append(inputData, 'tpCor', 3, tpIndex, prefix, newLine);
+// 	return newLine
+// }
 
 function displaySegments(e) {
 	// Only display new segments if no segments currently selected
