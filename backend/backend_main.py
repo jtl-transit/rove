@@ -8,9 +8,6 @@ from data_class.rove_parameters import ROVE_params
 from helper_functions import read_shapes, write_to_frontend_config, string_is_date, string_is_month
 import argparse
 import sys
-import cProfile
-import pstats
-import io
 # from parameters.generic_csv_data import CSV_DATA
 
 # -----------------------------------PARAMETERS--------------------------------------
@@ -55,7 +52,6 @@ def __main__(args):
     "-no-sig" or "--no_check_signal": don't check whether shape segments intersect with traffic signals (default).
     :type args: _type_
     """
-    print ("Test Backend")
     if len(args) > 0:
         parser = argparse.ArgumentParser(description="Do something.")
         parser.add_argument("-a", "--agency", type=str, required=True)

@@ -949,66 +949,6 @@ function appendMetricsToLine(inputData, newLine, prefix = '') {
 	return newLine;
   }  
 
-// function appendMetricsToLine(inputData, newLine, prefix = ''){
-
-// 	var segIndex = newLine.options['segIndex'];
-// 	var rteIndex = newLine.options['rteIndex'];
-// 	var corIndex = newLine.options['corIndex'];
-// 	var tpIndex = newLine.options['tpIndex'];
-
-// 	// Function to append data to a line depending on the level
-// 	function append(inputData, level, order, index, prefix, newLine){
-// 		var metricList = levelMetrics[level];
-// 		if (typeof inputData[order][index] === 'undefined'){
-// 			for(var j in metricList){
-// 				var metricName = metricList[j];
-// 				// Default to segment-level metric value if this segment is not part of a corridor
-// 				if(level === 'cor'){
-// 					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'seg-' + metricName];
-// 				} else if (level === 'tpCor'){
-// 					newLine.options[prefix + level + '-' + metricName] = newLine.options[prefix + 'tpSeg-' + metricName];
-// 				} else {
-// 					newLine.options[prefix + level + '-' + metricName] = null;
-// 				}
-// 			};
-// 		} else {
-// 			for(var j in metricList){
-// 				var metricName = metricList[j];
-// 				var metricValue = inputData[order][index][metricName];
-
-// 				if(metricName === 'scheduled_frequency' && (metricValue > 18 || metricValue < -18)){
-// 					if(metricValue > 18){
-// 						metricValue = 18;
-// 					} else {
-// 						metricValue = -18;
-// 					};
-					
-// 				} else if (metricName === 'observed_frequency' && (metricValue > 18 || metricValue < -18)) {
-// 					if(metricValue > 18){
-// 						metricValue = 18;
-// 					} else {
-// 						metricValue = -18;
-// 					};
-// 				} else if ((metricName === 'passenger_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
-// 					metricValue = 0;
-// 				} else if ((metricName === 'vehicle_congestion_delay') && (metricValue < 0) && (comparisonIndicator === 0)){
-// 					metricValue = 0;
-// 				}
-// 				newLine.options[prefix + level + '-' + metricName] = metricValue;
-
-// 			};
-// 		};
-// 		return newLine
-// 	};
-
-// 	newLine = append(inputData, 'seg', 0, segIndex, prefix, newLine);
-// 	newLine = append(inputData, 'rte', 1, rteIndex, prefix, newLine);
-// 	newLine = append(inputData, 'cor', 2, corIndex, prefix, newLine);
-// 	newLine = append(inputData, 'tpSeg', 3, tpIndex, prefix, newLine);
-// 	newLine = append(inputData, 'tpCor', 3, tpIndex, prefix, newLine);
-// 	return newLine
-// }
-
 function displaySegments(e) {
 	// Only display new segments if no segments currently selected
 	if(selectionIndicator === 0){
