@@ -1,6 +1,6 @@
 # OPTIMIZATIONS 
 
-The key optimizations involved converting several functions from synchronous to asynchronous, allowing the application to handle multiple requests simultaneously without blocking the main application or becoming unresponsive. Asynchronous functions differ from synchronous ones in that they do not immediately require the necessary data to start processing. Instead, while the async functions await data, the application remains responsive, allowing user interaction with the UI and further data requests. The other advantage of this modification is that if the data processing fails, it doesn’t negatively impact the user experience.
+The key optimizations involved converting several functions from synchronous to asynchronous, allowing the application to handle multiple requests simultaneously without blocking the main application or becoming unresponsive. Asynchronous functions differ from synchronous ones in that they do not immediately require the necessary data to start processing. Instead, while the async functions await data, the application remains responsive, allowing user interaction with the UI and further data requests. Another advantage of this approach is that if data processing fails, it doesn’t negatively affect the user experience. Overall, these changes should lead to a reduction in wait times, shaving off a few seconds when loading and processing data.
 
 Below are the specific files/functions that were modified:
 
