@@ -176,6 +176,7 @@ def __main__(args):
             agg = Metric_Aggregation(metrics, params)
 
         write_to_frontend_config(agg.metrics_names, params.frontend_config, input_paths['frontend_config'])
+
     logger.info(f'ROVE backend process completed')
 
 if __name__ == "__main__":

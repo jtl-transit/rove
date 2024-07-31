@@ -6,7 +6,7 @@ import pandas as pd
 
 bp = Blueprint('load', __name__, url_prefix='/load')
 
-# route for performance metrics data request
+# route for performance metrics data request (MOST LIKELY THIS FUNCTION)
 @bp.route("/load_data", methods = ["GET", "POST", "PUT"])
 def load_tables():
 
@@ -213,6 +213,7 @@ def load_peak():
             with open(path) as data_file:
                 data = data_file.read()
                 peak_directions = json.loads(data)
+            
             return jsonify(peak_directions)
 
         except:

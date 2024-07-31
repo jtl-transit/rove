@@ -2813,3 +2813,9 @@ dtype: int64
 10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of gtfs stop IDs: 9361, trip IDs: 26967.
 10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of AVL stop IDs: 9354, trip IDs: 26689.
 10/04/2023 12:37:29 AM -0400 - backendLogger - DEBUG - count of matching stop IDs: 9354, matching trip IDs: 26632.
+01/27/2024 06:50:31 PM -0500 - backendLogger - INFO - Starting ROVE backend processes for KCM, 04-2023, Workday, GTFS mode. Shape Generation: True. Metric Calculation and Aggregation: True.
+01/27/2024 06:50:31 PM -0500 - backendLogger - INFO - Generating ROVE parameters...
+01/27/2024 06:50:31 PM -0500 - backendLogger - WARNING - Frontend config file not found. Creating a default frontend config file.
+01/27/2024 06:50:31 PM -0500 - backendLogger - DEBUG - Parent directory already exists: frontend/static/inputs/KCM.
+01/27/2024 06:50:31 PM -0500 - backendLogger - WARNING - Backend config file not found. Creating a default backend config file.
+01/27/2024 06:50:31 PM -0500 - backendLogger - DEBUG - Parent directory already exists: data/KCM.

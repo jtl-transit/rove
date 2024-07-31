@@ -12,23 +12,29 @@ getPeakDirections(layerNo)
 */
 
 // Send ajax request to server for initial data or recalculated data
-function requestDataFromServer(selectedPeriod, newMap = false){
-	
-	var outputData = syncDataRequest(selectedPeriod);
-	medianData = outputData.median;
-	ninetyData = outputData.ninety;
-	timepointLookup = outputData.timepoints;
-	if(newMap){
-		// Create map
-		createMap();
-	} else {
-		// Update map
-		updateMetrics();
-		updateMetricFilters();
-		updateColorScheme();
-		redrawShapes();
-		updateLegend();
-	};
+function requestDataFromServer(selectedPeriod, newMap = false) {
+    // Call syncDataRequest and use .then() to handle the result asynchronously
+    syncDataRequest(selectedPeriod).then(outputData => {
+        // The actual data is now available here
+        medianData = outputData.median;
+        ninetyData = outputData.ninety;
+        timepointLookup = outputData.timepoints;
+
+        if (newMap) {
+            // Create map
+            createMap();
+        } else {
+            // Update map
+            updateMetrics();
+            updateMetricFilters();
+            updateColorScheme();
+            redrawShapes();
+            updateLegend();
+        }
+    }).catch(error => {
+        // Handle any errors that might occur during the data request
+        console.error("Error requesting data from server:", error);
+    });
 }
 
 // Send ajax request to server for two sets of data and find difference
@@ -100,22 +106,19 @@ function comparePeriods(baselinePeriod, comparisonPeriod, newMap = false){
 	};
 }
 
-// Function to send synchronous request for metric data used in comparison -- need to find asynchronous solution
-function syncDataRequest(period){
+function syncDataRequest(period) {
+    function ajaxCall(period) {
+        // Return the $.ajax call which already returns a promise
+        return $.ajax({
+            type: "PUT",
+            url: '/load/load_data',
+            data: JSON.stringify(period, null, '\t'),
+            contentType: 'application/json; charset=UTF-8',
+            dataType: 'json'
+        });
+    }
 
-	function ajaxCall(period){
-		var response = $.ajax({
-			type: "PUT",
-			async: false,
-			url: '/load/load_data',
-			data: JSON.stringify(period, null, '\t'),
-			contentType: 'application/json; charset=UTF-8',
-			dataType: 'json'
-		});
-		return parseData(response.responseJSON)
-	}
-
-	function parseData(data) {
+    function parseData(data) {
 		var segMedianTemp = JSON.parse(data['seg_median']);
 		var segNinetyTemp = JSON.parse(data['seg_ninety']);
 		var rteMedianTemp = JSON.parse(data['rte_median']);
@@ -210,37 +213,57 @@ function syncDataRequest(period){
 
 		var outputMedianData = [segMedianData, rteMedianData, corMedianData, tpSegMedianData, tpCorMedianData];
 		var outputNinetyData = [segNinetyData, rteNinetyData, corNinetyData, tpSegNinetyData, tpCorNinetyData];
-		return {'median': outputMedianData, 'ninety': outputNinetyData, 'timepoints': timepointLookup}
-	}
+        return {
+            'median': outputMedianData,
+            'ninety': outputNinetyData,
+            'timepoints': timepointLookup
+        };
+    }
 
-	return ajaxCall(period)
+    // Call ajaxCall and handle the promise it returns
+    return ajaxCall(period).then(response => {
+        // The response here is the resolved value of the promise, which is responseJSON
+        return parseData(response); // Now call parseData with the actual response
+    }).catch(error => {
+        // Handle any errors that occurred during the AJAX call
+        console.error("Error in AJAX call:", error);
+    });
 }
 
 // Function to send request for shapes file to server
-function getShapesFile(layerNo, stops=false){
-	if(selectLinkIndicator === 1){
-		var url = '/load/load_viz_shapes';
-		if(stops === true){
-			layerNo['type'] = 'stops'
-		} else {
-			layerNo['type'] = 'shapes'
-		}
-	} else {
-		var url = '/load/load_shapes';
-	}
+function getShapesFile(layerNo, stops = false) {
+    if (selectLinkIndicator === 1) {
+        var url = '/load/load_viz_shapes';
+        if (stops === true) {
+            layerNo['type'] = 'stops';
+        } else {
+            layerNo['type'] = 'shapes';
+        }
+    } else {
+        var url = '/load/load_shapes';
+    }
 
-	function ajaxCall(layerNo){
-		var response = $.ajax({
-			type: "PUT",
-			async: false,
-			url: url,
-			data: JSON.stringify(layerNo, null, '\t'),
-			contentType: 'application/json; charset=UTF-8',
-			dataType: 'json'
-		});
-		return response.responseJSON
-	};
-	return ajaxCall(layerNo)
+    // ajaxCall returns a promise because of the asynchronous nature of $.ajax
+    function ajaxCall(layerNo) {
+        // Return the promise directly from $.ajax
+        return $.ajax({
+            type: "PUT",
+            url: url,
+            data: JSON.stringify(layerNo, null, '\t'),
+            contentType: 'application/json; charset=UTF-8',
+            dataType: 'json'
+        }).then(response => {
+            // The response is the resolved value of the promise
+            return response; // You can return response.responseJSON if you just want the JSON part
+        }).fail(error => {
+            // Handle errors here
+            console.error('Error:', error);
+            throw error; // Rethrow the error so it can be caught by the caller
+        });
+    };
+
+    // Return the promise from ajaxCall
+    return ajaxCall(layerNo);
 }
 
 // Function to send request for lookup table to server

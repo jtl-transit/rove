@@ -976,215 +976,72 @@ function getStep(min, max){
 }
 
 // Function to add or change popups
-function setPopup(layer){
+function setPopup(layer) {
+    layer.unbindPopup();
 
-	layer.unbindPopup();
+    let level = $("#level").val() || 'seg';
+    let levelText = $("#level option:selected").text() || "Segment";
+    let route = layer.options.routeID;
+    let popText = '';
 
-	// Get "level" value to show metrics for that level
-	var level = $( "#level" ).val();
-	var levelText = $( "#level option:selected" ).text();
-	if( level === null ){ 
-		// Set to default
-		level = 'seg';
-		levelText = "Segment";
-	};
-	var route = layer.options.routeID;
+    function formatRoutes(routeData, type) {
+        let routes = routeData.map(r => r.toString()).join(', ');
+        return `</br> ${type}:</b> ${routes}<b>`;
+    }
 
-	if ((typeof route === 'object') && (route !== null)){
-		// If geometric comparison with multiple routes in base and comparison segments
-		var routeText = '';
-		var dirText = '';
-		var segText = '';
+    function formatDirection(directions, type) {
+        return `</br> ${type} Direction: ${[...new Set(directions)].toString()}`;
+    }
 
-		if ('base' in route){
-			var baseRoutes ='</br> Base:</b> ';
-			for(var i in route['base']){
-				baseRoutes += route['base'][i].toString();
-				baseRoutes += ', ';
-			}
-			baseRoutes = baseRoutes.slice(0, baseRoutes.length - 2);
-			baseRoutes += '<b>';
-			routeText += baseRoutes;
+    function formatStopPairs(stops, type) {
+        let stopPairs = stops.map(s => `(${s})`).join(', ');
+        return `</br> ${type} Stop Pairs: ${stopPairs}`;
+    }
 
-			var baseDirectionIDs = [];
-			for( var i in layer.options.directionID['base']){
-				baseDirectionIDs.push(layer.options.directionID['base'][i]);
-			}
-
-			var baseDirections = [...new Set(baseDirectionIDs)]; // Only unique values
-			dirText += '</br> Base Direction: ' + baseDirections.toString();
-
-			var baseSegs ='</br> Base Stop Pairs: ';
-			for(var i in layer.options.startStop){
-				baseSegs += '('
-				baseSegs += layer.options.startStop[i].toString();
-				baseSegs += '), ';
-			}
-			baseSegs = baseSegs.slice(0, baseSegs.length - 2);
-			segText += baseSegs;
-
-		} 
-
-		if ('comp' in route){
-			var compRoutes ='</br> Comp:</b> ';
-			for(var i in route['comp']){
-				compRoutes += route['comp'][i].toString();
-				compRoutes += ', ';
-			}
-			compRoutes = compRoutes.slice(0, compRoutes.length - 2);
-			compRoutes += '<b>';
-			routeText += compRoutes;
-
-			var compDirectionIDs = [];
-			for( var i in layer.options.directionID['comp']){
-				compDirectionIDs.push(layer.options.directionID['comp'][i]);
-			}
-
-			var compDirections = [...new Set(compDirectionIDs)]; // Only unique values
-			dirText += '</br> Comp Direction: ' + compDirections.toString();
-
-			var compSegs ='</br> Comp Stop Pairs: ';
-			for(var i in layer.options.endStop){
-				compSegs += '('
-				compSegs += layer.options.endStop[i].toString();
-				compSegs += '), ';
-			}
-			compSegs = compSegs.slice(0, compSegs.length - 2);
-			segText += compSegs;
-		} 
-
-		var popText = '<p><b> Routes: '+ routeText +'</b></br>'
-		+ dirText 
-		+ segText
-		+'</br> Note: ' + levelText + ' Level Metrics Listed</br></br>';
-
-		for(var m in levelMetrics[level]){
-			var metricValue = levelMetrics[level][m];
-			var metricName = units[metricValue]["label"];
-			var layerValue = layer.options[level + '-' + metricValue];
-			
-			try{
-				// If reasonably small number and not already an integer, include one decimal place
-				if ((Math.abs(layerValue) < 100) && (layerValue % 1 > 0)){
-					layerValue = layerValue.toFixed(1);
-				} else {
-					layerValue = layerValue.toFixed(0);
+    function formatMetrics(metrics, options, level) {
+        let text = '';
+        metrics.forEach(m => {
+            let metricValue = levelMetrics[level][m];
+				if ((comparisonIndicator == 0 && (((metricValue != 'route_id') && (metricValue in units)))) || comparisonIndicator == 1) {
+            		let metricName = units[metricValue]["label"];
 				}
-				popText += metricName + ': ' + layerValue + '</br>';
-			}
-			catch(err){
-				continue
-			}
-		}
-		
-		popText += '</p>';
-		popText += '</table>';
+            let value = options[level + '-' + metricValue];
+            if (typeof value !== 'undefined') {
+                value = Math.abs(value) < 100 && value % 1 > 0 ? value.toFixed(1) : value.toFixed(0);
+                text += `${metricName}: ${value}</br>`;
+            }
+        });
+        return text;
+    }
 
-	} else {
+    if ((typeof route === 'object') && (route !== null)) {
+        let routeText = '', dirText = '', segText = '';
 
-		// If in corridor mode, show all routes that pass through the corridor
-		if ( level === 'cor' ){
-			var corIndex = layer.options.corIndex;
-			if (Object.keys(corridorRoutes).includes(corIndex)){
-				route = corridorRoutes[layer.options.corIndex].toString();
-			} else {
-				route = "unknown";
-			}
-		}
+        if (route.base) {
+            routeText += formatRoutes(route.base, 'Base');
+            dirText += formatDirection(layer.options.directionID.base, 'Base');
+            segText += formatStopPairs(layer.options.startStop, 'Base');
+        }
 
-		var popText = '<p><b> Route: '+ route +'</b></br>'
-		+'</br> Direction: ' + directionLabels[layer.options.directionID]
-		+'</br> First Stop: ' + layer.options.startStop
-		+'</br> Last Stop: ' + layer.options.endStop
-		+'</br> Note: ' + levelText + ' Level Metrics Listed</br></br>';
+        if (route.comp) {
+            routeText += formatRoutes(route.comp, 'Comp');
+            dirText += formatDirection(layer.options.directionID.comp, 'Comp');
+            segText += formatStopPairs(layer.options.endStop, 'Comp');
+        }
 
-		if(comparisonIndicator === 0){
-			for(var m in levelMetrics[level]){
-				var metricValue = levelMetrics[level][m];
-				if ((metricValue != 'route_id') && (metricValue in units)) {
-					// console.log(metricValue)
-					var metricName = units[metricValue]["label"];
-					var layerValue = layer.options[level + '-' + metricValue];
-				}
-				
-				try{
-					// If reasonably small number and not already an integer, include one decimal place
-					if ((Math.abs(layerValue) < 100) && (layerValue % 1 > 0)){
-						layerValue = layerValue.toFixed(1);
-					} else {
-						layerValue = layerValue.toFixed(0);
-					}
-					popText += metricName + ': ' + layerValue + '</br>';
-				}
-				catch(err){
-					continue
-				}
-			}
-			
-			popText += '</p>';
-			
+        popText = `<p><b> Routes: ${routeText}</b>${dirText}${segText}</br> Note: ${levelText} Level Metrics Listed</br></br>`;
+        popText += formatMetrics(levelMetrics[level], layer.options, level);
+    } else {
+        // Simplified corridor mode and default popup text generation
+        if (level === 'cor' && corridorRoutes[layer.options.corIndex]) {
+            route = corridorRoutes[layer.options.corIndex].toString();
+        }
 
-		} else {
-			
-			popText += 
-			'<table>'
-			+	'<colgroup>'
-			+		'<col span="1" style="width: 50%;">'
-			+		'<col span="1" style="width: 20%;">'
-			+		'<col span="1" style="width: 20%;">'
-			+		'<col span="1" style="width: 10%;">'
-			+	'</colgroup>'
-			+ '<tr>'
-			+ 	'<th>Metric</th>'
-			+	'<th>' + transitFileDescription[selectedFile[0]] + '</th>'
-			+ 	'<th>' + transitFileDescription[selectedFile[1]] + '</th>'
-			+ 	'<th>Difference</th>'
-			+ '</tr>';
-			
-			for(var m in levelMetrics[level]){
-				var metricValue = levelMetrics[level][m];
-				var metricName = units[metricValue]["label"];
-				var diffValue = layer.options[level + '-' + metricValue];
-				var compValue = layer.options['comp-' + level + '-' + metricValue];
-				var baseValue = layer.options['base-' + level + '-' + metricValue];
-				try{
-					// If reasonably small number and not already an integer, include one decimal place
-					if ((Math.abs(compValue) < 100) && (compValue % 1 > 0)){
-						compValue = compValue.toFixed(1);
-					} else {
-						compValue = compValue.toFixed(0);
-					}
-				}catch(err){
-					continue
-				}
-				try{
-					// If reasonably small number and not already an integer, include one decimal place
-					if ((Math.abs(baseValue) < 100) && (baseValue % 1 > 0)){
-						baseValue = baseValue.toFixed(1);
-					} else {
-						baseValue = baseValue.toFixed(0);
-					}
-				}catch(err){
-					continue
-				}
-				try{
-					diffValue = compValue - baseValue
-					diffValue = Math.round(diffValue * 100) / 100
-					// If reasonably small number and not already an integer, include one decimal place
-					if ((Math.abs(diffValue) < 100) && (Math.abs(diffValue) % 1 > 0)){
-						diffValue = diffValue.toFixed(1);
-					} else {
-						diffValue = diffValue.toFixed(0);
-					}
-				}catch(err){
-					continue
-				}
-				popText += '<tr><td>' + metricName +'</td><td>'+ baseValue + '</td><td>'+ compValue + '</td><td>' + diffValue + '</td></tr>'
-			}
-			popText += '</table>';
-		}
-	}
-	layer.bindPopup(popText, {maxWidth : 350});
+        popText = `<p><b> Route: ${route}</b></br>Direction: ${directionLabels[layer.options.directionID]}</br>First Stop: ${layer.options.startStop}</br>Last Stop: ${layer.options.endStop}</br>Note: ${levelText} Level Metrics Listed</br></br>`;
+        popText += formatMetrics(levelMetrics[level], layer.options, level);
+    }
+
+    layer.bindPopup(popText, { maxWidth: 350 });
 }
 
 function zoomToExtents(){

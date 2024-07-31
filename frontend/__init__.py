@@ -32,6 +32,7 @@ def create_app(agency, test_config=None):
         with open(r'frontend/static/inputs/'+agency+'/presets.json') as data_file:
             data = data_file.read()
             presets = json.loads(data)
+
     except:
         presets = 0
 
@@ -53,13 +54,11 @@ def create_app(agency, test_config=None):
     # Initialize the map
     @app.route(url_prefix + "/")
     def index():
-
         # Add some information as a session variable for use in other routes
         session['viz_files'] = viz_files
         session['background_files'] = background_files
         session['agency'] = agency
         session['transit_files'] = transit_files
-
         # Initialize the map
         return render_template("index.html",
                                transit_files = transit_files,
