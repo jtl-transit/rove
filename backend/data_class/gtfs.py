@@ -9,9 +9,6 @@ from copy import deepcopy
 from backend.helper_functions import get_hash_of_stop_list, check_dataframe_column, check_parent_dir, \
     check_is_file
 from scipy.spatial import distance
-import cProfile
-import pstats
-import io
 
 
 logger = logging.getLogger("backendLogger")

@@ -2,18 +2,12 @@ import os
 import json
 from flask import Flask, render_template, session
 from . import load
-import cProfile
-import pstats
-import io
 
 def create_app(agency, test_config=None):
 
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(SECRET_KEY='dev')
-
-    profiler = cProfile.Profile()
-    profiler.enable()
 
     if test_config is None:
         # load the instance config, if it exists, when not testing

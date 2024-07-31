@@ -1,11 +1,8 @@
-from flask import (Blueprint, redirect, request, url_for, jsonify, session, Response, Flask)
+from flask import (Blueprint, redirect, request, url_for, jsonify, session, Response)
 from frontend.auxiliary_functions.dynamic_filter import dynamic_filter_process
 from frontend.auxiliary_functions.calculate_difference import paxflow_difference
 import json
 import pandas as pd
-import cProfile
-import pstats
-import io
 
 bp = Blueprint('load', __name__, url_prefix='/load')
 
@@ -15,9 +12,6 @@ def load_tables():
 
 	# This is used to update data based on time filter
     if request.method == 'PUT':
-
-        profiler = cProfile.Profile()
-        profiler.enable()
 
         # Get agency from session variable
         transit_files = session['transit_files']
@@ -68,10 +62,6 @@ def load_tables():
             response['tp_cor_median'] = metrics[str(period_id)+'-corridor-timepoints-median']
             response['tp_cor_ninety'] = metrics[str(period_id)+'-corridor-timepoints-90']
             response['timepoint_lookup'] = tp_lookup
-        
-        profiler.disable()  # Stop profiling after the function logic
-        s = io.StringIO()
-        ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
 
         return jsonify(response)
 
